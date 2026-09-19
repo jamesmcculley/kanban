@@ -1,0 +1,7 @@
+<div class="card" data-id="{{ card.id }}">
+  <a class="title" href="#" hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id) }}"
+     hx-target="#modal" hx-swap="innerHTML">{{ card.title }}</a>
+  {% if card.due %}<span class="due{% if card.due < today %} overdue{% endif %}">{{ card.due }}</span>{% endif %}
+  <button class="del" hx-delete="{{ url_for('boards.delete_card', slug=board.slug, card_id=card.id) }}"
+          hx-target="closest .card" hx-swap="outerHTML" aria-label="Delete card">×</button>
+</div>

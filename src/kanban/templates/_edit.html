@@ -1,0 +1,11 @@
+<div class="backdrop" onclick="if (event.target === this) this.remove()">
+  <form class="dialog" hx-post="{{ url_for('boards.update_card', slug=board.slug, card_id=card.id) }}">
+    <input name="title" value="{{ card.title }}" required>
+    <input name="due" value="{{ card.due or '' }}" placeholder="Due: tomorrow, fri, in 3 days, jun 5…">
+    <textarea name="body" rows="8" placeholder="Notes (Markdown)">{{ card.body }}</textarea>
+    <div class="actions">
+      <button type="button" onclick="this.closest('.backdrop').remove()">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</div>

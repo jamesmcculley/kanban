@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ board.title }}{% endblock %}
+{% block content %}
+  <header><h1>{{ board.title }}</h1></header>
+  <main class="board">
+    {% for name, cards in columns.items() %}
+    <section class="column" data-column="{{ name }}">
+      <h2>{{ name }}</h2>
+      <div class="cards">
+        {% for card in cards %}{% include "_card.html" %}{% endfor %}
+      </div>
+      <form hx-post="{{ url_for('boards.add_card', slug=board.slug) }}"
+            hx-target="previous .cards" hx-swap="beforeend"
+            hx-on::after-request="if (event.detail.successful) this.reset()">
+        <input type="hidden" name="column" value="{{ name }}">
+        <input name="title" placeholder="Add a card… (try “Call mum tomorrow”)" autocomplete="off" required>
+      </form>
+    </section>
+    {% endfor %}
+  </main>
+  <script>
+    const moveUrl = id => `{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}`.replace('ID', id);
+    document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
+      group: 'cards', animation: 150,
+      onEnd: e => htmx.ajax('POST', moveUrl(e.item.dataset.id), {
+        swap: 'none',
+        values: { column: e.to.closest('.column').dataset.column, index: e.newIndex },
+      }),
+    }));
+  </script>
+{% endblock %}

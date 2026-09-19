@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Kanban{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('boards.today_view') }}">Today</a>
+    <a href="{{ url_for('boards.upcoming_view') }}">Upcoming</a>
+    <span class="sep"></span>
+    {% for b in boards %}<a href="{{ url_for('boards.board', slug=b.slug) }}">{{ b.title }}</a>{% endfor %}
+    <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
+      <input name="title" placeholder="+ New board" autocomplete="off" required>
+    </form>
+  </nav>
+  {% block content %}{% endblock %}
+  <div id="modal"></div>
+</body>
+</html>

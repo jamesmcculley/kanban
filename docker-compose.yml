@@ -1,0 +1,24 @@
+# Joins an existing reverse-proxy network so the proxy can reach this app by
+# service name ("kanban:8000"). Set PROXY_NETWORK in .env (see .env.example).
+# The app has no authentication: keep the proxy route restricted to trusted networks.
+services:
+  kanban:
+    build: .
+    container_name: kanban
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      # Markdown files live here; a rebuild never touches them.
+      - kanban-data:/data
+    networks: [proxy]
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?set PROXY_NETWORK in .env}
+
+volumes:
+  kanban-data:
