@@ -57,7 +57,7 @@
     if (typing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
     if (pendingG) {
       pendingG = false;
-      const link = document.querySelector(`nav [data-go="${e.key}"]`);
+      const link = document.querySelector(`.sidebar [data-go="${e.key}"]`);
       if (link) { e.preventDefault(); link.click(); }
       return;
     }

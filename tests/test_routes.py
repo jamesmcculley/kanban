@@ -49,3 +49,28 @@ def test_agenda_hides_done_and_search_page(client):
     assert "Pay rent" not in client.get("/upcoming").text
     assert "Pay rent" in client.get("/search?q=rent").text
     assert "No cards match" in client.get("/search?q=zzzz").text
+
+
+def test_column_routes(client):
+    assert client.post("/b/my-board/columns", data={"name": "Later"}).headers["HX-Refresh"] == "true"
+    assert client.post("/b/my-board/columns", data={"name": "later"}).status_code == 400
+    r = client.post("/b/my-board/columns/rename", data={"old": "Later", "new": "Someday"})
+    assert r.status_code == 200
+    page = client.get("/b/my-board").text
+    assert 'value="Someday"' in page and 'value="Later"' not in page
+    client.post("/b/my-board/columns/hide", data={"name": "Someday", "hidden": "1"})
+    page = client.get("/b/my-board").text
+    assert "Hidden lists:" in page and 'data-column="Someday"' not in page
+    client.post("/b/my-board/columns/hide", data={"name": "Someday", "hidden": "0"})
+    assert 'data-column="Someday"' in client.get("/b/my-board").text
+    assert client.post("/b/my-board/columns/delete", data={"name": "Someday"}).status_code == 200
+    assert client.post("/b/my-board/columns/delete", data={"name": "Nope"}).status_code == 400
+    assert client.post("/b/nope/columns", data={"name": "x"}).status_code == 404
+
+
+def test_completion_stamp_shown_and_sidebar_layout(client):
+    cid, _ = _add(client, "x")
+    html = client.post(f"/b/my-board/cards/{cid}/complete").text
+    assert 'class="stamp"' in html and "✓" in html
+    page = client.get("/b/my-board").text
+    assert 'class="sidebar"' in page and 'data-go="t"' in page and "New board" in page

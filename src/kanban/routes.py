@@ -22,7 +22,9 @@ def store():
 
 @bp.app_context_processor
 def nav():
-    return {"boards": store().list_boards(), "today": date.today().isoformat()}
+    today = date.today().isoformat()
+    due_now = sum(1 for _, c in store().dated_cards() if c.due <= today)
+    return {"boards": store().list_boards(), "today": today, "today_count": due_now}
 
 
 @bp.get("/")
@@ -147,3 +149,44 @@ def today_view():
 def upcoming_view():
     today = date.today().isoformat()
     return _agenda("Upcoming", lambda d: d > today)
+
+
+# -- lists (columns): structural changes just refresh the board -----------------------------
+
+
+def _refresh():
+    resp = make_response("")
+    resp.headers["HX-Refresh"] = "true"
+    return resp
+
+
+def _column_action(slug, action, *args):
+    try:
+        action(slug, *args)
+    except KeyError:
+        abort(404)
+    except ValueError:
+        abort(400)
+    return _refresh()
+
+
+@bp.post("/b/<slug>/columns")
+def add_column(slug):
+    return _column_action(slug, store().add_column, request.form.get("name", ""))
+
+
+@bp.post("/b/<slug>/columns/rename")
+def rename_column(slug):
+    return _column_action(slug, store().rename_column, request.form.get("old", ""),
+                          request.form.get("new", ""))
+
+
+@bp.post("/b/<slug>/columns/hide")
+def hide_column(slug):
+    return _column_action(slug, store().set_column_hidden, request.form.get("name", ""),
+                          request.form.get("hidden") == "1")
+
+
+@bp.post("/b/<slug>/columns/delete")
+def delete_column(slug):
+    return _column_action(slug, store().delete_column, request.form.get("name", ""))

@@ -3,37 +3,51 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Kanban{% endblock %}</title>
+  <title>{% block title %}Trellis{% endblock %}</title>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <script src="{{ url_for('static', filename='keys.js') }}" defer></script>
 </head>
 <body>
-  <nav>
-    <a href="{{ url_for('boards.today_view') }}" data-go="t">Today</a>
-    <a href="{{ url_for('boards.upcoming_view') }}" data-go="u">Upcoming</a>
-    <span class="sep"></span>
-    {% for b in boards %}<a href="{{ url_for('boards.board', slug=b.slug) }}">{{ b.title }}</a>{% endfor %}
-    <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
-      <input name="title" placeholder="+ New board" autocomplete="off" required>
-    </form>
-    <form method="get" action="{{ url_for('boards.search') }}" class="search">
-      <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
-    </form>
-  </nav>
-  {% block content %}{% endblock %}
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('boards.index') }}">Trellis</a>
+      <form method="get" action="{{ url_for('boards.search') }}" class="search">
+        <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
+      </form>
+      <nav>
+        <a href="{{ url_for('boards.today_view') }}" data-go="t"
+           class="{{ 'active' if request.endpoint == 'boards.today_view' }}">
+          <span>Today</span>{% if today_count %}<span class="badge">{{ today_count }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('boards.upcoming_view') }}" data-go="u"
+           class="{{ 'active' if request.endpoint == 'boards.upcoming_view' }}"><span>Upcoming</span></a>
+        <h3>Boards</h3>
+        {% for b in boards %}
+        <a href="{{ url_for('boards.board', slug=b.slug) }}"
+           class="{{ 'active' if request.endpoint == 'boards.board' and request.view_args.slug == b.slug }}">
+          <span>{{ b.title }}</span></a>
+        {% endfor %}
+        <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
+          <input name="title" placeholder="+ New board" autocomplete="off" required>
+        </form>
+      </nav>
+      <button type="button" class="help-btn" onclick="document.getElementById('help').hidden = false">? Shortcuts</button>
+    </aside>
+    <div class="content">{% block content %}{% endblock %}</div>
+  </div>
   <div id="modal"></div>
-  <div id="help" class="backdrop" hidden>
+  <div id="help" class="backdrop" hidden onclick="if (event.target === this) this.hidden = true">
     <div class="dialog">
       <h3>Keyboard shortcuts</h3>
       <dl>
         <dt>j / k</dt><dd>next / previous card</dd>
-        <dt>h / l</dt><dd>previous / next column</dd>
-        <dt>H / L</dt><dd>move card to previous / next column</dd>
+        <dt>h / l</dt><dd>previous / next list</dd>
+        <dt>H / L</dt><dd>move card to previous / next list</dd>
         <dt>e</dt><dd>edit card</dd>
         <dt>x</dt><dd>complete card (repeating cards roll forward)</dd>
-        <dt>n</dt><dd>new card (in the selected column)</dd>
+        <dt>n</dt><dd>new card (in the selected list)</dd>
         <dt>/</dt><dd>search</dd>
         <dt>g t / g u</dt><dd>go to Today / Upcoming</dd>
         <dt>Esc</dt><dd>close dialog</dd>
