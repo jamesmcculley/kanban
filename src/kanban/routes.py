@@ -73,7 +73,7 @@ def add_card(slug):
         abort(400)
     try:
         card = store().add_card(slug, title, request.form.get("column", ""),
-                                due.isoformat() if due else None, rule, tags)
+                                due.isoformat() if due else None, rule, tags, top=True)
     except (KeyError, ValueError):
         abort(400)
     return render_template("_card.html", board=store().get_board(slug), card=card)

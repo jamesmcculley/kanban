@@ -10,8 +10,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <script src="{{ url_for('static', filename='keys.js') }}" defer></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='fab.js') }}" defer></script>
 </head>
 <body>
+  {% from "_icons.html" import icon %}
   <div class="app">
     <aside class="sidebar" data-layout-url="{{ url_for('boards.layout') }}" data-stats-url="{{ url_for('boards.sidebar_stats') }}">
       <a class="brand" href="{{ url_for('boards.index') }}">Trellis</a>
@@ -36,13 +38,6 @@
         <div class="boards-unassigned">
           {% for b in sidebar.unassigned %}{{ board_row(b, current_board) }}{% endfor %}
         </div>
-        <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
-          <input name="title" placeholder="+ New board" autocomplete="off" required>
-          <select name="kind" aria-label="Board type" title="Board type">
-            <option value="kanban">Lists</option>
-            <option value="canvas">Canvas</option>
-          </select>
-        </form>
 
         <div class="areas">
           {% for name, boards in sidebar.areas %}
@@ -77,6 +72,16 @@
     </aside>
     <div class="content">{% block content %}{% endblock %}</div>
   </div>
+  <div class="fab" id="fab" data-board-url="{{ url_for('boards.create_board') }}"
+       {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}data-list-url="{{ url_for('boards.add_column', slug=board.slug) }}"{% endif %}>
+    <form class="fab-form" hidden><input name="name" autocomplete="off" required aria-label="Name"></form>
+    <div class="fab-menu" hidden>
+      {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}<button type="button" data-action="list">New list</button>{% endif %}
+      <button type="button" data-action="board">New board</button>
+      <button type="button" data-action="canvas">New canvas</button>
+    </div>
+    <button type="button" class="fab-btn" aria-label="Add list, board or canvas" title="Add">{{ icon('plus', 24) }}</button>
+  </div>
   <div id="modal"></div>
   <div id="help" class="backdrop" hidden onclick="if (event.target === this) this.hidden = true">
     <div class="dialog">
@@ -87,7 +92,7 @@
         <dt>H / L</dt><dd>move card to previous / next list</dd>
         <dt>e</dt><dd>edit card</dd>
         <dt>x</dt><dd>complete card (repeating cards roll forward)</dd>
-        <dt>n</dt><dd>new card (in the selected list)</dd>
+        <dt>n</dt><dd>add a card to the selected list</dd>
         <dt>/</dt><dd>search</dd>
         <dt>#tag</dt><dd>add tags when typing a card: “Buy paint #home”</dd>
         <dt>g t / g u</dt><dd>go to Today / Upcoming</dd>

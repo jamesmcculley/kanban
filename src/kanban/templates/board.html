@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ board.title }}{% endblock %}
 {% block content %}
   <header class="page-head">
@@ -30,34 +31,29 @@
         </form>
         <span class="count">{{ cards|length }}</span>
         <div class="col-actions">
-          <button type="button" title="Hide this list" hx-swap="none"
+          <button type="button" title="Hide this list" aria-label="Hide list" hx-swap="none"
                   hx-post="{{ url_for('boards.hide_column', slug=board.slug) }}"
-                  hx-vals='{"name": {{ name|tojson }}, "hidden": "1"}'>Hide</button>
+                  hx-vals='{"name": {{ name|tojson }}, "hidden": "1"}'>{{ icon('eye-off') }}</button>
           {% if not cards %}
-          <button type="button" title="Delete this empty list" hx-swap="none"
+          <button type="button" title="Delete this empty list" aria-label="Delete list" hx-swap="none"
                   hx-post="{{ url_for('boards.delete_column', slug=board.slug) }}"
-                  hx-vals='{"name": {{ name|tojson }}}'>Delete</button>
+                  hx-vals='{"name": {{ name|tojson }}}'>{{ icon('trash') }}</button>
           {% endif %}
         </div>
+        <button type="button" class="add-card-btn" title="Add a card (n)" aria-label="Add card"
+                onclick="openAddCard(this.closest('.column'))">{{ icon('plus') }}</button>
       </div>
+      <form class="add-card" hidden hx-post="{{ url_for('boards.add_card', slug=board.slug) }}"
+            hx-target="next .cards" hx-swap="afterbegin"
+            hx-on::after-request="if (event.detail.successful) this.reset()">
+        <input type="hidden" name="column" value="{{ name }}">
+        <input name="title" placeholder="New card… (try “Call mum tomorrow #home”)" autocomplete="off" required>
+      </form>
       <div class="cards">
         {% for card in cards %}{% include "_card.html" %}{% endfor %}
       </div>
-      <form hx-post="{{ url_for('boards.add_card', slug=board.slug) }}"
-            hx-target="previous .cards" hx-swap="beforeend"
-            hx-on::after-request="if (event.detail.successful) this.reset()">
-        <input type="hidden" name="column" value="{{ name }}">
-        <input name="title" placeholder="Add a card… (try “Call mum tomorrow”)" autocomplete="off" required>
-      </form>
     </section>
     {% endfor %}
-    <section class="add-column">
-      <form hx-post="{{ url_for('boards.add_column', slug=board.slug) }}" hx-swap="none"
-            hx-on::response-error="this.querySelector('input').setCustomValidity('That name is taken or empty'); this.reportValidity()">
-        <input name="name" placeholder="+ Add list" autocomplete="off" required
-               oninput="this.setCustomValidity('')">
-      </form>
-    </section>
   </main>
   <script>
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {

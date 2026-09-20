@@ -73,7 +73,10 @@ def test_completion_stamp_shown_and_sidebar_layout(client):
     html = client.post(f"/b/my-board/cards/{cid}/complete").text
     assert 'class="stamp"' in html and "✓" in html
     page = client.get("/b/my-board").text
-    assert 'class="sidebar"' in page and 'data-go="t"' in page and "New board" in page
+    assert 'class="sidebar"' in page and 'data-go="t"' in page
+    assert 'id="fab"' in page and 'data-list-url="/b/my-board/columns"' in page
+    assert 'class="add-column"' not in page and 'class="newboard"' not in page      # moved into the +
+    assert 'aria-label="Hide list"' in page and 'aria-label="Add card"' in page
 
 
 def test_quick_add_tags_and_tag_page(client):
@@ -100,3 +103,16 @@ def test_layout_and_order_routes(client):
     assert client.post("/b/my-board/columns/order", json={"names": ["Todo"]}).status_code == 400
     page = client.get("/b/my-board").text
     assert page.index('data-column="Extra"') < page.index('data-column="Todo"')
+
+
+def test_cards_added_from_the_header_land_on_top(client):
+    _add(client, "zz-first-added")
+    _add(client, "zz-second-added")
+    page = client.get("/b/my-board").text
+    assert page.index("zz-second-added") < page.index("zz-first-added")
+
+
+def test_fab_has_no_list_option_on_canvas_pages(client):
+    client.post("/boards", data={"title": "Sketch", "kind": "canvas"})
+    page = client.get("/b/sketch").text
+    assert 'id="fab"' in page and "data-list-url" not in page and 'data-action="list"' not in page

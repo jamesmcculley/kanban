@@ -389,7 +389,8 @@ class Store(CanvasMixin):
         return hits
 
     def add_card(self, slug: str, title: str, column: str, due: str | None = None,
-                 repeat: str | None = None, tags: list[str] | None = None) -> Card:
+                 repeat: str | None = None, tags: list[str] | None = None,
+                 top: bool = False) -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
@@ -397,6 +398,9 @@ class Store(CanvasMixin):
         card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
                     repeat=repeat, tags=parse_tags(tags))
         self._save(slug, card)
+        if top and siblings:
+            self.move_card(slug, card.id, column, 0)
+            card.position = 0
         return card
 
     def move_card(self, slug: str, card_id: str, column: str, index: int) -> None:

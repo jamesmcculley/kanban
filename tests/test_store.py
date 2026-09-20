@@ -190,3 +190,14 @@ def test_reorder_columns_keeps_hidden_slots(store):
     assert store.get_board(b.slug).columns == ["D", "B", "C", "A"]
     with pytest.raises(ValueError):
         store.reorder_columns(b.slug, ["A", "B", "C", "D"])  # includes hidden -> mismatch
+
+
+def test_add_card_at_top(store):
+    b = store.create_board("B")
+    first = store.add_card(b.slug, "first", "Todo")
+    second = store.add_card(b.slug, "second", "Todo", top=True)
+    third = store.add_card(b.slug, "third", "Todo", top=True)
+    assert [c.id for c in store.cards_by_column(b.slug)["Todo"]] == [third.id, second.id, first.id]
+    assert [c.position for c in store.cards_by_column(b.slug)["Todo"]] == [0, 1, 2]
+    other = store.add_card(b.slug, "elsewhere", "Doing", top=True)          # empty list: no shuffling
+    assert store.get_card(b.slug, other.id).position == 0

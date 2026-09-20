@@ -171,3 +171,23 @@ h1 { margin:0; font-size:22px; }
 .image { padding:0; overflow:visible; } .image img { display:block; width:100%; height:auto; border-radius:8px; pointer-events:none; }
 .newboard { display:flex; gap:4px; } .newboard select { width:76px; padding:0 2px; border-radius:7px;
        border:1px solid var(--line); background:var(--card); color:var(--text); }
+
+/* floating add button, icon buttons, per-list "+" */
+.icon { display:block; }
+.fab { position:fixed; right:24px; bottom:24px; z-index:6; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+.fab-btn { width:54px; height:54px; border-radius:50%; border:0; background:var(--accent); color:#fff; cursor:pointer;
+           display:grid; place-items:center; box-shadow:0 4px 14px #0004; transition:transform .15s; }
+.fab-btn:hover { transform:scale(1.06); }
+.fab.open .fab-btn { transform:rotate(45deg); }
+.fab-menu { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+.fab-menu button { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:20px;
+                   padding:8px 16px; cursor:pointer; box-shadow:0 2px 8px #0003; }
+.fab-menu button:hover { border-color:var(--accent); }
+.fab-form { margin:0; } .fab-form[hidden], .fab-menu[hidden] { display:none; }
+.fab-form input { width:230px; padding:10px 12px; border-radius:20px; border:1px solid var(--accent);
+                  background:var(--card); color:var(--text); box-shadow:0 2px 8px #0003; }
+.col-actions button, .add-card-btn { display:grid; place-items:center; }
+.add-card-btn { border:0; background:none; color:var(--muted); cursor:pointer; padding:4px; border-radius:6px; }
+.add-card-btn:hover { background:#0001; color:var(--accent); }
+.add-card[hidden] { display:none; }
+.column > form.add-card { margin:0 0 10px; }

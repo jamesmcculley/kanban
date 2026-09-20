@@ -13,12 +13,24 @@ def drag(page, source, target, dy=0, fx=0.5):
 
 
 def add_card(page, column, text):
-    cards = page.locator(f'.column[data-column="{column}"] .card')
+    """Use the list header's + button; new cards land at the top of the list."""
+    col = page.locator(f'.column[data-column="{column}"]')
+    cards = col.locator(".card")
     before = cards.count()
-    box = page.locator(f'.column[data-column="{column}"] input[name=title]')
+    box = col.locator("input[name=title]")
+    if not box.is_visible():
+        col.get_by_role("button", name="Add card").click()
     box.fill(text)
     box.press("Enter")
     expect(cards).to_have_count(before + 1)  # wait: the form resets itself after the request
+
+
+def fab_add(page, what, name):
+    """what: 'New list' | 'New board' | 'New canvas'"""
+    page.click(".fab-btn")
+    page.get_by_role("button", name=what).click()
+    page.fill(".fab-form input", name)
+    page.press(".fab-form input", "Enter")
 
 
 def column_order(page):
@@ -51,8 +63,7 @@ def test_complete_stamps_time_and_edit_in_place(page):
 
 
 def test_add_rename_hide_delete_lists(page):
-    page.fill(".add-column input", "Later")
-    page.press(".add-column input", "Enter")
+    fab_add(page, "New list", "Later")
     expect(page.locator('.column[data-column="Later"]')).to_be_visible()
 
     title = page.locator('.column[data-column="Later"] .col-title')
@@ -63,7 +74,7 @@ def test_add_rename_hide_delete_lists(page):
     add_card(page, "Someday", "parked")
     col = page.locator('.column[data-column="Someday"]')
     col.hover()
-    col.get_by_role("button", name="Hide").click()
+    col.get_by_role("button", name="Hide list").click()
     expect(page.locator('.column[data-column="Someday"]')).to_have_count(0)
     chip = page.locator(".chip", has_text="Someday")
     expect(chip).to_contain_text("1")
@@ -91,8 +102,7 @@ def test_drag_card_between_lists(page):
 
 
 def test_areas_and_board_dragging(page):
-    page.fill(".newboard input", "Garden")
-    page.press(".newboard input", "Enter")
+    fab_add(page, "New board", "Garden")
     page.wait_for_url("**/b/garden")
     page.fill(".newarea input", "Home")
     page.press(".newarea input", "Enter")
@@ -126,9 +136,10 @@ def test_keyboard_shortcuts(page):
         });
     """)
     page.reload()
-    add_card(page, "Todo", "first")
     add_card(page, "Todo", "second")
+    add_card(page, "Todo", "first")                    # new cards go to the top
     page.locator("body").click(position={"x": 700, "y": 700})
+    page.keyboard.press("Escape")
     page.keyboard.press("j")
     expect(page.locator(".card.selected")).to_contain_text("first")
     page.keyboard.press("j")
@@ -161,9 +172,7 @@ PNG = base64.b64decode(
 
 
 def open_canvas(page, name="Sketch"):
-    page.select_option(".newboard select", "canvas")
-    page.fill(".newboard input", name)
-    page.press(".newboard input", "Enter")
+    fab_add(page, "New canvas", name)
     page.wait_for_selector("#canvas")
 
 
@@ -277,3 +286,42 @@ def test_canvas_nested_board(page):
     page.mouse.move(box["x"] + 150, box["y"] + 100, steps=6)
     page.mouse.up()
     expect(page).to_have_url(__import__("re").compile(r"/b/parent-canvas$"))   # a drag must not navigate
+
+
+def test_fab_menu_contents_and_new_card_placement(page):
+    # on a lists board the + offers list, board and canvas; on a canvas, no "New list"
+    page.click(".fab-btn")
+    for name in ("New list", "New board", "New canvas"):
+        expect(page.get_by_role("button", name=name)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.locator(".fab-menu")).to_be_hidden()
+    page.click(".fab-btn")
+    page.click(".fab-btn")                              # second click closes it again
+    expect(page.locator(".fab-menu")).to_be_hidden()
+
+    # header + reveals the input; cards go to the top; Esc hides an empty input
+    col = page.locator('.column[data-column="Todo"]')
+    expect(col.locator(".add-card")).to_be_hidden()
+    add_card(page, "Todo", "one")
+    add_card(page, "Todo", "two")
+    assert col.locator(".card .title").all_inner_texts() == ["two", "one"]
+    page.keyboard.press("Escape")
+    expect(col.locator(".add-card")).to_be_hidden()
+    page.reload()
+    assert col.locator(".card .title").all_inner_texts() == ["two", "one"]      # order persisted
+
+    page.keyboard.press("n")                            # keyboard shortcut opens the same input
+    expect(col.locator("input[name=title]")).to_be_focused()
+
+    fab_add(page, "New canvas", "Board B")
+    page.wait_for_selector("#canvas")
+    page.click(".fab-btn")
+    expect(page.get_by_role("button", name="New list")).to_have_count(0)
+    expect(page.get_by_role("button", name="New board")).to_be_visible()
+
+
+def test_fab_rejects_duplicate_list_name(page):
+    page.expected_errors.append("status of 400")       # the refused duplicate is the point
+    fab_add(page, "New list", "todo")                   # clashes with "Todo", case-insensitively
+    expect(page.locator(".fab-form input")).to_have_js_property("validationMessage", "That name is taken or not allowed")
+    expect(page.locator(".column")).to_have_count(3)

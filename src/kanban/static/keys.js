@@ -54,6 +54,25 @@
       method: 'POST', body: new URLSearchParams({ column, index }),
     }).then(r => { if (!r.ok) location.reload(); });
 
+  // Reveal a list's "new card" input (it lives under the list header) and focus it.
+  window.openAddCard = col => {
+    const form = col?.querySelector('.add-card');
+    if (!form) return;
+    form.hidden = false;
+    form.querySelector('input[name=title]').focus();
+  };
+
+  // Collapse an empty "new card" input once focus leaves it. Deferred on purpose: collapsing on
+  // mousedown shifts the list up before mouseup, so the click (or card drag) that caused the blur
+  // would land on the wrong element.
+  document.addEventListener('focusout', e => {
+    const form = e.target.closest?.('.add-card');
+    if (!form) return;
+    setTimeout(() => {
+      if (!form.querySelector('input[name=title]').value && !form.contains(document.activeElement)) form.hidden = true;
+    }, 250);
+  });
+
   const closeOverlays = () => {
     document.querySelectorAll('.backdrop').forEach(b => b.id === 'help' ? (b.hidden = true) : b.remove());
     document.activeElement?.blur();
@@ -84,12 +103,7 @@
       case 'L': shift(1); break;
       case 'e': el?.querySelector('.title[hx-get]')?.click(); break;
       case 'x': el?.querySelector('.check')?.click(); break;
-      case 'n': {
-        const col = colOf(el) ?? boardCols()[0];
-        const input = col?.querySelector('input[name=title]');
-        if (input) { e.preventDefault(); input.focus(); }
-        break;
-      }
+      case 'n': openAddCard(colOf(el) ?? boardCols()[0]); break;
       case '/': e.preventDefault(); document.querySelector('.search input')?.focus(); break;
       case '?': { const h = document.getElementById('help'); h.hidden = !h.hidden; break; }
       case 'g': pendingG = true; setTimeout(() => (pendingG = false), 1000); break;
