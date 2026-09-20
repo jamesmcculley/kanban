@@ -134,3 +134,59 @@ def test_delete_column_only_when_empty(store):
         store.delete_column(b.slug, "Todo")
     store.delete_column(b.slug, "Doing")
     assert store.get_board(b.slug).columns == ["Todo", "Done"]
+
+
+def test_tags_parse_and_split():
+    from kanban.store import parse_tags, split_tags
+    assert parse_tags("#Home, errand  home #9lives") == ["home", "errand"]
+    assert split_tags("Buy paint #home #Errand tomorrow") == ("Buy paint tomorrow", ["home", "errand"])
+    assert split_tags("Fix bug #123") == ("Fix bug #123", [])           # numbers are not tags
+    assert split_tags("mail a#b") == ("mail a#b", [])                    # must start a word
+
+
+def test_tags_persist_search_counts(store):
+    b = store.create_board("B")
+    c = store.add_card(b.slug, "paint", "Todo", tags=["home", "errand"])
+    store.add_card(b.slug, "other", "Todo", tags=["home"])
+    assert store.get_card(b.slug, c.id).tags == ["home", "errand"]
+    assert store.tag_counts() == [("errand", 1), ("home", 2)]
+    assert len(store.search("#errand")) == 1
+    store.complete_card(b.slug, c.id)
+    assert store.tag_counts() == [("home", 1)]            # done cards stop counting
+    assert [x.title for _, x in store.cards_with_tag("home")] == ["other", "paint"]  # open first
+    store.update_card(b.slug, c.id, "paint", "", None, None, ["Garden"])
+    assert store.get_card(b.slug, c.id).tags == ["garden"]
+
+
+def test_board_order_and_areas(store):
+    for title in ("Alpha", "Beta", "Gamma"):
+        store.create_board(title)
+    assert [x.slug for x in store.list_boards()] == ["alpha", "beta", "gamma"]
+    store.add_area("Home")
+    store.add_area("Work")
+    store.apply_layout(["Work", "Home"], {"": ["gamma"], "Work": ["beta"], "Home": ["alpha"]})
+    assert store.areas() == ["Work", "Home"]
+    assert [x.slug for x in store.list_boards()] == ["gamma", "beta", "alpha"]
+    tree = store.sidebar()
+    assert [x.slug for x in tree["unassigned"]] == ["gamma"]
+    assert [(n, [x.slug for x in bs]) for n, bs in tree["areas"]] == [("Work", ["beta"]), ("Home", ["alpha"])]
+    store.rename_area("Work", "Job")
+    assert store.get_board("beta").area == "Job" and store.areas() == ["Job", "Home"]
+    with pytest.raises(ValueError):
+        store.delete_area("Job")                       # not empty
+    store.apply_layout(["Job", "Home"], {"": ["gamma", "beta"], "Home": ["alpha"]})
+    store.delete_area("Job")
+    assert store.areas() == ["Home"]
+    with pytest.raises(ValueError):
+        store.apply_layout(["Home", "Ghost"], {})       # stale area list
+    with pytest.raises(KeyError):
+        store.apply_layout(["Home"], {"Home": ["nope"]})  # forged slug
+
+
+def test_reorder_columns_keeps_hidden_slots(store):
+    b = store.create_board("B", ["A", "B", "C", "D"])
+    store.set_column_hidden(b.slug, "B", True)
+    store.reorder_columns(b.slug, ["D", "C", "A"])
+    assert store.get_board(b.slug).columns == ["D", "B", "C", "A"]
+    with pytest.raises(ValueError):
+        store.reorder_columns(b.slug, ["A", "B", "C", "D"])  # includes hidden -> mismatch

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -34,6 +35,7 @@ class Card:
     done: bool = False
     completed: str | None = None  # ISO timestamp of when it was checked off
     last_completed: str | None = None  # repeating cards: when it last rolled forward
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -42,6 +44,29 @@ class Board:
     title: str
     columns: list[str] = field(default_factory=lambda: list(DEFAULT_COLUMNS))
     hidden: list[str] = field(default_factory=list)  # lists that exist but are tucked away
+    area: str | None = None  # sidebar group ("Home", "Work"...)
+    position: int = 0  # sidebar order
+
+
+_TAG = re.compile(r"[a-z][a-z0-9_-]*")
+_TITLE_TAG = re.compile(r"(?:^|(?<=\s))#([A-Za-z][A-Za-z0-9_-]*)(?![\w-])")
+
+
+def parse_tags(value) -> list[str]:
+    """'#Home, errand  home' -> ['home', 'errand']: lowercase, deduped, order kept."""
+    parts = re.split(r"[,\s]+", value) if isinstance(value, str) else [str(v) for v in value or []]
+    tags: list[str] = []
+    for part in parts:
+        tag = part.strip().lstrip("#").lower()
+        if _TAG.fullmatch(tag) and tag not in tags:
+            tags.append(tag)
+    return tags
+
+
+def split_tags(title: str) -> tuple[str, list[str]]:
+    """'Buy paint #home #errand' -> ('Buy paint', ['home', 'errand'])."""
+    tags = parse_tags(_TITLE_TAG.findall(title))
+    return " ".join(_TITLE_TAG.sub("", title).split()), tags
 
 
 def slugify(text: str) -> str:
@@ -77,6 +102,7 @@ def _card_from(meta: dict, body: str) -> Card:
         position=meta.get("position", 0), due=_iso(meta, "due"), body=body,
         repeat=meta.get("repeat") or None, done=bool(meta.get("done")),
         completed=_iso(meta, "completed"), last_completed=_iso(meta, "last_completed"),
+        tags=parse_tags(meta.get("tags")),
     )
 
 
@@ -94,9 +120,8 @@ class Store:
         return self.root / slug
 
     def list_boards(self) -> list[Board]:
-        return [
-            self.get_board(p.parent.name) for p in sorted(self.root.glob("*/board.md"))
-        ]
+        boards = [self.get_board(p.parent.name) for p in sorted(self.root.glob("*/board.md"))]
+        return sorted(boards, key=lambda b: (b.position, b.slug))
 
     def get_board(self, slug: str) -> Board:
         path = self._board_dir(slug) / "board.md"
@@ -105,22 +130,100 @@ class Store:
         meta, _ = _read(path)
         columns = meta.get("columns", list(DEFAULT_COLUMNS))
         hidden = [c for c in meta.get("hidden", []) if c in columns]
-        return Board(slug, meta.get("title", slug), columns, hidden)
+        return Board(slug, meta.get("title", slug), columns, hidden,
+                     area=meta.get("area") or None, position=int(meta.get("position") or 0))
 
     def _save_board(self, board: Board) -> None:
         meta = {"title": board.title, "columns": board.columns}
         if board.hidden:
             meta["hidden"] = board.hidden
+        if board.area:
+            meta["area"] = board.area
+        if board.position:
+            meta["position"] = board.position
         _write(self._board_dir(board.slug) / "board.md", meta)
 
     def create_board(self, title: str, columns: list[str] | None = None) -> Board:
         slug, n = slugify(title), 2
         while (self.root / slug).exists():
             slug, n = f"{slugify(title)}-{n}", n + 1
-        board = Board(slug, title, columns or list(DEFAULT_COLUMNS))
+        last = max((b.position for b in self.list_boards()), default=0)
+        board = Board(slug, title, columns or list(DEFAULT_COLUMNS), position=last + 1)
         (self.root / slug / "cards").mkdir(parents=True)
         self._save_board(board)
         return board
+
+    # -- areas: named groups of boards in the sidebar ---------------------
+
+    def _meta_path(self) -> Path:
+        return self.root / ".trellis.yml"
+
+    def _meta(self) -> dict:
+        path = self._meta_path()
+        return (yaml.safe_load(path.read_text(encoding="utf-8")) or {}) if path.exists() else {}
+
+    def _save_areas(self, names: list[str]) -> None:
+        meta = self._meta()
+        meta["areas"] = names
+        self._meta_path().write_text(yaml.safe_dump(meta, sort_keys=False, allow_unicode=True),
+                                     encoding="utf-8")
+
+    def areas(self) -> list[str]:
+        """Ordered area names, including any a board mentions that the meta file lacks."""
+        names = list(self._meta().get("areas") or [])
+        for board in self.list_boards():
+            if board.area and board.area not in names:
+                names.append(board.area)
+        return names
+
+    def sidebar(self) -> dict:
+        """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}."""
+        boards = self.list_boards()
+        names = self.areas()
+        return {
+            "unassigned": [b for b in boards if b.area not in names],
+            "areas": [(n, [b for b in boards if b.area == n]) for n in names],
+        }
+
+    def add_area(self, name: str) -> None:
+        names = self.areas()
+        self._save_areas(names + [self._clean_name(name, names)])
+
+    def rename_area(self, old: str, new: str) -> None:
+        names = self.areas()
+        if old not in names:
+            raise ValueError(f"unknown area: {old}")
+        new = self._clean_name(new, [n for n in names if n != old])
+        self._save_areas([new if n == old else n for n in names])
+        for board in self.list_boards():
+            if board.area == old:
+                board.area = new
+                self._save_board(board)
+
+    def delete_area(self, name: str) -> None:
+        names = self.areas()
+        if name not in names:
+            raise ValueError(f"unknown area: {name}")
+        if any(b.area == name for b in self.list_boards()):
+            raise ValueError("area is not empty")
+        self._save_areas([n for n in names if n != name])
+
+    def apply_layout(self, areas: list[str], boards_by_area: dict[str, list[str]]) -> None:
+        """Save a drag-and-drop result: area order, and which boards sit where.
+
+        `boards_by_area` maps an area name (or "" for no area) to slugs in display order.
+        """
+        if sorted(areas) != sorted(self.areas()):
+            raise ValueError("areas changed underneath you; reload")
+        known = {b.slug: b for b in self.list_boards()}
+        position = 0
+        for area in ["", *areas]:
+            for slug in boards_by_area.get(area, []):
+                board = known[slug]  # KeyError for a stale/forged slug
+                position += 1
+                board.area, board.position = (area or None), position
+                self._save_board(board)
+        self._save_areas(areas)
 
     # -- lists (columns) ------------------------------------------------
 
@@ -153,6 +256,16 @@ class Store:
                 card.column = new
                 self._save(slug, card)
 
+    def reorder_columns(self, slug: str, names: list[str]) -> None:
+        """Reorder the visible lists; hidden lists keep their slots."""
+        board = self.get_board(slug)
+        slots = [i for i, c in enumerate(board.columns) if c not in board.hidden]
+        if sorted(names) != sorted(board.columns[i] for i in slots):
+            raise ValueError("lists changed underneath you; reload")
+        for slot, name in zip(slots, names, strict=True):
+            board.columns[slot] = name
+        self._save_board(board)
+
     def set_column_hidden(self, slug: str, name: str, hidden: bool) -> None:
         board = self.get_board(slug)
         if name not in board.columns:
@@ -184,6 +297,8 @@ class Store:
             meta["due"] = card.due
         if card.repeat:
             meta["repeat"] = card.repeat
+        if card.tags:
+            meta["tags"] = card.tags
         if card.done:
             meta["done"] = True
             if card.completed:
@@ -211,9 +326,10 @@ class Store:
         return _card_from(*_read(path))
 
     def update_card(self, slug: str, card_id: str, title: str, body: str, due: str | None,
-                    repeat: str | None = None) -> Card:
+                    repeat: str | None = None, tags: list[str] | None = None) -> Card:
         card = self.get_card(slug, card_id)
         card.title, card.body, card.due, card.repeat = title, body, due or None, repeat or None
+        card.tags = parse_tags(tags)
         self._save(slug, card)
         return card
 
@@ -234,12 +350,26 @@ class Store:
         self._save(slug, card)
         return card
 
+    def all_cards(self) -> list[tuple[Board, Card]]:
+        return [(b, c) for b in self.list_boards() for c in self.list_cards(b.slug)]
+
+    def cards_with_tag(self, tag: str) -> list[tuple[Board, Card]]:
+        """Open cards first, then completed ones."""
+        hits = [(b, c) for b, c in self.all_cards() if tag in c.tags]
+        return sorted(hits, key=lambda bc: bc[1].done)
+
+    def tag_counts(self) -> list[tuple[str, int]]:
+        """Tags on open cards outside hidden lists, alphabetical."""
+        counts = Counter(t for b, c in self.all_cards()
+                         if not c.done and c.column not in b.hidden for t in c.tags)
+        return sorted(counts.items())
+
     def dated_cards(self) -> list[tuple[Board, Card]]:
         """Every open card with a due date, across all boards, soonest first.
 
         Cards in hidden lists are left out: hiding a list means "not now".
         """
-        found = [(b, c) for b in self.list_boards() for c in self.list_cards(b.slug)
+        found = [(b, c) for b, c in self.all_cards()
                  if c.due and not c.done and c.column not in b.hidden]
         return sorted(found, key=lambda bc: (str(bc[1].due), bc[0].slug, bc[1].position))
 
@@ -251,19 +381,19 @@ class Store:
         hits = []
         for b in self.list_boards():
             for c in self.list_cards(b.slug):
-                hay = f"{c.title}\n{c.body}\n{b.title}".lower()
+                hay = f"{c.title}\n{c.body}\n{b.title}\n{' '.join('#' + t for t in c.tags)}".lower()
                 if all(t in hay for t in terms):
                     hits.append((b, c))
         return hits
 
     def add_card(self, slug: str, title: str, column: str, due: str | None = None,
-                 repeat: str | None = None) -> Card:
+                 repeat: str | None = None, tags: list[str] | None = None) -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
         siblings = self.cards_by_column(slug)[column]
         card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
-                    repeat=repeat)
+                    repeat=repeat, tags=parse_tags(tags))
         self._save(slug, card)
         return card
 

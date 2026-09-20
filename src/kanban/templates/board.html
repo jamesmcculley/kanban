@@ -16,10 +16,11 @@
     </div>
     {% endif %}
   </header>
-  <main class="board" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
+  <main class="board" data-order-url="{{ url_for('boards.order_columns', slug=board.slug) }}" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
     {% for name, cards in columns.items() if name not in board.hidden %}
     <section class="column" data-column="{{ name }}">
       <div class="col-head">
+        <span class="grip col-grip" title="Drag to reorder lists">⋮⋮</span>
         <form hx-post="{{ url_for('boards.rename_column', slug=board.slug) }}" hx-swap="none"
               hx-on::response-error="location.reload()">
           <input type="hidden" name="old" value="{{ name }}">
@@ -60,11 +61,20 @@
   <script>
     const moveUrl = id => document.querySelector('.board').dataset.moveUrl.replace('ID', id);
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
-      group: 'cards', animation: 150, preventOnFilter: false, filter: '.check, .del, .title',
+      group: 'cards', animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
       onEnd: e => htmx.ajax('POST', moveUrl(e.item.dataset.id), {
         swap: 'none',
         values: { column: e.to.closest('.column').dataset.column, index: e.newIndex },
       }),
     }));
+    const board = document.querySelector('.board');
+    new Sortable(board, {
+      animation: 150, handle: '.col-grip', draggable: '.column',
+      onMove: e => !e.related.classList.contains('add-column'),   // keep "+ Add list" last
+      onEnd: () => fetch(board.dataset.orderUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names: [...board.querySelectorAll('.column')].map(c => c.dataset.column) }),
+      }).then(r => { if (!r.ok) location.reload(); }),
+    });
   </script>
 {% endblock %}

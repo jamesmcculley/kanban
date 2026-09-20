@@ -4,34 +4,70 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Trellis{% endblock %}</title>
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/Sortable.min.js') }}"></script>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <script src="{{ url_for('static', filename='keys.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar">
+    <aside class="sidebar" data-layout-url="{{ url_for('boards.layout') }}" data-stats-url="{{ url_for('boards.sidebar_stats') }}">
       <a class="brand" href="{{ url_for('boards.index') }}">Trellis</a>
       <form method="get" action="{{ url_for('boards.search') }}" class="search">
         <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
       </form>
+      {% macro board_row(b, current) %}
+      <div class="board-row" data-slug="{{ b.slug }}">
+        <span class="grip" title="Drag to reorder or move to an area">⋮⋮</span>
+        <a href="{{ url_for('boards.board', slug=b.slug) }}" class="{{ 'active' if current == b.slug }}"><span>{{ b.title }}</span></a>
+      </div>
+      {% endmacro %}
       <nav>
         <a href="{{ url_for('boards.today_view') }}" data-go="t"
            class="{{ 'active' if request.endpoint == 'boards.today_view' }}">
-          <span>Today</span>{% if today_count %}<span class="badge">{{ today_count }}</span>{% endif %}
+          <span>Today</span><span id="today-badge">{% include "_badge.html" %}</span>
         </a>
         <a href="{{ url_for('boards.upcoming_view') }}" data-go="u"
            class="{{ 'active' if request.endpoint == 'boards.upcoming_view' }}"><span>Upcoming</span></a>
+
         <h3>Boards</h3>
-        {% for b in boards %}
-        <a href="{{ url_for('boards.board', slug=b.slug) }}"
-           class="{{ 'active' if request.endpoint == 'boards.board' and request.view_args.slug == b.slug }}">
-          <span>{{ b.title }}</span></a>
-        {% endfor %}
+        <div class="boards-unassigned">
+          {% for b in sidebar.unassigned %}{{ board_row(b, current_board) }}{% endfor %}
+        </div>
         <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
           <input name="title" placeholder="+ New board" autocomplete="off" required>
         </form>
+
+        <div class="areas">
+          {% for name, boards in sidebar.areas %}
+          <div class="area" data-area="{{ name }}">
+            <div class="area-head">
+              <span class="grip area-grip" title="Drag to reorder areas">⋮⋮</span>
+              <form hx-post="{{ url_for('boards.rename_area') }}" hx-swap="none"
+                    hx-on::response-error="location.reload()">
+                <input type="hidden" name="old" value="{{ name }}">
+                <input class="area-title" name="new" value="{{ name }}" aria-label="Area name" autocomplete="off"
+                       onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
+              </form>
+              {% if not boards %}
+              <button type="button" class="mini" title="Delete this empty area" hx-swap="none"
+                      hx-post="{{ url_for('boards.delete_area') }}" hx-vals='{"name": {{ name|tojson }}}'>×</button>
+              {% endif %}
+            </div>
+            <div class="area-boards">
+              {% for b in boards %}{{ board_row(b, current_board) }}{% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <form hx-post="{{ url_for('boards.add_area') }}" hx-swap="none" class="newarea"
+              hx-on::response-error="this.querySelector('input').setCustomValidity('That name is taken or empty'); this.reportValidity()">
+          <input name="name" placeholder="+ New area" autocomplete="off" required oninput="this.setCustomValidity('')">
+        </form>
+
+        <div id="tag-section">{% include "_tags.html" %}</div>
       </nav>
       <button type="button" class="help-btn" onclick="document.getElementById('help').hidden = false">? Shortcuts</button>
     </aside>
@@ -49,6 +85,7 @@
         <dt>x</dt><dd>complete card (repeating cards roll forward)</dd>
         <dt>n</dt><dd>new card (in the selected list)</dd>
         <dt>/</dt><dd>search</dd>
+        <dt>#tag</dt><dd>add tags when typing a card: “Buy paint #home”</dd>
         <dt>g t / g u</dt><dd>go to Today / Upcoming</dd>
         <dt>Esc</dt><dd>close dialog</dd>
       </dl>

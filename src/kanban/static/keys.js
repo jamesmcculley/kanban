@@ -1,6 +1,6 @@
 // Keyboard layer: j/k/h/l select, e edit, x complete, n new, H/L move, / search, ? help.
 (() => {
-  const typing = t => t.closest('input, textarea, select');
+  const typing = t => t.closest('input, textarea, select, [contenteditable]');
   const select_ = { el: null, id: null };
   const boardCols = () => [...document.querySelectorAll('.column')];
   const colOf = el => el?.closest('.column');
@@ -69,7 +69,7 @@
       case 'l': sideways(1); break;
       case 'H': shift(-1); break;
       case 'L': shift(1); break;
-      case 'e': el?.querySelector('a.title')?.click(); break;
+      case 'e': el?.querySelector('.title[hx-get]')?.click(); break;
       case 'x': el?.querySelector('.check')?.click(); break;
       case 'n': {
         const col = colOf(el) ?? boardCols()[0];

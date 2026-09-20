@@ -2,12 +2,14 @@
   <input type="checkbox" class="check" {% if card.done %}checked{% endif %} aria-label="Complete"
          hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id) }}"
          hx-target="closest .card" hx-swap="outerHTML">
-  <a class="title" href="#" hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id) }}"
-     hx-target="#modal" hx-swap="innerHTML">{{ card.title }}</a>
+  {# a span, not a link: Sortable can't start a drag from an <a>, and the title fills the card #}
+  <span class="title" role="button" tabindex="0" hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id) }}"
+        hx-trigger="click, keydown[key=='Enter']" hx-target="#modal" hx-swap="innerHTML">{{ card.title }}</span>
   {% if card.repeat %}<span class="repeat" title="{{ card.repeat }}">↻</span>{% endif %}
   {% if card.completed and card.done %}<span class="stamp" title="Completed {{ card.completed|stamp }}">✓ {{ card.completed|stamp }}</span>
   {% elif card.last_completed %}<span class="stamp" title="Last completed {{ card.last_completed|stamp }}">✓ {{ card.last_completed|stamp }}</span>{% endif %}
   {% if card.due %}<span class="due{% if card.due < today and not card.done %} overdue{% endif %}">{{ card.due }}</span>{% endif %}
+  {% if card.tags %}<div class="card-tags">{% for t in card.tags %}<a class="tag" href="{{ url_for('boards.tag_view', tag=t) }}">#{{ t }}</a>{% endfor %}</div>{% endif %}
   <button class="del" hx-delete="{{ url_for('boards.delete_card', slug=board.slug, card_id=card.id) }}"
           hx-target="closest .card" hx-swap="outerHTML" aria-label="Delete card">×</button>
 </div>

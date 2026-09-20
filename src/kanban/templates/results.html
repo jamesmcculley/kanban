@@ -1,17 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Search{% endblock %}
+{% block title %}{{ heading }}{% endblock %}
 {% block content %}
-  <header class="page-head"><h1>Search{% if q %}: {{ q }}{% endif %}</h1></header>
+  <header class="page-head"><h1>{{ heading }}</h1></header>
   <main class="agenda">
     {% for board, card in results %}
       <div class="row{% if card.done %} done{% endif %}" data-id="{{ card.id }}">
         <input type="checkbox" class="check" aria-label="Complete" hx-swap="none" {% if card.done %}checked{% endif %}
                hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id, refresh=1) }}">
-        <span class="title">{{ card.title }}{% if card.done and card.completed %} <span class="stamp">✓ {{ card.completed|stamp }}</span>{% endif %}{% if card.due %} <span class="due">{{ card.due }}</span>{% endif %}</span>
+        <span class="title">{{ card.title }}
+          {% for t in card.tags %}<a class="tag" href="{{ url_for('boards.tag_view', tag=t) }}">#{{ t }}</a>{% endfor %}
+          {% if card.done and card.completed %}<span class="stamp">✓ {{ card.completed|stamp }}</span>{% endif %}
+          {% if card.due %}<span class="due">{{ card.due }}</span>{% endif %}</span>
         <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }} / {{ card.column }}</a>
       </div>
     {% else %}
-      <p class="empty">{% if q %}No cards match.{% else %}Type something to search cards, notes and board names.{% endif %}</p>
+      <p class="empty">{{ empty }}</p>
     {% endfor %}
   </main>
 {% endblock %}

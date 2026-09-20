@@ -74,3 +74,29 @@ def test_completion_stamp_shown_and_sidebar_layout(client):
     assert 'class="stamp"' in html and "✓" in html
     page = client.get("/b/my-board").text
     assert 'class="sidebar"' in page and 'data-go="t"' in page and "New board" in page
+
+
+def test_quick_add_tags_and_tag_page(client):
+    _, html = _add(client, "Buy paint #home tomorrow")
+    assert "Buy paint" in html and "#home" in html and "tomorrow" not in html.split("</a>")[0]
+    page = client.get("/tag/home").text
+    assert "Buy paint" in page and "#home" in page
+    assert "#home" in client.get("/b/my-board").text      # sidebar tag list
+    assert "No cards with this tag." in client.get("/tag/zzz").text
+
+
+def test_layout_and_order_routes(client):
+    client.post("/areas", data={"name": "Home"})
+    client.post("/boards", data={"title": "Second"})
+    r = client.post("/layout", json={"areas": ["Home"], "boards": {"": ["second"], "Home": ["my-board"]}})
+    assert r.status_code == 204
+    page = client.get("/b/second").text
+    assert page.index('data-slug="second"') < page.index('data-area="Home"') < page.index('data-slug="my-board"')
+    assert client.post("/layout", json={"areas": ["Nope"], "boards": {}}).status_code == 400
+    assert client.post("/layout", data="junk").status_code == 400
+    client.post("/b/my-board/columns", data={"name": "Extra"})
+    r = client.post("/b/my-board/columns/order", json={"names": ["Extra", "Todo", "Doing", "Done"]})
+    assert r.status_code == 204
+    assert client.post("/b/my-board/columns/order", json={"names": ["Todo"]}).status_code == 400
+    page = client.get("/b/my-board").text
+    assert page.index('data-column="Extra"') < page.index('data-column="Todo"')

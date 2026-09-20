@@ -1,0 +1,6 @@
+{% if tags %}
+<h3>Tags</h3>
+<div class="tag-list">
+  {% for t, n in tags %}<a class="tag" href="{{ url_for('boards.tag_view', tag=t) }}">#{{ t }} <span>{{ n }}</span></a>{% endfor %}
+</div>
+{% endif %}

@@ -1,0 +1,32 @@
+// Sidebar drag-and-drop: reorder boards, move them between areas, reorder areas.
+(() => {
+  const side = document.querySelector('.sidebar');
+  if (!side || !window.Sortable) return;
+
+  const layout = () => {
+    const boards = { '': [...side.querySelectorAll('.boards-unassigned > [data-slug]')].map(e => e.dataset.slug) };
+    const areas = [];
+    side.querySelectorAll('.area').forEach(a => {
+      areas.push(a.dataset.area);
+      boards[a.dataset.area] = [...a.querySelectorAll('.area-boards > [data-slug]')].map(e => e.dataset.slug);
+    });
+    return { areas, boards };
+  };
+  const save = () => fetch(side.dataset.layoutUrl, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(layout()),
+  }).then(r => { if (!r.ok) location.reload(); });
+
+  // Keep the Today badge and tag list current after any card change made through htmx.
+  document.body.addEventListener('htmx:afterRequest', e => {
+    const verb = e.detail.requestConfig?.verb;
+    if (e.detail.successful && verb && verb !== 'get') {
+      htmx.ajax('GET', side.dataset.statsUrl, { target: '#modal', swap: 'none' });
+    }
+  });
+
+  side.querySelectorAll('.boards-unassigned, .area-boards').forEach(el => new Sortable(el, {
+    group: 'boards', animation: 150, handle: '.grip', draggable: '[data-slug]', onEnd: save,
+  }));
+  const areas = side.querySelector('.areas');
+  if (areas) new Sortable(areas, { animation: 150, handle: '.area-grip', draggable: '.area', onEnd: save });
+})();

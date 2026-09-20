@@ -6,6 +6,7 @@
     <input name="title" value="{{ card.title }}" required autofocus>
     <input name="due" value="{{ card.due or '' }}" placeholder="Due: tomorrow, fri, in 3 days, jun 5…">
     <input name="repeat" value="{{ card.repeat or '' }}" placeholder="Repeat: every monday, every 2 weeks, daily…">
+    <input name="tags" value="{% for t in card.tags %}#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}" placeholder="Tags: #home #errand">
     <textarea name="body" rows="8" placeholder="Notes (Markdown)">{{ card.body }}</textarea>
     {% set done_at = card.completed if card.done else card.last_completed %}
     {% if done_at %}<p class="muted">{{ 'Completed' if card.done else 'Last completed' }} {{ done_at|stamp }}</p>{% endif %}
