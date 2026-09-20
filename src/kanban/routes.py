@@ -32,7 +32,7 @@ def nav():
 
 @bp.get("/")
 def index():
-    boards = store().list_boards()
+    boards = [b for b in store().list_boards() if b.parent is None]
     if not boards:
         boards = [store().create_board("My Board")]
     return redirect(url_for("boards.board", slug=boards[0].slug))
@@ -43,7 +43,11 @@ def create_board():
     title = request.form.get("title", "").strip()
     if not title:
         abort(400)
-    return redirect(url_for("boards.board", slug=store().create_board(title).slug))
+    try:
+        board = store().create_board(title, kind=request.form.get("kind", "kanban"))
+    except ValueError:
+        abort(400)
+    return redirect(url_for("boards.board", slug=board.slug))
 
 
 @bp.get("/b/<slug>")
@@ -52,7 +56,10 @@ def board(slug):
         b = store().get_board(slug)
     except KeyError:
         abort(404)
-    return render_template("board.html", board=b, columns=store().cards_by_column(slug))
+    parent = store().get_board(b.parent) if b.parent else None
+    if b.kind == "canvas":
+        return render_template("canvas.html", board=b, parent=parent, items=store().list_items(slug))
+    return render_template("board.html", board=b, parent=parent, columns=store().cards_by_column(slug))
 
 
 @bp.post("/b/<slug>/cards")
@@ -123,7 +130,7 @@ def search():
 
 @bp.get("/sidebar/stats")
 def sidebar_stats():
-    """Out-of-band fragment: refreshes the Today badge and tag list after a card changes."""
+    """Fragment with the Today badge and tag list, fetched after a card changes (see sidebar.js)."""
     return render_template("_stats.html")
 
 

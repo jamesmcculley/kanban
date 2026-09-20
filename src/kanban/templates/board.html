@@ -2,6 +2,7 @@
 {% block title %}{{ board.title }}{% endblock %}
 {% block content %}
   <header class="page-head">
+    {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
     <h1>{{ board.title }}</h1>
     {% if board.hidden %}
     <div class="hidden-lists">
@@ -59,13 +60,9 @@
     </section>
   </main>
   <script>
-    const moveUrl = id => document.querySelector('.board').dataset.moveUrl.replace('ID', id);
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
       group: 'cards', animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
-      onEnd: e => htmx.ajax('POST', moveUrl(e.item.dataset.id), {
-        swap: 'none',
-        values: { column: e.to.closest('.column').dataset.column, index: e.newIndex },
-      }),
+      onEnd: e => window.moveCard(e.item.dataset.id, e.to.closest('.column').dataset.column, e.newIndex),
     }));
     const board = document.querySelector('.board');
     new Sortable(board, {

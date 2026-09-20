@@ -1,5 +1,9 @@
 // Keyboard layer: j/k/h/l select, e edit, x complete, n new, H/L move, / search, ? help.
 (() => {
+  // htmx activates swapped-in content only after a 20ms "settle" delay, during which a fresh
+  // card ignores clicks (fast keyboard users hit this: "x" then "e"). Activate immediately.
+  if (window.htmx) htmx.config.defaultSettleDelay = 0;
+
   const typing = t => t.closest('input, textarea, select, [contenteditable]');
   const select_ = { el: null, id: null };
   const boardCols = () => [...document.querySelectorAll('.column')];
@@ -39,12 +43,16 @@
     if (!to) return;
     const list = to.querySelector('.cards');
     list.append(el);
-    const url = document.querySelector('.board').dataset.moveUrl.replace('ID', el.dataset.id);
-    htmx.ajax('POST', url, {
-      swap: 'none', values: { column: to.dataset.column, index: list.children.length - 1 },
-    });
+    window.moveCard(el.dataset.id, to.dataset.column, list.children.length - 1);
     el.scrollIntoView({ block: 'nearest' });
   }
+
+  // Plain fetch, not htmx.ajax: an htmx request with no source element counts as coming from
+  // <body>, and while it is in flight htmx drops clicks on anything inside (e.g. a card title).
+  window.moveCard = (id, column, index) =>
+    fetch(document.querySelector('.board').dataset.moveUrl.replace('ID', id), {
+      method: 'POST', body: new URLSearchParams({ column, index }),
+    }).then(r => { if (!r.ok) location.reload(); });
 
   const closeOverlays = () => {
     document.querySelectorAll('.backdrop').forEach(b => b.id === 'help' ? (b.hidden = true) : b.remove());
@@ -54,6 +62,11 @@
   let pendingG = false;
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') return closeOverlays();
+    // A htmx swap may have replaced the selected card with a fresh copy: follow it by id.
+    if (select_.el && !select_.el.isConnected && select_.id) {
+      const fresh = document.querySelector(`[data-id="${select_.id}"]`);
+      if (fresh) select(fresh);
+    }
     if (typing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
     if (pendingG) {
       pendingG = false;
@@ -90,7 +103,7 @@
     const c = e.target.closest('.card, .agenda .row');
     if (c) select(c);
   });
-  document.body.addEventListener('htmx:afterSettle', () => {
+  document.body.addEventListener('htmx:afterSwap', () => {
     if (!select_.id) return;
     const el = document.querySelector(`[data-id="${select_.id}"]`);
     if (el) select(el);

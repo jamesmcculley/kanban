@@ -1,0 +1,14 @@
+<div class="item {{ item.kind }}{% if item.kind == 'note' %} c-{{ item.color }}{% endif %}" data-id="{{ item.id }}" data-kind="{{ item.kind }}" style="left:{{ item.x }}px;top:{{ item.y }}px;z-index:{{ item.z }};{% if item.w %}width:{{ item.w }}px;{% endif %}">
+  {% if item.kind == 'note' %}
+    <div class="item-text" contenteditable="plaintext-only" spellcheck="true" data-placeholder="Write something…">{{ item.text }}</div>
+    <div class="item-colors">{% for c in COLORS %}<button type="button" class="dot c-{{ c }}" data-color="{{ c }}" aria-label="{{ c }}"></button>{% endfor %}</div>
+  {% elif item.kind == 'link' %}
+    <a class="link" href="{{ item.url }}" target="_blank" rel="noopener noreferrer"><span class="link-title">{{ item.text or item.url }}</span><span class="link-url">{{ item.url }}</span></a>
+  {% elif item.kind == 'image' %}
+    <img src="{{ url_for('canvas.asset', slug=board.slug, filename=item.file) }}" alt="" draggable="false">
+  {% elif item.kind == 'board' %}
+    <a class="board-card" href="{{ url_for('boards.board', slug=item.target) }}"><span class="glyph">▦</span> {{ board_title(item.target) }}</a>
+  {% endif %}
+  <button type="button" class="item-del" aria-label="Delete">×</button>
+  {% if item.kind in ('note', 'image') %}<span class="resize"></span>{% endif %}
+</div>

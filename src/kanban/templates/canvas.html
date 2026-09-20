@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ board.title }}{% endblock %}
+{% block content %}
+<div class="canvas-page">
+  <header class="page-head">
+    {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
+    <h1>{{ board.title }}</h1>
+    <div class="canvas-tools">
+      <button type="button" data-tool="note">+ Note</button>
+      <input class="tool-link" type="text" placeholder="Paste a link, then Enter" autocomplete="off" aria-label="Add link">
+      <button type="button" data-tool="image">+ Image</button>
+      <input type="file" class="tool-file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+      <form class="tool-board">
+        <input name="title" placeholder="+ Nested board" autocomplete="off" required aria-label="Nested board name">
+        <select name="board_kind" aria-label="Nested board type">
+          <option value="kanban">Lists</option>
+          <option value="canvas">Canvas</option>
+        </select>
+      </form>
+    </div>
+  </header>
+  <div class="canvas-scroll" id="scroller">
+    <div id="canvas" data-api="{{ url_for('canvas.add_item', slug=board.slug) }}"
+         data-upload="{{ url_for('canvas.upload', slug=board.slug) }}">
+      {% for item in items %}{% include "_item.html" %}{% endfor %}
+    </div>
+    {% if not items %}<p class="canvas-hint">Double-click anywhere to add a note. Paste or drop images and links.</p>{% endif %}
+  </div>
+</div>
+<script src="{{ url_for('static', filename='canvas.js') }}"></script>
+{% endblock %}

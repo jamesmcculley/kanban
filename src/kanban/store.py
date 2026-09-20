@@ -18,7 +18,11 @@ from pathlib import Path
 
 import yaml
 
+from .canvas import BOARD_KINDS, CanvasMixin
 from .dates import next_occurrence
+from .mdfile import read_md as _read
+from .mdfile import slugify
+from .mdfile import write_md as _write
 
 DEFAULT_COLUMNS = ["Todo", "Doing", "Done"]
 
@@ -46,6 +50,8 @@ class Board:
     hidden: list[str] = field(default_factory=list)  # lists that exist but are tucked away
     area: str | None = None  # sidebar group ("Home", "Work"...)
     position: int = 0  # sidebar order
+    kind: str = "kanban"  # or "canvas"
+    parent: str | None = None  # set on boards nested inside a canvas
 
 
 _TAG = re.compile(r"[a-z][a-z0-9_-]*")
@@ -69,18 +75,6 @@ def split_tags(title: str) -> tuple[str, list[str]]:
     return " ".join(_TITLE_TAG.sub("", title).split()), tags
 
 
-def slugify(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "board"
-
-
-def _read(path: Path) -> tuple[dict, str]:
-    text = path.read_text(encoding="utf-8")
-    if text.startswith("---\n"):
-        _, front, body = text.split("---\n", 2)
-        return yaml.safe_load(front) or {}, body.lstrip("\n")
-    return {}, text
-
-
 def _iso(meta: dict, key: str) -> str | None:
     # hand-edited unquoted dates/times load as date/datetime; keep everything ISO strings
     value = meta.get(key)
@@ -89,11 +83,6 @@ def _iso(meta: dict, key: str) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat(timespec="minutes")
     return str(value)
-
-
-def _write(path: Path, meta: dict, body: str = "") -> None:
-    front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
-    path.write_text(f"---\n{front}---\n\n{body}", encoding="utf-8")
 
 
 def _card_from(meta: dict, body: str) -> Card:
@@ -106,7 +95,7 @@ def _card_from(meta: dict, body: str) -> Card:
     )
 
 
-class Store:
+class Store(CanvasMixin):
     def __init__(self, root: Path):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -128,13 +117,21 @@ class Store:
         if not path.exists():
             raise KeyError(slug)
         meta, _ = _read(path)
-        columns = meta.get("columns", list(DEFAULT_COLUMNS))
+        kind = meta.get("kind", "kanban")
+        columns = meta.get("columns", list(DEFAULT_COLUMNS) if kind == "kanban" else [])
         hidden = [c for c in meta.get("hidden", []) if c in columns]
         return Board(slug, meta.get("title", slug), columns, hidden,
-                     area=meta.get("area") or None, position=int(meta.get("position") or 0))
+                     area=meta.get("area") or None, position=int(meta.get("position") or 0),
+                     kind=kind, parent=meta.get("parent") or None)
 
     def _save_board(self, board: Board) -> None:
-        meta = {"title": board.title, "columns": board.columns}
+        meta = {"title": board.title}
+        if board.kind != "kanban":
+            meta["kind"] = board.kind
+        else:
+            meta["columns"] = board.columns
+        if board.parent:
+            meta["parent"] = board.parent
         if board.hidden:
             meta["hidden"] = board.hidden
         if board.area:
@@ -143,13 +140,17 @@ class Store:
             meta["position"] = board.position
         _write(self._board_dir(board.slug) / "board.md", meta)
 
-    def create_board(self, title: str, columns: list[str] | None = None) -> Board:
+    def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban",
+                     parent: str | None = None) -> Board:
+        if kind not in BOARD_KINDS:
+            raise ValueError(f"unknown board kind: {kind}")
         slug, n = slugify(title), 2
         while (self.root / slug).exists():
             slug, n = f"{slugify(title)}-{n}", n + 1
         last = max((b.position for b in self.list_boards()), default=0)
-        board = Board(slug, title, columns or list(DEFAULT_COLUMNS), position=last + 1)
-        (self.root / slug / "cards").mkdir(parents=True)
+        board = Board(slug, title, (columns or list(DEFAULT_COLUMNS)) if kind == "kanban" else [],
+                      position=last + 1, kind=kind, parent=parent)
+        (self.root / slug / ("cards" if kind == "kanban" else "items")).mkdir(parents=True)
         self._save_board(board)
         return board
 
@@ -178,7 +179,7 @@ class Store:
 
     def sidebar(self) -> dict:
         """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}."""
-        boards = self.list_boards()
+        boards = [b for b in self.list_boards() if b.parent is None]  # nested boards live in a canvas
         names = self.areas()
         return {
             "unassigned": [b for b in boards if b.area not in names],
@@ -351,7 +352,8 @@ class Store:
         return card
 
     def all_cards(self) -> list[tuple[Board, Card]]:
-        return [(b, c) for b in self.list_boards() for c in self.list_cards(b.slug)]
+        return [(b, c) for b in self.list_boards() if b.kind == "kanban"
+                for c in self.list_cards(b.slug)]
 
     def cards_with_tag(self, tag: str) -> list[tuple[Board, Card]]:
         """Open cards first, then completed ones."""

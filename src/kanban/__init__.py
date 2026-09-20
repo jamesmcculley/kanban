@@ -4,6 +4,7 @@ from pathlib import Path
 
 from flask import Flask
 
+from .canvas import COLORS
 from .store import Store
 
 
@@ -24,7 +25,19 @@ def create_app(data_dir: str | Path | None = None) -> Flask:
     app.config["STORE"] = Store(Path(root))
     app.jinja_env.filters["stamp"] = _stamp
 
+    app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # a 10 MB image plus form overhead
+
+    def board_title(slug: str) -> str:
+        try:
+            return app.config["STORE"].get_board(slug).title
+        except KeyError:
+            return "(missing board)"
+
+    app.jinja_env.globals.update(board_title=board_title, COLORS=COLORS)
+
+    from .canvas_routes import cv
     from .routes import bp
 
     app.register_blueprint(bp)
+    app.register_blueprint(cv)
     return app

@@ -38,6 +38,10 @@
         </div>
         <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
           <input name="title" placeholder="+ New board" autocomplete="off" required>
+          <select name="kind" aria-label="Board type" title="Board type">
+            <option value="kanban">Lists</option>
+            <option value="canvas">Canvas</option>
+          </select>
         </form>
 
         <div class="areas">

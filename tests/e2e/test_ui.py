@@ -113,6 +113,19 @@ def test_areas_and_board_dragging(page):
 
 
 def test_keyboard_shortcuts(page):
+    page.add_init_script("""
+        window.__log = []; const t0 = performance.now();
+        const L = m => window.__log.push(Math.round(performance.now() - t0) + 'ms ' + m);
+        document.addEventListener('DOMContentLoaded', () => {
+          ['htmx:beforeRequest', 'htmx:afterRequest', 'htmx:afterSwap', 'htmx:sendError', 'htmx:responseError', 'htmx:abort', 'htmx:beforeSend'].forEach(n =>
+            document.body.addEventListener(n, e => L(n + ' ' + (e.detail.requestConfig ? e.detail.requestConfig.verb + ' ' + e.detail.requestConfig.path.slice(-24) : ''))));
+          document.addEventListener('keydown', e => L('keydown ' + e.key + ' sel=' + document.querySelector('.selected')?.dataset.id), true);
+          document.addEventListener('click', e => L('click ' + e.target.className + ' connected=' + e.target.isConnected), true);
+          new MutationObserver(ms => ms.forEach(m => L('modal +' + m.addedNodes.length + ' -' + m.removedNodes.length))).observe(document.getElementById('modal'), {childList: true});
+          const of = window.fetch; window.fetch = (...a) => { L('fetch ' + String(a[0]).slice(-24)); return of(...a); };
+        });
+    """)
+    page.reload()
     add_card(page, "Todo", "first")
     add_card(page, "Todo", "second")
     page.locator("body").click(position={"x": 700, "y": 700})
@@ -125,7 +138,10 @@ def test_keyboard_shortcuts(page):
     page.keyboard.press("Shift+L")
     expect(page.locator('.column[data-column="Doing"] .card', has_text="second")).to_be_visible()
     page.keyboard.press("e")
-    expect(page.locator(".dialog input[name=title]")).to_be_focused()
+    try:
+        expect(page.locator(".dialog input[name=title]")).to_be_focused(timeout=2500)
+    finally:
+        print("LOGALL:", *page.evaluate("window.__log.slice(-16)"), sep="\n  ")
     page.keyboard.press("Escape")
     expect(page.locator("#modal .backdrop")).to_have_count(0)
     page.keyboard.press("?")
@@ -134,3 +150,130 @@ def test_keyboard_shortcuts(page):
     page.keyboard.press("g")
     page.keyboard.press("u")
     page.wait_for_url("**/upcoming")
+
+
+# ---- canvas -----------------------------------------------------------------------------------
+
+import base64
+
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+
+
+def open_canvas(page, name="Sketch"):
+    page.select_option(".newboard select", "canvas")
+    page.fill(".newboard input", name)
+    page.press(".newboard input", "Enter")
+    page.wait_for_selector("#canvas")
+
+
+def test_canvas_note_create_edit_move_persist(page):
+    open_canvas(page)
+    expect(page.locator(".canvas-hint")).to_be_visible()
+    page.locator("#canvas").dblclick(position={"x": 300, "y": 200})
+    note = page.locator(".item.note")
+    expect(note).to_have_count(1)
+    expect(page.locator(".canvas-hint")).to_have_count(0)
+    page.keyboard.type("hello canvas")
+    page.keyboard.press("j")                       # typing in a note must not trigger shortcuts
+    page.locator("#canvas").click(position={"x": 900, "y": 600})      # blur -> saves
+    expect(note.locator(".item-text")).to_have_text("hello canvasj")
+
+    before = note.bounding_box()
+    page.mouse.move(before["x"] + 30, before["y"] + 30)
+    page.mouse.down()
+    page.mouse.move(before["x"] + 130, before["y"] + 90, steps=6)
+    page.mouse.up()
+    after = note.bounding_box()
+    assert abs((after["x"] - before["x"]) - 100) < 3 and abs((after["y"] - before["y"]) - 60) < 3
+
+    page.reload()
+    again = page.locator(".item.note")
+    expect(again.locator(".item-text")).to_have_text("hello canvasj")
+    moved = again.bounding_box()
+    assert abs(moved["x"] - after["x"]) < 3 and abs(moved["y"] - after["y"]) < 3   # position persisted
+
+
+def test_canvas_note_color_resize_delete(page):
+    open_canvas(page)
+    page.click("[data-tool=note]")
+    note = page.locator(".item.note")
+    expect(note).to_have_count(1)
+    note.hover()
+    note.locator(".dot[data-color=blue]").click()
+    expect(note).to_have_class(__import__("re").compile(r"c-blue"))
+    w0 = note.bounding_box()["width"]
+    note.hover()
+    h = note.locator(".resize").bounding_box()
+    page.mouse.move(h["x"] + 6, h["y"] + 6)
+    page.mouse.down()
+    page.mouse.move(h["x"] + 106, h["y"] + 6, steps=5)
+    page.mouse.up()
+    assert note.bounding_box()["width"] > w0 + 80
+    page.reload()
+    expect(page.locator(".item.note")).to_have_class(__import__("re").compile(r"c-blue"))
+    assert page.locator(".item.note").bounding_box()["width"] > w0 + 80
+    page.locator(".item.note").hover()
+    page.locator(".item.note .item-del").click()
+    expect(page.locator(".item")).to_have_count(0)
+    page.reload()
+    expect(page.locator(".item")).to_have_count(0)
+
+
+def test_canvas_link_image_paste_drop(page):
+    page.expected_errors.append("status of 400")      # the javascript: link below is refused on purpose
+    open_canvas(page)
+    page.fill(".tool-link", "https://example.com/docs")
+    page.press(".tool-link", "Enter")
+    link = page.locator(".item.link a")
+    expect(link).to_have_attribute("href", "https://example.com/docs")
+    expect(link).to_have_attribute("rel", "noopener noreferrer")
+    page.fill(".tool-link", "javascript:alert(1)")
+    page.press(".tool-link", "Enter")
+    expect(page.locator(".item.link")).to_have_count(1)                # rejected, not added
+
+    page.set_input_files(".tool-file", files=[{"name": "dot.png", "mimeType": "image/png", "buffer": PNG}])
+    img = page.locator(".item.image img")
+    expect(img).to_have_count(1)
+    page.wait_for_function("() => document.querySelector('.item.image img').naturalWidth > 0")
+
+    page.evaluate("""() => {
+        const dt = new DataTransfer(); dt.setData('text/plain', 'https://example.org/pasted');
+        document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }""")
+    expect(page.locator(".item.link")).to_have_count(2)
+    page.evaluate("""() => {
+        const dt = new DataTransfer(); dt.setData('text/plain', 'a pasted thought');
+        document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }""")
+    expect(page.locator(".item.note .item-text", has_text="a pasted thought")).to_have_count(1)
+
+    page.evaluate("""(b64) => {
+        const dt = new DataTransfer(); dt.items.add(new File([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], 'x.png', {type: 'image/png'}));
+        document.getElementById('scroller').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, clientX: 400, clientY: 400 }));
+    }""", base64.b64encode(PNG).decode())
+    expect(page.locator(".item.image")).to_have_count(2)
+    page.reload()
+    expect(page.locator(".item")).to_have_count(5)
+
+
+def test_canvas_nested_board(page):
+    open_canvas(page, "Parent Canvas")
+    page.fill(".tool-board input", "Sub List")
+    page.press(".tool-board input", "Enter")
+    card = page.locator(".item.board a")
+    expect(card).to_contain_text("Sub List")
+    expect(page.locator('.sidebar [data-slug="sub-list"]')).to_have_count(0)
+    card.click()
+    page.wait_for_url("**/b/sub-list")
+    expect(page.locator(".crumb")).to_have_text("Parent Canvas")
+    expect(page.locator(".column")).to_have_count(3)                # it's a lists board
+    page.click(".crumb")
+    page.wait_for_selector("#canvas")
+    drag_card = page.locator(".item.board")
+    box = drag_card.bounding_box()
+    page.mouse.move(box["x"] + 10, box["y"] + 10)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 150, box["y"] + 100, steps=6)
+    page.mouse.up()
+    expect(page).to_have_url(__import__("re").compile(r"/b/parent-canvas$"))   # a drag must not navigate

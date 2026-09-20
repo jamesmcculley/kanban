@@ -17,11 +17,21 @@
   }).then(r => { if (!r.ok) location.reload(); });
 
   // Keep the Today badge and tag list current after any card change made through htmx.
+  // Plain fetch + manual swap: htmx.ajax needs a requester element, and while one is pending
+  // htmx silently drops other requests from/into it (this used to swallow "edit card" clicks).
+  async function refreshStats() {
+    const r = await fetch(side.dataset.statsUrl);
+    if (!r.ok) return;
+    const t = document.createElement('template');
+    t.innerHTML = await r.text();
+    t.content.querySelectorAll('[id]').forEach(fresh => {
+      const current = document.getElementById(fresh.id);
+      if (current) current.replaceWith(fresh);
+    });
+  }
   document.body.addEventListener('htmx:afterRequest', e => {
     const verb = e.detail.requestConfig?.verb;
-    if (e.detail.successful && verb && verb !== 'get') {
-      htmx.ajax('GET', side.dataset.statsUrl, { target: '#modal', swap: 'none' });
-    }
+    if (e.detail.successful && verb && verb !== 'get') refreshStats();
   });
 
   side.querySelectorAll('.boards-unassigned, .area-boards').forEach(el => new Sortable(el, {

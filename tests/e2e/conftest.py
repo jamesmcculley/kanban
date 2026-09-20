@@ -39,10 +39,13 @@ def page(browser, server):
     ctx = browser.new_context(viewport={"width": 1280, "height": 800})
     pg = ctx.new_page()
     problems: list[str] = []
+    pg.expected_errors = []  # substrings of console errors a test provokes on purpose
     pg.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
     pg.on("console", lambda m: m.type == "error" and problems.append(f"console: {m.text}"))
     pg.base = server
     pg.goto(server + "/")
     yield pg
+    # Judge the page before closing it: closing cancels in-flight requests, which log noise.
+    unexpected = [p for p in problems if not any(x in p for x in pg.expected_errors)]
     ctx.close()
-    assert not problems, problems
+    assert not unexpected, unexpected
