@@ -22,6 +22,12 @@ Data lives in `~/kanban-data` (override with `KANBAN_DATA_DIR`).
 The container listens on port 8000 on that network only (no published ports). There is
 **no authentication**, so put it behind a proxy route restricted to your LAN or VPN.
 
+## Backups
+
+`scripts/backup.sh` writes a timestamped tarball of the data volume and prunes old ones. Run it
+from cron or a systemd timer on the Docker host; the header comment lists the settings and the
+restore command. Keep a copy off the machine too.
+
 ## Develop
 
     uv run pytest

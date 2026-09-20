@@ -8,8 +8,10 @@
         {% if due < today %}Overdue · {% elif due == today %}Today · {% endif %}{{ due }}
       </h2>
       {% for board, card in items %}
-        <div class="row">
-          <span>{{ card.title }}</span>
+        <div class="row" data-id="{{ card.id }}">
+          <input type="checkbox" class="check" aria-label="Complete" hx-swap="none"
+                 hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id, refresh=1) }}">
+          <span class="title">{{ card.title }}{% if card.repeat %} <span class="repeat" title="{{ card.repeat }}">↻</span>{% endif %}</span>
           <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }} / {{ card.column }}</a>
         </div>
       {% endfor %}

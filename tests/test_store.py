@@ -53,3 +53,35 @@ def test_hand_edited_unquoted_date(store, tmp_path):
     path = tmp_path / b.slug / "cards" / f"{c.id}.md"
     path.write_text(path.read_text().replace("position: 0", "position: 0\ndue: 2026-10-01"))
     assert store.get_card(b.slug, c.id).due == "2026-10-01"
+
+
+def test_complete_toggles_and_hides_from_agenda(store):
+    from datetime import date
+    b = store.create_board("B")
+    c = store.add_card(b.slug, "x", "Todo", due="2026-10-01")
+    done = store.complete_card(b.slug, c.id, date(2026, 9, 30))
+    assert done.done and done.completed == "2026-09-30"
+    assert store.dated_cards() == []
+    assert not store.complete_card(b.slug, c.id).done  # second press undoes it
+    assert len(store.dated_cards()) == 1
+
+
+def test_complete_repeating_rolls_forward(store):
+    from datetime import date
+    b = store.create_board("B")
+    c = store.add_card(b.slug, "water", "Todo", due="2026-09-14", repeat="every monday")
+    card = store.complete_card(b.slug, c.id, date(2026, 9, 16))
+    assert (card.due, card.done, card.repeat) == ("2026-09-21", False, "every monday")
+    assert store.get_card(b.slug, c.id).due == "2026-09-21"
+
+
+def test_search(store):
+    a = store.create_board("Home Reno")
+    b = store.create_board("Work")
+    c = store.add_card(a.slug, "Buy paint", "Todo")
+    store.update_card(a.slug, c.id, "Buy paint", "Behr eggshell", None)
+    store.add_card(b.slug, "Paint the roadmap", "Todo")
+    assert len(store.search("paint")) == 2
+    assert [cd.title for _, cd in store.search("eggshell paint")] == ["Buy paint"]
+    assert len(store.search("home")) == 1  # board name matches
+    assert store.search("  ") == []

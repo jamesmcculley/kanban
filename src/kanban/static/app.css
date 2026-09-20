@@ -35,3 +35,14 @@ textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #0002;
 .row { display:flex; justify-content:space-between; gap:12px; background:var(--card);
        padding:10px 12px; border-radius:8px; margin-bottom:6px; }
 .row a { color:var(--muted); font-size:13px; text-decoration:none; } .empty { color:var(--muted); }
+.check { margin-top:3px; cursor:pointer; flex:none; }
+.card.done .title, .row.done .title { text-decoration:line-through; color:var(--muted); }
+.card.done { opacity:.6; }
+.repeat { color:var(--muted); font-size:13px; }
+.selected { outline:2px solid #3b82f6; outline-offset:1px; }
+.row { align-items:center; } .row .title { flex:1; }
+.error { color:#d64545; font-size:13px; margin:0; min-height:1em; }
+.search { margin-left:auto; } .search input { width:200px; }
+#help[hidden] { display:none; } #help dl { display:grid; grid-template-columns:auto 1fr; gap:6px 16px; margin:0; }
+#help dt { font-family:ui-monospace, monospace; color:var(--muted); } #help dd { margin:0; }
+#help h3 { margin:0 0 12px; }

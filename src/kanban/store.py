@@ -3,7 +3,8 @@
 Layout under the data directory (open it as an Obsidian vault if you like):
 
     <board-slug>/board.md          frontmatter: title, columns
-    <board-slug>/cards/<id>.md     frontmatter: id, title, column, position, due; body = notes
+    <board-slug>/cards/<id>.md     frontmatter: id, title, column, position, due, repeat, done,
+                                   completed; body = notes
 """
 
 from __future__ import annotations
@@ -11,9 +12,12 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 import yaml
+
+from .dates import next_occurrence
 
 DEFAULT_COLUMNS = ["Todo", "Doing", "Done"]
 
@@ -26,6 +30,9 @@ class Card:
     position: int = 0
     due: str | None = None
     body: str = ""
+    repeat: str | None = None
+    done: bool = False
+    completed: str | None = None
 
 
 @dataclass
@@ -47,14 +54,23 @@ def _read(path: Path) -> tuple[dict, str]:
     return {}, text
 
 
-def _due(meta: dict) -> str | None:
+def _iso(meta: dict, key: str) -> str | None:
     # hand-edited unquoted dates load as datetime.date; keep everything ISO strings
-    return str(meta["due"]) if meta.get("due") else None
+    return str(meta[key]) if meta.get(key) else None
 
 
 def _write(path: Path, meta: dict, body: str = "") -> None:
     front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
     path.write_text(f"---\n{front}---\n\n{body}", encoding="utf-8")
+
+
+def _card_from(meta: dict, body: str) -> Card:
+    return Card(
+        id=meta["id"], title=meta["title"], column=meta["column"],
+        position=meta.get("position", 0), due=_iso(meta, "due"), body=body,
+        repeat=meta.get("repeat") or None, done=bool(meta.get("done")),
+        completed=_iso(meta, "completed"),
+    )
 
 
 class Store:
@@ -103,17 +119,17 @@ class Store:
                 "position": card.position}
         if card.due:
             meta["due"] = card.due
+        if card.repeat:
+            meta["repeat"] = card.repeat
+        if card.done:
+            meta["done"] = True
+            if card.completed:
+                meta["completed"] = card.completed
         _write(self._card_path(slug, card.id), meta, card.body)
 
     def list_cards(self, slug: str) -> list[Card]:
         self.get_board(slug)
-        cards = []
-        for path in (self._board_dir(slug) / "cards").glob("*.md"):
-            meta, body = _read(path)
-            cards.append(Card(
-                id=meta["id"], title=meta["title"], column=meta["column"],
-                position=meta.get("position", 0), due=_due(meta), body=body,
-            ))
+        cards = [_card_from(*_read(p)) for p in (self._board_dir(slug) / "cards").glob("*.md")]
         return sorted(cards, key=lambda c: c.position)
 
     def cards_by_column(self, slug: str) -> dict[str, list[Card]]:
@@ -127,27 +143,56 @@ class Store:
         path = self._card_path(slug, card_id)
         if not path.exists():
             raise KeyError(card_id)
-        meta, body = _read(path)
-        return Card(meta["id"], meta["title"], meta["column"], meta.get("position", 0),
-                    _due(meta), body)
+        return _card_from(*_read(path))
 
-    def update_card(self, slug: str, card_id: str, title: str, body: str, due: str | None) -> Card:
+    def update_card(self, slug: str, card_id: str, title: str, body: str, due: str | None,
+                    repeat: str | None = None) -> Card:
         card = self.get_card(slug, card_id)
-        card.title, card.body, card.due = title, body, due or None
+        card.title, card.body, card.due, card.repeat = title, body, due or None, repeat or None
+        self._save(slug, card)
+        return card
+
+    def complete_card(self, slug: str, card_id: str, today: date | None = None) -> Card:
+        """Repeating cards advance to their next due date; others toggle done/not done."""
+        today = today or date.today()
+        card = self.get_card(slug, card_id)
+        if card.repeat:
+            due = date.fromisoformat(card.due) if card.due else None
+            card.due = next_occurrence(card.repeat, due, today).isoformat()
+        elif card.done:
+            card.done, card.completed = False, None
+        else:
+            card.done, card.completed = True, today.isoformat()
         self._save(slug, card)
         return card
 
     def dated_cards(self) -> list[tuple[Board, Card]]:
-        """Every card with a due date, across all boards, soonest first."""
-        found = [(b, c) for b in self.list_boards() for c in self.list_cards(b.slug) if c.due]
+        """Every open card with a due date, across all boards, soonest first."""
+        found = [(b, c) for b in self.list_boards() for c in self.list_cards(b.slug)
+                 if c.due and not c.done]
         return sorted(found, key=lambda bc: (str(bc[1].due), bc[0].slug, bc[1].position))
 
-    def add_card(self, slug: str, title: str, column: str, due: str | None = None) -> Card:
+    def search(self, query: str) -> list[tuple[Board, Card]]:
+        """Cards whose title, notes or board name contain every word of the query."""
+        terms = query.lower().split()
+        if not terms:
+            return []
+        hits = []
+        for b in self.list_boards():
+            for c in self.list_cards(b.slug):
+                hay = f"{c.title}\n{c.body}\n{b.title}".lower()
+                if all(t in hay for t in terms):
+                    hits.append((b, c))
+        return hits
+
+    def add_card(self, slug: str, title: str, column: str, due: str | None = None,
+                 repeat: str | None = None) -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
         siblings = self.cards_by_column(slug)[column]
-        card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due)
+        card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
+                    repeat=repeat)
         self._save(slug, card)
         return card
 

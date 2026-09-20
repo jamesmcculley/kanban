@@ -7,18 +7,38 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script src="{{ url_for('static', filename='keys.js') }}" defer></script>
 </head>
 <body>
   <nav>
-    <a href="{{ url_for('boards.today_view') }}">Today</a>
-    <a href="{{ url_for('boards.upcoming_view') }}">Upcoming</a>
+    <a href="{{ url_for('boards.today_view') }}" data-go="t">Today</a>
+    <a href="{{ url_for('boards.upcoming_view') }}" data-go="u">Upcoming</a>
     <span class="sep"></span>
     {% for b in boards %}<a href="{{ url_for('boards.board', slug=b.slug) }}">{{ b.title }}</a>{% endfor %}
     <form method="post" action="{{ url_for('boards.create_board') }}" class="newboard">
       <input name="title" placeholder="+ New board" autocomplete="off" required>
     </form>
+    <form method="get" action="{{ url_for('boards.search') }}" class="search">
+      <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
+    </form>
   </nav>
   {% block content %}{% endblock %}
   <div id="modal"></div>
+  <div id="help" class="backdrop" hidden>
+    <div class="dialog">
+      <h3>Keyboard shortcuts</h3>
+      <dl>
+        <dt>j / k</dt><dd>next / previous card</dd>
+        <dt>h / l</dt><dd>previous / next column</dd>
+        <dt>H / L</dt><dd>move card to previous / next column</dd>
+        <dt>e</dt><dd>edit card</dd>
+        <dt>x</dt><dd>complete card (repeating cards roll forward)</dd>
+        <dt>n</dt><dd>new card (in the selected column)</dd>
+        <dt>/</dt><dd>search</dd>
+        <dt>g t / g u</dt><dd>go to Today / Upcoming</dd>
+        <dt>Esc</dt><dd>close dialog</dd>
+      </dl>
+    </div>
+  </div>
 </body>
 </html>

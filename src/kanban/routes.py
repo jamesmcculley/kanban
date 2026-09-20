@@ -11,7 +11,7 @@ from flask import (
     url_for,
 )
 
-from .dates import parse_due, split_due
+from .dates import first_due, parse_due, parse_repeat, split_due, split_repeat
 
 bp = Blueprint("boards", __name__)
 
@@ -52,12 +52,15 @@ def board(slug):
 
 @bp.post("/b/<slug>/cards")
 def add_card(slug):
-    title, due = split_due(request.form.get("title", ""))
+    title, rule = split_repeat(request.form.get("title", ""))
+    title, due = split_due(title)
+    if rule and not due:
+        due = first_due(rule)
     if not title:
         abort(400)
     try:
         card = store().add_card(slug, title, request.form.get("column", ""),
-                                due.isoformat() if due else None)
+                                due.isoformat() if due else None, rule)
     except (KeyError, ValueError):
         abort(400)
     return render_template("_card.html", board=store().get_board(slug), card=card)
@@ -77,16 +80,35 @@ def update_card(slug, card_id):
     title = request.form.get("title", "").strip()
     raw_due = request.form.get("due", "").strip()
     due = parse_due(raw_due) if raw_due else None
-    if not title or (raw_due and due is None):
+    raw_repeat = request.form.get("repeat", "").strip()
+    rule = parse_repeat(raw_repeat) if raw_repeat else None
+    if not title or (raw_due and due is None) or (raw_repeat and rule is None):
         abort(400)
     try:
-        store().update_card(slug, card_id, title, request.form.get("body", ""),
-                            due.isoformat() if due else None)
+        card = store().update_card(slug, card_id, title, request.form.get("body", ""),
+                                   due.isoformat() if due else None, rule)
     except KeyError:
         abort(404)
-    resp = make_response("")
-    resp.headers["HX-Refresh"] = "true"
-    return resp
+    return render_template("_card.html", board=store().get_board(slug), card=card)
+
+
+@bp.post("/b/<slug>/cards/<card_id>/complete")
+def complete(slug, card_id):
+    try:
+        card = store().complete_card(slug, card_id)
+    except KeyError:
+        abort(404)
+    if request.args.get("refresh"):  # agenda/search rows: re-render the whole list
+        resp = make_response("")
+        resp.headers["HX-Refresh"] = "true"
+        return resp
+    return render_template("_card.html", board=store().get_board(slug), card=card)
+
+
+@bp.get("/search")
+def search():
+    q = request.args.get("q", "").strip()
+    return render_template("search.html", q=q, results=store().search(q))
 
 
 @bp.post("/b/<slug>/cards/<card_id>/move")

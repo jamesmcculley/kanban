@@ -2,7 +2,7 @@
 {% block title %}{{ board.title }}{% endblock %}
 {% block content %}
   <header><h1>{{ board.title }}</h1></header>
-  <main class="board">
+  <main class="board" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
     {% for name, cards in columns.items() %}
     <section class="column" data-column="{{ name }}">
       <h2>{{ name }}</h2>
@@ -19,7 +19,7 @@
     {% endfor %}
   </main>
   <script>
-    const moveUrl = id => `{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}`.replace('ID', id);
+    const moveUrl = id => document.querySelector('.board').dataset.moveUrl.replace('ID', id);
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
       group: 'cards', animation: 150,
       onEnd: e => htmx.ajax('POST', moveUrl(e.item.dataset.id), {
