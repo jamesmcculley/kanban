@@ -14,8 +14,11 @@ from flask import (
 )
 
 from . import notes
+from . import rules as R
+from . import settings as S
 from .dates import first_due, parse_due, parse_repeat, split_due, split_repeat
-from .store import parse_tags, split_tags
+from .tags import parse_tags, split_tags
+from .themes import TEXT_SIZES, THEME_NAMES, theme_cards
 
 bp = Blueprint("boards", __name__)
 
@@ -60,7 +63,8 @@ def nav():
     due_now = sum(1 for _, c in store().dated_cards() if c.due <= today)
     current = (request.view_args or {}).get("slug") if request.endpoint == "boards.board" else None
     return {"sidebar": store().sidebar(), "tags": store().tag_counts(), "today": today,
-            "today_count": due_now, "current_board": current, "inbox_count": store().inbox_count()}
+            "today_count": due_now, "current_board": current, "inbox_count": store().inbox_count(),
+            "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES}
 
 
 @bp.get("/")
@@ -92,7 +96,10 @@ def board(slug):
     parent = store().get_board(b.parent) if b.parent else None
     if b.kind == "canvas":
         return render_template("canvas.html", board=b, parent=parent, items=store().list_items(slug))
-    return render_template("board.html", board=b, parent=parent, columns=store().cards_by_column(slug))
+    columns, hidden_done = store().view_columns(slug)
+    new_top = store().settings_for(slug)["new_card_position"] == "top"
+    return render_template("board.html", board=b, parent=parent, columns=columns,
+                           hidden_done=hidden_done, new_top=new_top)
 
 
 @bp.post("/b/<slug>/cards")
@@ -101,10 +108,14 @@ def add_card(slug):
     if not title:
         abort(400)
     try:
+        top = store().settings_for(slug)["new_card_position"] == "top"
         card = store().add_card(slug, title, request.form.get("column", ""), due, rule, tags,
-                                top=True)
+                                top=top)
     except (KeyError, ValueError):
         abort(400)
+    if card.effects:  # a rule changed the card (moved it, tagged it...): show the board as it is now
+        return _with_toast(_refresh(), _toast(f"Added “{_short(card.title)}” · {'; '.join(card.effects)}",
+                                              later=True))
     return render_template("_card.html", board=store().get_board(slug), card=card)
 
 
@@ -143,17 +154,26 @@ def complete(slug, card_id):
     except KeyError:
         abort(404)
     refresh = bool(request.args.get("refresh"))  # agenda/search rows: re-render the whole page
+    changed = card.column != before.column or set(card.tags) != set(before.tags) or card.archived
     toast = None
-    if before.repeat or (card.done and not before.done):  # a completion, not an un-check
+    completion = before.repeat or (card.done and not before.done)  # a completion, not an un-check
+    if completion:
         at = card.last_completed if before.repeat else card.completed
         undo = url_for("boards.undo_complete", slug=slug, card_id=card_id, at=at,
-                       due=before.due or "", last=before.last_completed or "")
+                       due=before.due or "", last=before.last_completed or "", col=before.column,
+                       idx=before.position, tags=",".join(before.tags))
         message = f"Completed “{_short(card.title)}”"
         if before.repeat and card.due:
             message += f" · next {card.due}"
-        toast = _toast(message, {"url": undo}, later=refresh)
-    resp = _refresh() if refresh else make_response(
-        render_template("_card.html", board=store().get_board(slug), card=card))
+        toast = _toast(message + "".join(f" · {e}" for e in card.effects), {"url": undo},
+                       later=refresh or changed)
+    elif card.effects:
+        toast = _toast(f"Un-checked “{_short(card.title)}”" + "".join(f" · {e}" for e in card.effects),
+                       later=True)
+    if refresh or changed:  # the card moved or was cleared: reload the board rather than patch it
+        resp = _refresh()
+        return _with_toast(resp, toast)
+    resp = make_response(render_template("_card.html", board=store().get_board(slug), card=card))
     return _with_toast(resp, toast)
 
 
@@ -164,9 +184,12 @@ def undo_complete(slug, card_id):
         abort(400)
     try:
         store().undo_complete(slug, card_id, at, request.args.get("due") or None,
-                              request.args.get("last") or None)
+                              request.args.get("last") or None, request.args.get("col"),
+                              int(request.args.get("idx") or 0), request.args.get("tags"))
     except KeyError:
         abort(404)
+    except ValueError:
+        abort(400)
     return "", 204
 
 
@@ -217,9 +240,11 @@ def tag_view(tag):
 @bp.post("/b/<slug>/cards/<card_id>/move")
 def move_card(slug, card_id):
     try:
-        store().move_card(slug, card_id, request.form["column"], int(request.form["index"]))
+        effects = store().move_card(slug, card_id, request.form["column"], int(request.form["index"]))
     except (KeyError, ValueError):
         abort(400)
+    if effects:  # tell the page to reload so it shows what the rules did
+        return jsonify({**_toast("Rule applied: " + "; ".join(effects)), "refresh": True})
     return "", 204
 
 
@@ -467,7 +492,8 @@ def capture():
     if not board.columns:
         store().add_column(board.slug, "Inbox")
         board = store().get_board(board.slug)
-    card = store().add_card(board.slug, title, board.columns[0], due, rule, tags, top=True)
+    top = store().settings_for(board.slug)["new_card_position"] == "top"
+    card = store().add_card(board.slug, title, board.columns[0], due, rule, tags, top=top)
     undo = {"url": url_for("boards.delete_card", slug=board.slug, card_id=card.id),
             "method": "DELETE"}
     return jsonify({**_toast(f"Added to Inbox: “{_short(title)}”", undo), "board": board.slug})
@@ -505,3 +531,131 @@ def manifest():
         icons=[icon("icon-192.png", 192), icon("icon-512.png", 512),
                icon("icon-maskable-512.png", 512, "maskable")],
     ), 200, {"Content-Type": "application/manifest+json"}
+
+
+def _rule_rows(scope):
+    return [{"rule": rule, "text": R.describe(rule)} for rule in store().list_rules(scope)]
+
+
+def _recipes(lists):
+    """One-click rules. `lists` are the board's list names (None for global rules)."""
+    names = lists or S.DEFAULT_COLUMNS
+    done = next((n for n in names if n.lower() == "done"), names[-1])
+    first = names[0]
+    recipes = [
+        {"title": f"Checking a card moves it to {done}",
+         "vals": {"when": "completed", "do": "move", "list": done}},
+        {"title": f"Moving a card into {done} marks it complete",
+         "vals": {"when": "moved", "in": done, "do": "complete"}},
+    ]
+    if first != done:
+        recipes.append({"title": f"Un-checking a card in {done} moves it back to {first}",
+                        "vals": {"when": "uncompleted", "in": done, "do": "move", "list": first}})
+    return recipes
+
+
+def _rules_context(scope, lists):
+    every_list = sorted({c for b in store().list_boards() if b.kind == "kanban" for c in b.columns})
+    return {"scope": scope or "global", "rules": _rule_rows(scope), "recipes": _recipes(lists),
+            "lists": lists, "all_lists": every_list, "triggers": R.TRIGGERS, "actions": R.ACTIONS}
+
+
+@bp.get("/settings")
+def settings():
+    gs = store().global_settings()
+    return render_template("settings.html", themes=theme_cards(), text_sizes=TEXT_SIZES, gs=gs,
+                           resolved=S.resolve(gs), **_rules_context(None, None))
+
+
+@bp.post("/settings")
+def save_settings():
+    try:
+        store().save_global_settings(request.form.to_dict())
+    except ValueError as exc:
+        return str(exc), 422
+    return "Saved"
+
+
+def _kanban_or_404(slug):
+    try:
+        board = store().get_board(slug)
+    except KeyError:
+        abort(404)
+    if board.kind != "kanban":
+        abort(404)
+    return board
+
+
+@bp.get("/b/<slug>/settings")
+def board_settings(slug):
+    board = _kanban_or_404(slug)
+    gs = store().global_settings()
+    return render_template(
+        "board_settings.html", board=board, parent=None, raw=store().board_settings(slug),
+        resolved=S.resolve(gs), inherits=S.resolve(gs, board.settings)["inherit_global_rules"],
+        global_rules=_rule_rows(None), **_rules_context(slug, board.columns))
+
+
+@bp.post("/b/<slug>/settings")
+def save_board_settings(slug):
+    _kanban_or_404(slug)
+    form = request.form.to_dict()
+    form["inherit_global_rules"] = request.form.getlist("inherit_global_rules")[-1] \
+        if request.form.getlist("inherit_global_rules") else ""
+    try:
+        store().save_board_settings(slug, form)
+    except ValueError as exc:
+        return str(exc), 422
+    return "Saved"
+
+
+def _scope_of(form):
+    scope = form.get("scope", "global")
+    return None if scope == "global" else scope
+
+
+@bp.post("/rules/add")
+def add_rule():
+    form = request.form
+    raw = {"when": form.get("when"), "in": form.get("in"), "tag": form.get("tag"), "do": form.get("do"),
+           "arg": form.get("list") if form.get("do") == "move" else form.get("tagarg")}
+    try:
+        store().add_rule(_scope_of(form), raw)
+    except KeyError:
+        abort(404)
+    except ValueError as exc:
+        return str(exc), 422
+    return _refresh()
+
+
+@bp.post("/rules/<rule_id>/toggle")
+def toggle_rule(rule_id):
+    enabled = (request.form.getlist("enabled") or ["0"])[-1] == "1"
+    try:
+        store().toggle_rule(_scope_of(request.form), rule_id, enabled)
+    except KeyError:
+        abort(404)
+    return "", 204
+
+
+@bp.post("/rules/<rule_id>/delete")
+def delete_rule(rule_id):
+    scope = _scope_of(request.form)
+    try:
+        index, rule = store().delete_rule(scope, rule_id)
+    except KeyError:
+        abort(404)
+    undo = {"url": url_for("boards.restore_rule"),
+            "body": {"scope": request.form.get("scope", "global"), "index": index,
+                     "rule": json.dumps(rule)}}
+    return jsonify(_toast(f"Deleted rule: {R.describe(rule)}", undo, later=True))
+
+
+@bp.post("/rules/restore")
+def restore_rule():
+    try:
+        rule = json.loads(request.form.get("rule", ""))
+        store().add_rule(_scope_of(request.form), rule, int(request.form.get("index") or 0))
+    except (ValueError, TypeError, KeyError):
+        abort(400)
+    return "", 204

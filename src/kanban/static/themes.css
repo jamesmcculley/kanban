@@ -1,0 +1,142 @@
+/* themes.css: the shared colour themes. Copy into an app unchanged; put the app's own layout in another file.
+
+   Source of truth: engineering-standards/templates/themes.css (palettes from the owner's personal site;
+   a second app uses the same colours under different token names, mapped in standards/12-themes.md).
+   This copy differs from the template only in this comment.
+
+   How to use
+   - Set the theme with an attribute on <html>:  <html data-theme="nord">.  See theme.js (no flash on load).
+   - No attribute = the app's own default (which should follow the OS: prefers-color-scheme).
+   - Every theme sets color-scheme, so form controls and scrollbars match.
+
+   Tokens (all defined by every theme)
+     --bg              page background
+     --bg-surface      sidebars, panels, bars
+     --bg-card         cards and dialogs
+     --bg-well         DERIVED. Recessed containers (board columns): between the page and a card
+     --border          hairlines and control outlines          --border-glow  focus/accent halo
+     --text-primary    body text          --text-secondary  supporting text      --nav-text  navigation
+     --text-muted      RAW palette value: fails WCAG AA as text in every theme. Decoration and disabled only.
+     --text-subtle     DERIVED. The AA-safe replacement for --text-muted. Use this for hints, dates, counts
+     --accent          fills, focus rings, icons, large text      --accent-dim  tinted backgrounds   --accent-hover
+     --accent-text     DERIVED. The AA-safe accent for text and links (raw --accent fails as text in 5 themes)
+     --on-accent       DERIVED. Text/icon colour to put ON an --accent fill (black or white, >= 4.5:1)
+     --text-glow, --scanline-opacity, --vignette-opacity   optional CRT effects (see 12-themes.md); off by default
+
+   DERIVED tokens were computed so that every text token reads at >= 4.5:1 on --bg, --bg-surface and --bg-card
+   (WCAG AA). Recompute them if you edit a palette; never hand-tune one in isolation.
+*/
+
+:root {
+  /* translucent overlays that work on any theme: hover fills, subtle tags */
+  --hover: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --hover-strong: color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+[data-theme=dark] {
+  color-scheme: dark;
+  --bg: #111; --bg-surface: #1a1a1a; --bg-card: #202020; --bg-well: #181818;
+  --border: #2e2e2e; --border-glow: #ffffff18;
+  --text-primary: #f0f0f0; --text-secondary: #a0a0a0; --text-muted: #606060; --text-subtle: #888888; --nav-text: #c8c8c8;
+  --accent: #e0e0e0; --accent-text: #e0e0e0; --accent-dim: #ffffff18; --accent-hover: #fff; --on-accent: #000;
+  --text-glow: 0 0 40px #e0e0e01f; --scanline-opacity: .03; --vignette-opacity: .25;
+}
+
+[data-theme=dim] {
+  color-scheme: dark;
+  --bg: #1a1d27; --bg-surface: #20232f; --bg-card: #252836; --bg-well: #20222e;
+  --border: #353848; --border-glow: #00e88730;
+  --text-primary: #e8eaf4; --text-secondary: #9da3b8; --text-muted: #626878; --text-subtle: #898fa2; --nav-text: #c0c5d8;
+  --accent: #00e887; --accent-text: #00e887; --accent-dim: #00e88730; --accent-hover: #0fa; --on-accent: #000;
+  --text-glow: 0 0 40px #00e88733; --scanline-opacity: .03; --vignette-opacity: .28;
+}
+
+[data-theme=light] {
+  color-scheme: light;
+  --bg: #f5f6f8; --bg-surface: #fff; --bg-card: #fff; --bg-well: #eaebed;
+  --border: #e2e5ec; --border-glow: #00c87030;
+  --text-primary: #111318; --text-secondary: #3d4252; --text-muted: #8b90a0; --text-subtle: #6a6f7f; --nav-text: #2a2d3a;
+  --accent: #009e5c; --accent-text: #03824e; --accent-dim: #009e5c20; --accent-hover: #00b368; --on-accent: #000;
+  --text-glow: none; --scanline-opacity: .015; --vignette-opacity: .1;
+}
+
+[data-theme=fog] {
+  color-scheme: light;
+  --bg: #edf0f4; --bg-surface: #f4f6f9; --bg-card: #fff; --bg-well: #e3e6ea;
+  --border: #d0d5e0; --border-glow: #4a72c820;
+  --text-primary: #1c2030; --text-secondary: #4a5268; --text-muted: #8892a8; --text-subtle: #646d83; --nav-text: #2a3048;
+  --accent: #4a72c8; --accent-text: #456ab9; --accent-dim: #4a72c818; --accent-hover: #3560b8; --on-accent: #fff;
+  --text-glow: none; --scanline-opacity: .015; --vignette-opacity: .1;
+}
+
+[data-theme=warm] {
+  color-scheme: light;
+  --bg: #f4efe8; --bg-surface: #faf6f1; --bg-card: #fefcf9; --bg-well: #e9e4dd;
+  --border: #e0d8cc; --border-glow: #8b691420;
+  --text-primary: #1e1812; --text-secondary: #504538; --text-muted: #9c8f82; --text-subtle: #786b5e; --nav-text: #2e2418;
+  --accent: #8b6914; --accent-text: #896714; --accent-dim: #8b691418; --accent-hover: #704f0a; --on-accent: #fff;
+  --text-glow: none; --scanline-opacity: .015; --vignette-opacity: .1;
+}
+
+[data-theme=terminal] {
+  color-scheme: dark;
+  --bg: #000; --bg-surface: #0a0a0a; --bg-card: #0f0f0f; --bg-well: #080808;
+  --border: #1a2a1a; --border-glow: #00ff4130;
+  --text-primary: #00ff41; --text-secondary: #00cc34; --text-muted: #005c17; --text-subtle: #009024; --nav-text: #00dd38;
+  --accent: #00ff41; --accent-text: #00ff41; --accent-dim: #00ff4120; --accent-hover: #80ffb0; --on-accent: #000;
+  --text-glow: 0 0 8px #00ff41cc, 0 0 40px #00ff414d; --scanline-opacity: .06; --vignette-opacity: .45;
+}
+
+[data-theme=amber] {
+  color-scheme: dark;
+  --bg: #0f0a00; --bg-surface: #1a1200; --bg-card: #1f1600; --bg-well: #171000;
+  --border: #3d2e00; --border-glow: #ffb30030;
+  --text-primary: #ffb300; --text-secondary: #cc8f00; --text-muted: #5c4000; --text-subtle: #aa7700; --nav-text: #e0a000;
+  --accent: #ffb300; --accent-text: #ffb300; --accent-dim: #ffb30020; --accent-hover: #ffd966; --on-accent: #000;
+  --text-glow: 0 0 8px #ffb300b3, 0 0 40px #ffb30040; --scanline-opacity: .06; --vignette-opacity: .45;
+}
+
+[data-theme=nord] {
+  color-scheme: dark;
+  --bg: #2e3440; --bg-surface: #3b4252; --bg-card: #434c5e; --bg-well: #38404f;
+  --border: #4c566a; --border-glow: #88c0d030;
+  --text-primary: #eceff4; --text-secondary: #d8dee9; --text-muted: #7b88a1; --text-subtle: #b3bccc; --nav-text: #e5e9f0;
+  --accent: #88c0d0; --accent-text: #90c4d3; --accent-dim: #88c0d030; --accent-hover: #a3d4e0; --on-accent: #000;
+  --text-glow: 0 0 40px #88c0d033; --scanline-opacity: .03; --vignette-opacity: .2;
+}
+
+[data-theme=rose] {
+  color-scheme: dark;
+  --bg: #12090d; --bg-surface: #1c1018; --bg-card: #231420; --bg-well: #1a0e16;
+  --border: #3d2035; --border-glow: #ff6b9d30;
+  --text-primary: #f5e6ef; --text-secondary: #c9a0b8; --text-muted: #6b4560; --text-subtle: #9e7690; --nav-text: #e0c0d4;
+  --accent: #ff6b9d; --accent-text: #ff6b9d; --accent-dim: #ff6b9d25; --accent-hover: #ff8fb5; --on-accent: #000;
+  --text-glow: 0 0 40px #ff6b9d33; --scanline-opacity: .04; --vignette-opacity: .3;
+}
+
+[data-theme=slate] {
+  color-scheme: dark;
+  --bg: #0a0e1a; --bg-surface: #101525; --bg-card: #151c2e; --bg-well: #101524;
+  --border: #1e2d4a; --border-glow: #4d9fff30;
+  --text-primary: #e8edf8; --text-secondary: #8fa3c8; --text-muted: #3d5280; --text-subtle: #7084ad; --nav-text: #c0ceea;
+  --accent: #4d9fff; --accent-text: #4d9fff; --accent-dim: #4d9fff25; --accent-hover: #80bbff; --on-accent: #000;
+  --text-glow: 0 0 40px #4d9fff33; --scanline-opacity: .04; --vignette-opacity: .3;
+}
+
+[data-theme=paper] {
+  color-scheme: light;
+  --bg: #f8f4ef; --bg-surface: #fdfaf7; --bg-card: #fdfaf7; --bg-well: #ede9e4;
+  --border: #e8e0d8; --border-glow: #c0502030;
+  --text-primary: #1a1410; --text-secondary: #4a3f35; --text-muted: #9a8f85; --text-subtle: #786d63; --nav-text: #2e261e;
+  --accent: #c05020; --accent-text: #b94e1f; --accent-dim: #c0502018; --accent-hover: #d96030; --on-accent: #fff;
+  --text-glow: none; --scanline-opacity: .015; --vignette-opacity: .08;
+}
+
+[data-theme=midnight] {
+  color-scheme: dark;
+  --bg: #0c0a14; --bg-surface: #130f1e; --bg-card: #1a1428; --bg-well: #130f1e;
+  --border: #2e2448; --border-glow: #a855f730;
+  --text-primary: #ede8ff; --text-secondary: #b8a8d8; --text-muted: #5c4880; --text-subtle: #8a78ac; --nav-text: #d4c8f0;
+  --accent: #a855f7; --accent-text: #a855f7; --accent-dim: #a855f725; --accent-hover: #c084fc; --on-accent: #000;
+  --text-glow: 0 0 40px #a855f738; --scanline-opacity: .04; --vignette-opacity: .3;
+}

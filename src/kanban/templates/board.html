@@ -5,6 +5,9 @@
   <header class="page-head">
     {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
     {% include "_board_title.html" %}
+    {% if hidden_done %}
+    <a class="chip" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Hidden by this board's settings">{{ hidden_done }} completed hidden</a>
+    {% endif %}
     {% if board.hidden %}
     <div class="hidden-lists">
       <span>Hidden lists:</span>
@@ -47,7 +50,7 @@
                 onclick="openAddCard(this.closest('.column'))">{{ icon('plus') }}</button>
       </div>
       <form class="add-card" hidden hx-post="{{ url_for('boards.add_card', slug=board.slug) }}"
-            hx-target="next .cards" hx-swap="afterbegin"
+            hx-target="next .cards" hx-swap="{{ 'afterbegin' if new_top else 'beforeend' }}"
             hx-on::after-request="if (event.detail.successful) this.reset()">
         <input type="hidden" name="column" value="{{ name }}">
         <input name="title" placeholder="New card… (try “Call mum tomorrow #home”)" autocomplete="off" required>

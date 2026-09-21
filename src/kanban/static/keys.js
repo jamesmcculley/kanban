@@ -52,7 +52,13 @@
   window.moveCard = (id, column, index) =>
     fetch(document.querySelector('.board').dataset.moveUrl.replace('ID', id), {
       method: 'POST', body: new URLSearchParams({ column, index }),
-    }).then(r => { if (!r.ok) location.reload(); });
+    }).then(async r => {
+      if (!r.ok) return location.reload();
+      if (r.status !== 200) return;                      // 204: a plain move, nothing else happened
+      const data = await r.json();                       // a rule acted on the card: show the result
+      if (data.message) window.toast.later(data.message, data.undo);
+      if (data.refresh) location.reload();
+    });
 
   // Reveal a list's "new card" input (it lives under the list header) and focus it.
   window.openAddCard = col => {

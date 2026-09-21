@@ -8,10 +8,10 @@ from __future__ import annotations
 import re
 import shutil
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-from .mdfile import read_md, write_md
+from .mdfile import extra_fields, read_md, write_md
 
 ITEM_KINDS = ("note", "link", "image", "board")
 COLORS = ("yellow", "green", "blue", "pink", "white")
@@ -63,6 +63,10 @@ class Item:
     url: str | None = None
     file: str | None = None
     target: str | None = None  # nested board slug
+    extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
+
+
+_ITEM_KEYS = {"id", "kind", "x", "y", "z", "w", "color", "url", "file", "target"}
 
 
 class CanvasMixin:
@@ -86,7 +90,7 @@ class CanvasMixin:
                 meta[key] = getattr(item, key)
         if item.kind == "note":
             meta["color"] = item.color
-        write_md(self._item_path(slug, item.id), meta, item.text)
+        write_md(self._item_path(slug, item.id), {**item.extra, **meta}, item.text)
 
     @staticmethod
     def _item_from(meta: dict, body: str) -> Item:
@@ -95,7 +99,7 @@ class CanvasMixin:
             id=meta["id"], kind=meta["kind"], x=int(meta.get("x", 0)), y=int(meta.get("y", 0)),
             z=int(meta.get("z", 0)), w=meta.get("w"), color=color if color in COLORS else "yellow",
             text=body.rstrip("\n"), url=meta.get("url"), file=meta.get("file"),
-            target=meta.get("target"),
+            target=meta.get("target"), extra=extra_fields(meta, _ITEM_KEYS),
         )
 
     def list_items(self, slug: str) -> list[Item]:

@@ -8,3 +8,6 @@
 <button type="button" class="icon-btn danger" title="Delete this board" aria-label="Delete board"
         data-post="{{ url_for('boards.delete_board', slug=board.slug) }}" data-confirm="Delete? Click again"
         data-after="home">{{ icon('trash') }}</button>
+{% if board.kind == 'kanban' %}
+<a class="icon-btn" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Board settings and rules" aria-label="Board settings and rules">{{ icon('sliders') }}</a>
+{% endif %}

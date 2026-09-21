@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ board.title }} settings{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <a class="crumb" href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }}</a><span class="crumb-sep">/</span>
+    <h1>Settings</h1>
+  </header>
+  <main class="settings">
+    <section class="card-section" aria-labelledby="options-h">
+      <h2 id="options-h">This board <span class="muted">overrides the <a href="{{ url_for('boards.settings') }}">global settings</a></span></h2>
+      <form class="prefs" hx-post="{{ url_for('boards.save_board_settings', slug=board.slug) }}" hx-trigger="change" hx-target="#save-status" hx-swap="innerHTML"
+            hx-on::response-error="document.getElementById('save-status').textContent = event.detail.xhr.responseText || 'Could not save'">
+        {% set pos = {'top': 'at the top', 'bottom': 'at the bottom'} %}
+        <div class="pref-row"><div><label for="b-pos">New cards go</label><small>Where a card you add lands in its list.</small></div>
+          <select id="b-pos" name="new_card_position">
+            <option value="">Use global ({{ pos[resolved.new_card_position] }})</option>
+            <option value="top" {% if raw.new_card_position == 'top' %}selected{% endif %}>At the top</option>
+            <option value="bottom" {% if raw.new_card_position == 'bottom' %}selected{% endif %}>At the bottom</option></select></div>
+        <div class="pref-row"><div><label for="b-hide">Completed cards</label><small>Hidden cards stay in the Logbook and search.</small></div>
+          <select id="b-hide" name="hide_done">
+            <option value="">Use global ({{ 'hide them' if resolved.hide_done else 'show them' }})</option>
+            <option value="0" {% if raw.hide_done is defined and not raw.hide_done %}selected{% endif %}>Show them</option>
+            <option value="1" {% if raw.hide_done %}selected{% endif %}>Hide them</option></select></div>
+        <div class="pref-row"><div><label for="b-age">Hide completed cards after</label><small>Tidies the lists without deleting anything.</small></div>
+          <select id="b-age" name="auto_hide_done_days">
+            <option value="">Use global ({{ 'never' if not resolved.auto_hide_done_days else resolved.auto_hide_done_days ~ ' days' }})</option>
+            {% for d, label in [(0, 'Never'), (1, '1 day'), (7, '7 days'), (14, '14 days'), (30, '30 days')] %}
+            <option value="{{ d }}" {% if raw.auto_hide_done_days is defined and raw.auto_hide_done_days == d %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="pref-row"><div><label for="b-inherit">Also run the global rules</label><small>Rules from Settings that apply to every board.</small></div>
+          <span><input type="hidden" name="inherit_global_rules" value="0">
+            <input id="b-inherit" type="checkbox" name="inherit_global_rules" value="1" {% if inherits %}checked{% endif %}></span></div>
+        <p id="save-status" class="muted" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card-section" aria-labelledby="rules-h">
+      <h2 id="rules-h">Rules for this board</h2>
+      {% include "_rules.html" %}
+    </section>
+
+    {% if global_rules %}
+    <section class="card-section" aria-labelledby="global-h">
+      <h2 id="global-h">Global rules <span class="muted">{{ 'also run here' if inherits else 'switched off for this board' }}. <a href="{{ url_for('boards.settings') }}">Edit</a></span></h2>
+      <ul class="rule-list readonly{% if not inherits %} off{% endif %}">
+        {% for row in global_rules %}<li class="rule{% if not row.rule.enabled %} off{% endif %}"><span class="rule-text">{{ row.text }}</span></li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </main>
+{% endblock %}

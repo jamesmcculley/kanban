@@ -137,7 +137,7 @@ def test_delete_column_only_when_empty(store):
 
 
 def test_tags_parse_and_split():
-    from kanban.store import parse_tags, split_tags
+    from kanban.tags import parse_tags, split_tags
     assert parse_tags("#Home, errand  home #9lives") == ["home", "errand"]
     assert split_tags("Buy paint #home #Errand tomorrow") == ("Buy paint tomorrow", ["home", "errand"])
     assert split_tags("Fix bug #123") == ("Fix bug #123", [])           # numbers are not tags

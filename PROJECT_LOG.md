@@ -1,0 +1,32 @@
+# Project log
+
+## Systems map
+
+- **App:** Flask (`src/kanban`). `routes.py` and `canvas_routes.py` are HTTP glue; `Store` (`store.py`) plus mixins
+  (`canvas.py`, `trash.py`, `logbook.py`, `preferences.py`) own all file I/O; pure modules hold the logic
+  (`rules.py`, `settings.py`, `dates.py`, `notes.py`, `tags.py`).
+- **Data** (`KANBAN_DATA_DIR`, a named volume in Docker): one folder per board with `board.md` and `cards/` or
+  `items/` and `assets/`; root files `.trellis.yml` (areas, global settings and rules, `format: 1`),
+  `.trellis-log.jsonl` (Logbook), `.trash/`. All Markdown/YAML/JSON, readable in Obsidian.
+- **Frontend:** server-rendered Jinja, htmx and SortableJS (vendored), vanilla JS in `static/` (`ui.js`, `keys.js`,
+  `toast.js`, `fab.js`, `sidebar.js`, `canvas.js`, `theme.js`). Colours: `themes.css` (shared 12 themes) + `app.css`.
+- **Host:** the ASUS, container `kanban` on the shared Caddy network, LAN-only route in the dashboard repo's
+  Caddyfile. Deploy with `./deploy.sh` on the host. Nightly cron runs `scripts/backup.sh` at 03:15.
+
+## Gotchas
+
+- htmx: 20 ms settle delay ignores clicks on new nodes; a pending `htmx.ajax` without a source element blocks other
+  requests; Sortable cannot drag from an `<a>`. See AGENTS.md traps.
+- Jinja: a dict passed to a template that has an `items` key collides with `dict.items` (`trash['items']`).
+- `git pull` replaces the Caddyfile inode; Caddy must be recreated to see it (see the standards runbook).
+- Raw `--text-muted` and `--accent` fail WCAG AA in the shared themes; use the derived tokens.
+
+## Changelog
+
+- 2026-09-21 — Shared colour themes (12 + Default) with a Settings picker and text size; AA-safe derived tokens.
+- 2026-09-21 — Global and per-board settings and rules (checking a card can move it to Done); hide-completed as a view;
+  settings and rules pages; undo restores what a rule did.
+- 2026-09-21 — Origin check on writes, security headers, `/api/health`, `deploy.sh`, `restore-check.sh`; unknown
+  frontmatter is preserved on save.
+- 2026-09-20 — Undo, Trash, Logbook, Inbox, drag-to-board, Markdown notes with checklists, install support.
+- 2026-09-19 — First deploy: list boards, due dates and repeats, canvas boards, areas, tags, reordering.

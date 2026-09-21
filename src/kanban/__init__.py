@@ -1,8 +1,9 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
-from flask import Flask, url_for
+from flask import Flask, abort, jsonify, request, url_for
 
 from . import notes
 from .canvas import COLORS
@@ -64,11 +65,31 @@ def create_app(data_dir: str | Path | None = None) -> Flask:
     app.register_blueprint(bp)
     app.register_blueprint(cv)
 
+    @app.before_request
+    def refuse_cross_origin_writes():
+        """The app has no login (it is LAN-only), so a web page on another site must not be able to
+        drive it from a device on the LAN. Browsers send Origin on writes; it must be this host."""
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+        origin = request.headers.get("Origin")
+        if (origin and urlparse(origin).netloc != request.host) or \
+                request.headers.get("Sec-Fetch-Site") == "cross-site":
+            abort(403)
+
     @app.after_request
-    def no_stale_pages(resp):
-        # These pages are live views of your data. Without this, the browser's Back button
-        # shows a cached copy from before your last change.
+    def security_headers(resp):
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        resp.headers["Referrer-Policy"] = "same-origin"
         if resp.mimetype == "text/html":
+            # Live views of your data: without no-store the Back button shows a cached copy from
+            # before your last change.
             resp.headers["Cache-Control"] = "no-store"
+            resp.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
         return resp
+
+    @app.get("/api/health")
+    def health():
+        """Used by the container healthcheck. 200 only when the data folder can be read."""
+        app.config["STORE"].list_boards()
+        return jsonify(status="ok", version=os.environ.get("APP_VERSION", "dev"))
     return app

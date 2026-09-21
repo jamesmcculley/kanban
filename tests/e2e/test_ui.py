@@ -538,3 +538,253 @@ def test_canvas_delete_shows_undo(page):
     toast(page).get_by_role("button", name="Undo").click()
     page.wait_for_load_state()
     expect(page.locator(".item.note .item-text")).to_have_text("keep me")
+
+
+# ---- themes, settings and rules ---------------------------------------------------------------------
+
+import re as _re
+from pathlib import Path as _Path
+
+_THEMES_CSS = (_Path(__file__).parent.parent.parent / "src" / "kanban" / "static" / "themes.css").read_text()
+
+
+def theme_bg(name):
+    """--bg for a theme, as the browser reports it, e.g. 'rgb(46, 52, 64)'."""
+    hexv = _re.search(rf"\[data-theme={name}\]\s*\{{[^}}]*?--bg:\s*(#[0-9a-fA-F]+);", _THEMES_CSS)[1].lstrip("#")
+    hexv = "".join(c * 2 for c in hexv) if len(hexv) == 3 else hexv
+    return "rgb({}, {}, {})".format(*(int(hexv[i:i + 2], 16) for i in (0, 2, 4)))
+
+
+def body_bg(page):
+    return page.evaluate("getComputedStyle(document.body).backgroundColor")
+
+
+def test_theme_picker_applies_all_twelve_and_persists(page):
+    from kanban.themes import THEME_NAMES
+    page.goto(page.base + "/settings")
+    expect(page.locator('input[name=theme]:checked')).to_have_value("default")
+    for name in THEME_NAMES:
+        page.locator(f'label.theme-card:has(input[value="{name}"])').click()
+        expect(page.locator("html")).to_have_attribute("data-theme", name)
+        assert body_bg(page) == theme_bg(name), name
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-theme", "midnight")           # last one picked
+    expect(page.locator('input[name=theme]:checked')).to_have_value("midnight")
+    page.goto(page.base + "/b/my-board")                                                # other pages too
+    expect(page.locator("html")).to_have_attribute("data-theme", "midnight")
+    page.goto(page.base + "/settings")
+    page.locator('label.theme-card:has(input[value="default"])').click()
+    expect(page.locator("html")).not_to_have_attribute("data-theme", _re.compile(".+"))
+    assert page.evaluate("localStorage.getItem('theme')") == "default"
+
+
+def test_saved_theme_is_applied_before_first_paint_and_unknown_values_are_ignored(browser, server):
+    ctx = browser.new_context()
+    ctx.add_init_script("""
+        localStorage.setItem('theme', 'terminal');
+        document.addEventListener('DOMContentLoaded', () => { window.__atParse = getComputedStyle(document.body).backgroundColor; });
+    """)
+    pg = ctx.new_page()
+    pg.goto(server + "/")
+    assert pg.evaluate("window.__atParse") == theme_bg("terminal")       # already themed when parsing finished
+    ctx.close()
+    ctx = browser.new_context()
+    ctx.add_init_script("localStorage.setItem('theme', 'javascript:alert(1)'); localStorage.setItem('font-size', 'huge');")
+    pg = ctx.new_page()
+    pg.goto(server + "/")
+    assert pg.evaluate("document.documentElement.hasAttribute('data-theme')") is False   # not on the allow-list
+    assert pg.evaluate("document.documentElement.hasAttribute('data-font-size')") is False
+    ctx.close()
+
+
+def test_default_theme_follows_the_os_and_text_size_persists(browser, server):
+    for scheme, expected in (("dark", "rgb(22, 24, 29)"), ("light", "rgb(244, 245, 247)")):
+        ctx = browser.new_context(color_scheme=scheme)
+        pg = ctx.new_page()
+        pg.goto(server + "/")
+        assert body_bg(pg) == expected, scheme
+        ctx.close()
+    ctx = browser.new_context()
+    pg = ctx.new_page()
+    pg.goto(server + "/settings")
+    pg.get_by_label("Large").check()
+    expect(pg.locator("html")).to_have_attribute("data-font-size", "large")
+    pg.reload()
+    expect(pg.locator("html")).to_have_attribute("data-font-size", "large")
+    expect(pg.get_by_label("Large")).to_be_checked()
+    ctx.close()
+
+
+def test_defaults_autosave_with_honest_status(page):
+    page.expected_errors.append("422")                 # the invalid save below is refused on purpose
+    page.goto(page.base + "/settings")
+    page.select_option("#p-pos", "bottom")
+    expect(page.locator("#save-status")).to_have_text("Saved")
+    page.fill("#p-cols", "Inbox, Next, Done")
+    page.locator("#p-cols").blur()
+    expect(page.locator("#save-status")).to_have_text("Saved")
+    page.reload()
+    expect(page.locator("#p-pos")).to_have_value("bottom")
+    expect(page.locator("#p-cols")).to_have_value("Inbox, Next, Done")
+    fab_add(page, "New board", "Fresh")
+    page.wait_for_url("**/b/fresh")
+    assert column_order(page) == ["Inbox", "Next", "Done"]              # the new default lists
+    page.goto(page.base + "/settings")
+    page.fill("#p-cols", " , ")
+    page.locator("#p-cols").blur()
+    expect(page.locator("#save-status")).to_have_text("A new board needs at least one list")   # real error, not "saved"
+
+
+def test_checking_a_card_moves_it_to_done_via_a_board_rule_and_undo(page):
+    page.goto(page.base + "/b/my-board/settings")
+    expect(page.locator(".rules .empty")).to_be_visible()
+    page.get_by_role("button", name="Checking a card moves it to Done").click()
+    expect(page.locator(".rule-text")).to_have_text("When a card is completed, move it to Done.")
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "ship it")
+    page.locator(".card", has_text="ship it").locator(".check").click()
+    page.wait_for_load_state()
+    done = page.locator('.column[data-column="Done"]')
+    expect(done.locator(".card.done", has_text="ship it")).to_be_visible()
+    expect(page.locator('.column[data-column="Todo"] .card')).to_have_count(0)
+    expect(toast(page)).to_contain_text("Completed “ship it” · moved to Done")
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator('.column[data-column="Todo"] .card', has_text="ship it")).to_have_count(1)
+    expect(page.locator(".card.done")).to_have_count(0)                  # not done, and back where it was
+    page.click('.sidebar [data-go="l"]')
+    expect(page.locator(".logbook .empty")).to_be_visible()
+
+
+def test_dragging_into_done_completes_the_card_via_a_rule(page):
+    page.goto(page.base + "/b/my-board/settings")
+    page.get_by_role("button", name="Moving a card into Done marks it complete").click()
+    expect(page.locator(".rule-text")).to_have_text("When a card is moved into Done, mark it complete.")
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "dragged")
+    drag(page, page.locator(".card", has_text="dragged"), page.locator('.column[data-column="Done"] .cards'))
+    page.wait_for_load_state()
+    expect(page.locator('.column[data-column="Done"] .card.done', has_text="dragged")).to_be_visible()
+    expect(toast(page)).to_contain_text("marked complete")
+    page.click('.sidebar [data-go="l"]')
+    expect(page.locator(".logbook .row", has_text="dragged")).to_contain_text("Done")
+
+
+def test_rule_builder_shows_only_relevant_fields_and_explains_errors(page):
+    page.expected_errors.append("422")                 # the incomplete rule below is refused on purpose
+    page.goto(page.base + "/b/my-board/settings")
+    form = page.locator(".rule-form")
+    expect(form.locator(".rb-move")).to_be_visible()                     # default action is "move"
+    expect(form.locator(".rb-tag")).to_be_hidden()
+    form.locator("select[name=do]").select_option("add_tag")
+    expect(form.locator(".rb-move")).to_be_hidden()
+    expect(form.locator(".rb-tag")).to_be_visible()
+    form.locator("select[name=do]").select_option("archive")
+    expect(form.locator(".rb-move")).to_be_hidden()
+    expect(form.locator(".rb-tag")).to_be_hidden()
+    form.locator("select[name=when]").select_option("moved")
+    expect(form.locator(".rb-in-label")).to_have_text("into list")
+    form.get_by_role("button", name="Add rule").click()                  # "moved" needs a list
+    expect(form.locator(".rule-error")).to_have_text("Say which list the card is moved into")
+    form.locator("select[name=in]").select_option("Done")
+    form.get_by_role("button", name="Add rule").click()
+    expect(page.locator(".rule-text")).to_have_text("When a card is moved into Done, clear it from the list.")
+
+
+def test_rule_toggle_and_delete_with_undo(page):
+    page.goto(page.base + "/b/my-board/settings")
+    page.get_by_role("button", name="Checking a card moves it to Done").click()
+    switch = page.get_by_role("checkbox", name=_re.compile("Rule on"))
+    switch.uncheck()
+    expect(page.locator(".rule.off")).to_have_count(1)
+    page.reload()
+    expect(page.get_by_role("checkbox", name=_re.compile("Rule on"))).not_to_be_checked()   # persisted
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "stays put")
+    page.locator(".card", has_text="stays put").locator(".check").click()
+    expect(page.locator(".card.done", has_text="stays put")).to_be_visible()
+    expect(page.locator('.column[data-column="Todo"] .card.done')).to_have_count(1)        # rule off: nothing moved
+
+    page.goto(page.base + "/b/my-board/settings")
+    page.get_by_role("button", name=_re.compile("Delete rule")).click()
+    page.wait_for_load_state()
+    expect(page.locator(".rules .empty")).to_be_visible()
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator(".rule-text")).to_have_count(1)
+
+
+def test_global_rule_applies_to_every_board_unless_opted_out(page):
+    page.goto(page.base + "/settings")
+    page.get_by_role("button", name="Checking a card moves it to Done").click()
+    expect(page.locator(".rule-text")).to_have_text("When a card is completed, move it to Done.")
+    fab_add(page, "New board", "Second")
+    page.wait_for_url("**/b/second")
+    add_card(page, "Todo", "inherits")
+    page.locator(".card", has_text="inherits").locator(".check").click()
+    expect(page.locator('.column[data-column="Done"] .card.done', has_text="inherits")).to_be_visible()
+
+    page.goto(page.base + "/b/second/settings")
+    expect(page.locator("#global-h")).to_contain_text("also run here")
+    page.uncheck("#b-inherit")
+    expect(page.locator("#save-status")).to_have_text("Saved")
+    page.reload()
+    expect(page.locator("#global-h")).to_contain_text("switched off for this board")
+    page.goto(page.base + "/b/second")
+    add_card(page, "Todo", "opts out")
+    page.locator(".card", has_text="opts out").locator(".check").click()
+    expect(page.locator(".card.done", has_text="opts out")).to_be_visible()
+    expect(page.locator('.column[data-column="Todo"] .card.done', has_text="opts out")).to_have_count(1)   # stayed in Todo
+
+
+def test_board_settings_new_card_position_and_hide_completed(page):
+    page.goto(page.base + "/b/my-board/settings")
+    page.select_option("#b-pos", "bottom")
+    expect(page.locator("#save-status")).to_have_text("Saved")
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "first")
+    add_card(page, "Todo", "second")
+    assert page.locator('.column[data-column="Todo"] .card .title').all_inner_texts() == ["first", "second"]   # appended
+    page.locator(".card", has_text="first").locator(".check").click()
+    expect(page.locator(".card.done", has_text="first")).to_be_visible()
+
+    page.goto(page.base + "/b/my-board/settings")
+    page.select_option("#b-hide", "1")
+    expect(page.locator("#save-status")).to_have_text("Saved")
+    page.goto(page.base + "/b/my-board")
+    expect(page.locator(".card", has_text="first")).to_have_count(0)
+    expect(page.locator(".chip", has_text="1 completed hidden")).to_be_visible()
+    page.click('.sidebar [data-go="l"]')
+    expect(page.locator(".logbook .row", has_text="first")).to_be_visible()          # never lost
+
+
+def test_cross_origin_page_cannot_drive_the_app(browser, server):
+    """Standard 05: a page on another origin must not be able to write to a LAN-only, login-less app.
+    A second local server plays the hostile page (a different port is a different origin)."""
+    import threading
+
+    from werkzeug.serving import make_server
+    from werkzeug.wrappers import Request, Response
+
+    @Request.application
+    def hostile(request):
+        return Response(f"""<html><body>
+            <form id=f method=post action="{server}/boards"><input name=title value="pwned-form"></form>
+            <script>
+              fetch("{server}/boards", {{method: "POST", mode: "no-cors",
+                headers: {{"Content-Type": "application/x-www-form-urlencoded"}}, body: "title=pwned-fetch"}})
+                .finally(() => document.getElementById("f").submit());
+            </script></body></html>""", content_type="text/html")
+
+    evil = make_server("127.0.0.1", 0, hostile)
+    threading.Thread(target=evil.serve_forever, daemon=True).start()
+    ctx = browser.new_context()
+    pg = ctx.new_page()
+    pg.goto(f"http://127.0.0.1:{evil.server_port}/")
+    pg.wait_for_timeout(1500)                                   # let the fetch and the form submit happen
+    listing = ctx.new_page()
+    listing.goto(server + "/")
+    assert "pwned" not in listing.content().lower()             # the server refused both
+    assert "403" in pg.content() or "Forbidden" in pg.content()  # the form post got an explicit refusal
+    ctx.close()
+    evil.shutdown()

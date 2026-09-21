@@ -101,4 +101,16 @@
     const r = await fetch(view.dataset.bodyUrl);
     if (r.ok) view.closest('.notes').querySelector('textarea').value = await r.text();
   });
+
+  // -- rule builder: show only the fields the chosen trigger/action needs ----------------------
+  document.querySelectorAll('.rule-form').forEach(form => {
+    const sync = () => {
+      const when = form.elements.when.value, action = form.elements.do.value;
+      form.querySelector('.rb-in-label').textContent = when === 'moved' ? 'into list' : 'in list';
+      form.querySelector('.rb-move').hidden = action !== 'move';
+      form.querySelector('.rb-tag').hidden = !['add_tag', 'remove_tag'].includes(action);
+    };
+    form.addEventListener('change', sync);
+    sync();
+  });
 })();

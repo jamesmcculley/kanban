@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Trellis{% endblock %}</title>
+  {% include "_theme_boot.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='themes.css') }}">
   <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
   <script src="{{ url_for('static', filename='vendor/Sortable.min.js') }}"></script>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
@@ -14,6 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Trellis">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
   <script src="{{ url_for('static', filename='toast.js') }}" defer></script>
   <script src="{{ url_for('static', filename='ui.js') }}" defer></script>
   <script src="{{ url_for('static', filename='keys.js') }}" defer></script>
@@ -83,6 +86,7 @@
       </nav>
       <div class="side-foot">
         <a href="{{ url_for('boards.trash') }}" class="{{ 'active' if request.endpoint == 'boards.trash' }}">Trash</a>
+        <a href="{{ url_for('boards.settings') }}" class="{{ 'active' if request.endpoint == 'boards.settings' }}">Settings</a>
         <button type="button" class="help-btn" onclick="document.getElementById('help').hidden = false">? Shortcuts</button>
       </div>
     </aside>

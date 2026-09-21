@@ -3,7 +3,10 @@
 # The app has no authentication: keep the proxy route restricted to trusted networks.
 services:
   kanban:
-    build: .
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}   # deploy.sh sets this to the git commit
     container_name: kanban
     restart: unless-stopped
     init: true

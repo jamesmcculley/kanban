@@ -1,0 +1,68 @@
+{# Rules list, one-click recipes and a builder. Context: scope ("global" or a board slug), rules, recipes,
+   lists (the board's list names, or None for global), all_lists, triggers, actions. #}
+{% from "_icons.html" import icon %}
+<div class="rules">
+  {% if rules %}
+  <ul class="rule-list">
+    {% for row in rules %}
+    <li class="rule{% if not row.rule.enabled %} off{% endif %}">
+      <form class="rule-toggle" hx-post="{{ url_for('boards.toggle_rule', rule_id=row.rule.id) }}" hx-trigger="change" hx-swap="none">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        <input type="hidden" name="enabled" value="0">
+        <input type="checkbox" name="enabled" value="1" {% if row.rule.enabled %}checked{% endif %}
+               aria-label="Rule on: {{ row.text }}"
+               onchange="this.closest('.rule').classList.toggle('off', !this.checked)">
+      </form>
+      <span class="rule-text">{{ row.text }}</span>
+      <button type="button" class="icon-btn" title="Delete this rule" aria-label="Delete rule: {{ row.text }}"
+              data-post="{{ url_for('boards.delete_rule', rule_id=row.rule.id) }}"
+              data-vals='{{ {"scope": scope}|tojson }}' data-after="reload">{{ icon('trash') }}</button>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No rules yet. A rule runs by itself when something happens to a card, so you don't have to
+    do the follow-up. Try one of these, or build your own below.</p>
+  {% endif %}
+
+  <div class="recipes" role="group" aria-label="Quick rules">
+    {% for recipe in recipes %}
+    <button type="button" class="recipe" hx-swap="none"
+            hx-post="{{ url_for('boards.add_rule') }}"
+            hx-vals='{{ dict(recipe.vals, scope=scope)|tojson }}'
+            hx-on::response-error="this.closest('.rules').querySelector('.rule-error').textContent = event.detail.xhr.responseText">
+      {{ icon('plus', 13) }} {{ recipe.title }}</button>
+    {% endfor %}
+  </div>
+
+  <form class="rule-form" hx-post="{{ url_for('boards.add_rule') }}" hx-swap="none"
+        hx-on::response-error="this.querySelector('.rule-error').textContent = event.detail.xhr.responseText || 'Could not add the rule'">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <h3>Build a rule</h3>
+    <div class="rb-row">
+      <label>When
+        <select name="when">{% for key, label in triggers.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+      <label class="rb-in"><span class="rb-in-label">in list</span>
+        {% if lists %}
+        <select name="in"><option value="">any list</option>{% for l in lists %}<option>{{ l }}</option>{% endfor %}</select>
+        {% else %}
+        <input name="in" list="all-lists" placeholder="any list" autocomplete="off">
+        {% endif %}</label>
+      <label>tagged <input name="tag" placeholder="#tag (optional)" autocomplete="off"></label>
+    </div>
+    <div class="rb-row">
+      <label>Then
+        <select name="do">{% for key, label in actions.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+      <label class="rb-move">list
+        {% if lists %}
+        <select name="list">{% for l in lists %}<option>{{ l }}</option>{% endfor %}</select>
+        {% else %}
+        <input name="list" list="all-lists" placeholder="e.g. Done" autocomplete="off">
+        {% endif %}</label>
+      <label class="rb-tag">tag <input name="tagarg" placeholder="#tag" autocomplete="off"></label>
+      <button type="submit" class="primary-btn">Add rule</button>
+    </div>
+    <p class="rule-error" role="alert"></p>
+  </form>
+  {% if not lists %}<datalist id="all-lists">{% for l in all_lists %}<option value="{{ l }}">{% endfor %}</datalist>{% endif %}
+</div>

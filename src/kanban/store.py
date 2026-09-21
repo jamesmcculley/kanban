@@ -21,12 +21,14 @@ import yaml
 from .canvas import BOARD_KINDS, CanvasMixin
 from .dates import next_occurrence
 from .logbook import LogbookMixin
+from .mdfile import extra_fields, slugify
 from .mdfile import read_md as _read
-from .mdfile import slugify
 from .mdfile import write_md as _write
+from .preferences import PreferencesMixin
+from .settings import DEFAULT_COLUMNS
+from .tags import parse_tags
 from .trash import TrashMixin
 
-DEFAULT_COLUMNS = ["Todo", "Doing", "Done"]
 INBOX = "inbox"  # slug of the quick-capture board
 
 
@@ -44,6 +46,8 @@ class Card:
     last_completed: str | None = None  # repeating cards: when it last rolled forward
     tags: list[str] = field(default_factory=list)
     archived: bool = False  # cleared from its list; still in the Logbook and search
+    effects: list[str] = field(default_factory=list, compare=False, repr=False)  # what rules just did (not stored)
+    extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
 
 @dataclass
@@ -56,27 +60,9 @@ class Board:
     position: int = 0  # sidebar order
     kind: str = "kanban"  # or "canvas"
     parent: str | None = None  # set on boards nested inside a canvas
-
-
-_TAG = re.compile(r"[a-z][a-z0-9_-]*")
-_TITLE_TAG = re.compile(r"(?:^|(?<=\s))#([A-Za-z][A-Za-z0-9_-]*)(?![\w-])")
-
-
-def parse_tags(value) -> list[str]:
-    """'#Home, errand  home' -> ['home', 'errand']: lowercase, deduped, order kept."""
-    parts = re.split(r"[,\s]+", value) if isinstance(value, str) else [str(v) for v in value or []]
-    tags: list[str] = []
-    for part in parts:
-        tag = part.strip().lstrip("#").lower()
-        if _TAG.fullmatch(tag) and tag not in tags:
-            tags.append(tag)
-    return tags
-
-
-def split_tags(title: str) -> tuple[str, list[str]]:
-    """'Buy paint #home #errand' -> ('Buy paint', ['home', 'errand'])."""
-    tags = parse_tags(_TITLE_TAG.findall(title))
-    return " ".join(_TITLE_TAG.sub("", title).split()), tags
+    settings: dict = field(default_factory=dict)  # this board's overrides of the global settings
+    rules: list = field(default_factory=list)  # this board's automation rules
+    extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
 
 def _iso(meta: dict, key: str) -> str | None:
@@ -89,8 +75,14 @@ def _iso(meta: dict, key: str) -> str | None:
     return str(value)
 
 
+_CARD_KEYS = {"id", "title", "column", "position", "due", "repeat", "tags", "done", "completed",
+              "last_completed", "archived"}
+_BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules"}
+
+
 def _card_from(meta: dict, body: str) -> Card:
-    return Card(
+    return Card(extra=extra_fields(meta, _CARD_KEYS),
+                
         id=meta["id"], title=meta["title"], column=meta["column"],
         position=meta.get("position", 0), due=_iso(meta, "due"), body=body,
         repeat=meta.get("repeat") or None, done=bool(meta.get("done")),
@@ -99,7 +91,7 @@ def _card_from(meta: dict, body: str) -> Card:
     )
 
 
-class Store(CanvasMixin, TrashMixin, LogbookMixin):
+class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
     def __init__(self, root: Path):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -126,7 +118,9 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
         hidden = [c for c in meta.get("hidden", []) if c in columns]
         return Board(slug, meta.get("title", slug), columns, hidden,
                      area=meta.get("area") or None, position=int(meta.get("position") or 0),
-                     kind=kind, parent=meta.get("parent") or None)
+                     kind=kind, parent=meta.get("parent") or None,
+                     settings=meta.get("settings") or {}, rules=meta.get("rules") or [],
+                     extra=extra_fields(meta, _BOARD_KEYS))
 
     def _save_board(self, board: Board) -> None:
         meta = {"title": board.title}
@@ -142,7 +136,11 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
             meta["area"] = board.area
         if board.position:
             meta["position"] = board.position
-        _write(self._board_dir(board.slug) / "board.md", meta)
+        if board.settings:
+            meta["settings"] = board.settings
+        if board.rules:
+            meta["rules"] = board.rules
+        _write(self._board_dir(board.slug) / "board.md", {**board.extra, **meta})
 
     def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban",
                      parent: str | None = None) -> Board:
@@ -152,7 +150,8 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
         while (self.root / slug).exists():
             slug, n = f"{slugify(title)}-{n}", n + 1
         last = max((b.position for b in self.list_boards()), default=0)
-        board = Board(slug, title, (columns or list(DEFAULT_COLUMNS)) if kind == "kanban" else [],
+        chosen = columns or self.global_settings().get("default_columns") or list(DEFAULT_COLUMNS)
+        board = Board(slug, title, chosen if kind == "kanban" else [],
                       position=last + 1, kind=kind, parent=parent)
         (self.root / slug / ("cards" if kind == "kanban" else "items")).mkdir(parents=True)
         self._save_board(board)
@@ -170,8 +169,7 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
     def _save_areas(self, names: list[str]) -> None:
         meta = self._meta()
         meta["areas"] = names
-        self._meta_path().write_text(yaml.safe_dump(meta, sort_keys=False, allow_unicode=True),
-                                     encoding="utf-8")
+        self._write_meta(meta)
 
     def areas(self) -> list[str]:
         """Ordered area names, including any a board mentions that the meta file lacks."""
@@ -331,7 +329,7 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
             meta["last_completed"] = card.last_completed
         if card.archived:
             meta["archived"] = True
-        _write(self._card_path(slug, card.id), meta, card.body)
+        _write(self._card_path(slug, card.id), {**card.extra, **meta}, card.body)
 
     def _load_card(self, path: Path) -> Card:
         return _card_from(*_read(path))
@@ -371,41 +369,61 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
         self._save(slug, card)
         return card
 
-    def complete_card(self, slug: str, card_id: str, now: datetime | None = None) -> Card:
-        """Stamp the completion time. Repeating cards then advance to their next due date;
-        others toggle done/not done."""
-        now = now or datetime.now()  # local time: the app is meant to run in the owner's zone
+    def _set_done(self, slug: str, board: Board, card: Card, now: datetime) -> None:
         stamp = now.isoformat(timespec="minutes")
+        card.done, card.completed = True, stamp
+        self._save(slug, card)
+        self.log_completion(board, card, stamp)
+
+    def _unset_done(self, slug: str, card: Card) -> None:
+        if card.completed:
+            self.remove_completion(card.id, card.completed)
+        card.done, card.completed, card.archived = False, None, False
+        self._save(slug, card)
+
+    def complete_card(self, slug: str, card_id: str, now: datetime | None = None) -> Card:
+        """Stamp the completion time, then run the board's rules. Repeating cards advance to their
+        next due date instead (rules do not apply: they never finish); others toggle done/not done.
+        `card.effects` on the result says what rules did, e.g. ["moved to Done"]."""
+        now = now or datetime.now()  # local time: the app is meant to run in the owner's zone
         board = self.get_board(slug)
         card = self.get_card(slug, card_id)
-        completed_now = True
+        effects: list[str] = []
         if card.repeat:
+            stamp = now.isoformat(timespec="minutes")
             due = date.fromisoformat(card.due) if card.due else None
             card.due = next_occurrence(card.repeat, due, now.date()).isoformat()
             card.last_completed = stamp
-        elif card.done:
-            completed_now = False
-            if card.completed:
-                self.remove_completion(card.id, card.completed)
-            card.done, card.completed, card.archived = False, None, False
-        else:
-            card.done, card.completed = True, stamp
-        self._save(slug, card)
-        if completed_now:
+            self._save(slug, card)
             self.log_completion(board, card, stamp)
+        elif card.done:
+            self._unset_done(slug, card)
+            effects = self._run_rules(slug, "uncompleted", card_id, now)
+        else:
+            self._set_done(slug, board, card, now)
+            effects = self._run_rules(slug, "completed", card_id, now)
+        card = self.get_card(slug, card_id)
+        card.effects = effects
         return card
 
     def undo_complete(self, slug: str, card_id: str, at: str, due: str | None = None,
-                      last_completed: str | None = None) -> Card:
-        """Reverse a completion made at `at` (a repeating card gets its old dates back)."""
+                      last_completed: str | None = None, column: str | None = None,
+                      index: int = 0, tags: str | None = None) -> Card:
+        """Reverse a completion made at `at`: dates for a repeating card, and anything a rule did
+        (`column`/`index`/`tags` are the card's state before the completion)."""
+        board = self.get_board(slug)
         card = self.get_card(slug, card_id)
         if card.repeat:
             card.due, card.last_completed = due or None, last_completed or None
         else:
-            card.done, card.completed = False, None
+            card.done, card.completed, card.archived = False, None, False
+        if tags is not None:
+            card.tags = parse_tags(tags)
         self._save(slug, card)
         self.remove_completion(card_id, at)
-        return card
+        if column in board.columns and card.column != column:
+            self._move(slug, card_id, column, index)
+        return self.get_card(slug, card_id)
 
     def archive_done(self, slug: str, column: str) -> list[str]:
         """Clear completed cards out of a list; returns their ids (for undo)."""
@@ -445,7 +463,7 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
         self._save(dest, card)
         self._card_path(slug, card_id).unlink()
         self._reindex(slug)
-        self.move_card(dest, card.id, column, index)
+        self._move(dest, card.id, column, index)
         origin["id"] = card.id
         return origin
 
@@ -497,11 +515,20 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin):
                     repeat=repeat, tags=parse_tags(tags))
         self._save(slug, card)
         if top and siblings:
-            self.move_card(slug, card.id, column, 0)
-            card.position = 0
+            self._move(slug, card.id, column, 0)
+        effects = self._run_rules(slug, "added", card.id)
+        card = self.get_card(slug, card.id)
+        card.effects = effects
         return card
 
-    def move_card(self, slug: str, card_id: str, column: str, index: int) -> None:
+    def move_card(self, slug: str, card_id: str, column: str, index: int) -> list[str]:
+        """Move a card; if it changed lists, run the board's "moved into" rules.
+        Returns what rules did (empty when none fired)."""
+        before = self.get_card(slug, card_id).column
+        self._move(slug, card_id, column, index)
+        return self._run_rules(slug, "moved", card_id) if before != column else []
+
+    def _move(self, slug: str, card_id: str, column: str, index: int) -> None:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")

@@ -45,7 +45,7 @@ class TrashMixin:
         card.position = len(self.cards_by_column(slug)[card.column])
         shutil.move(src, self._card_path(slug, card_id))
         self._save(slug, card)
-        self.move_card(slug, card_id, card.column, wanted)
+        self._move(slug, card_id, card.column, wanted)
         return card
 
     # -- boards ---------------------------------------------------------

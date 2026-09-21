@@ -23,3 +23,9 @@ def read_md(path: Path) -> tuple[dict, str]:
 def write_md(path: Path, meta: dict, body: str = "") -> None:
     front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
     path.write_text(f"---\n{front}---\n\n{body}", encoding="utf-8")
+
+
+def extra_fields(meta: dict, known: set[str] | tuple[str, ...]) -> dict:
+    """Frontmatter keys we do not understand. Written back unchanged (another tool, or a newer
+    version, may own them), so an edit here never silently strips them."""
+    return {k: v for k, v in meta.items() if k not in known}
