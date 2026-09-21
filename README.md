@@ -35,7 +35,7 @@ The container listens on port 8000 on that network only (no published ports). Th
 
 ## Themes
 
-`static/themes.css` is the shared palette from `engineering-standards/standards/12-themes.md`. Pick a theme in
+`static/themes.css` is the shared palette from `engineering-standards/standards/13-themes.md`. Pick a theme in
 Settings; it is remembered per device and applied before the page paints.
 
 ## Backups

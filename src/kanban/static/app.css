@@ -1,5 +1,5 @@
 /* Trellis's own Default look (no data-theme attribute): follows the OS. The named themes live in
-   themes.css and set the same tokens; see engineering-standards/standards/12-themes.md. */
+   themes.css and set the same tokens; see engineering-standards/standards/13-themes.md. */
 :root:not([data-theme]) {
   color-scheme: light dark;
   --bg:#f4f5f7; --bg-surface:#ebedf1; --bg-card:#ffffff; --bg-well:#e6e8ec;

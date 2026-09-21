@@ -1,7 +1,7 @@
 /* themes.css: the shared colour themes. Copy into an app unchanged; put the app's own layout in another file.
 
    Source of truth: engineering-standards/templates/themes.css (palettes from the owner's personal site;
-   a second app uses the same colours under different token names, mapped in standards/12-themes.md).
+   a second app uses the same colours under different token names, mapped in standards/13-themes.md).
    This copy differs from the template only in this comment.
 
    How to use
@@ -21,7 +21,7 @@
      --accent          fills, focus rings, icons, large text      --accent-dim  tinted backgrounds   --accent-hover
      --accent-text     DERIVED. The AA-safe accent for text and links (raw --accent fails as text in 5 themes)
      --on-accent       DERIVED. Text/icon colour to put ON an --accent fill (black or white, >= 4.5:1)
-     --text-glow, --scanline-opacity, --vignette-opacity   optional CRT effects (see 12-themes.md); off by default
+     --text-glow, --scanline-opacity, --vignette-opacity   optional CRT effects (see 13-themes.md); off by default
 
    DERIVED tokens were computed so that every text token reads at >= 4.5:1 on --bg, --bg-surface and --bg-card
    (WCAG AA). Recompute them if you edit a palette; never hand-tune one in isolation.

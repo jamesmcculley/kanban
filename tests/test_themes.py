@@ -1,4 +1,4 @@
-"""The theme files are the contract in engineering-standards/standards/12-themes.md:
+"""The theme files are the contract in engineering-standards/standards/13-themes.md:
 twelve themes, every token defined, and every text token readable (WCAG AA) on every surface."""
 
 import re
@@ -70,7 +70,7 @@ def test_text_tokens_meet_wcag_aa_on_every_surface(name):
 
 
 def test_raw_muted_is_known_to_fail_so_it_must_not_be_used_for_text():
-    """Documents the finding in 12-themes.md; if a palette is ever fixed, drop --text-subtle."""
+    """Documents the finding in 13-themes.md; if a palette is ever fixed, drop --text-subtle."""
     assert all(min(contrast(t["--text-muted"], t["--bg"]), contrast(t["--text-muted"], t["--bg-card"])) < 4.5
                for t in THEMES.values())
     used = re.findall(r"color:\s*var\(--text-muted\)", APP)
