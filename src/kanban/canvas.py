@@ -6,6 +6,7 @@ Each item is a Markdown file under `<board>/items/`; uploaded images live in `<b
 from __future__ import annotations
 
 import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -148,9 +149,8 @@ class CanvasMixin:
         return item
 
     def delete_item(self, slug: str, item_id: str) -> None:
+        """Move to the trash (an image's file stays until the trash is emptied)."""
         item = self.get_item(slug, item_id)
-        if item.file:
-            self.asset_path(slug, item.file).unlink(missing_ok=True)
         if item.kind == "board" and item.target:
             try:  # never delete the child's data: promote it to a top-level board instead
                 child = self.get_board(item.target)
@@ -159,7 +159,28 @@ class CanvasMixin:
             else:
                 child.parent = None
                 self._save_board(child)
-        self._item_path(slug, item_id).unlink(missing_ok=True)
+        dest = self._board_dir(slug) / ".trash" / "items"
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.move(self._item_path(slug, item_id), dest / f"{item_id}.md")
+
+    def restore_item(self, slug: str, item_id: str) -> Item:
+        self._require_canvas(slug)
+        self._item_path(slug, item_id)  # validates the id's shape
+        src = self._board_dir(slug) / ".trash" / "items" / f"{item_id}.md"
+        if not src.exists():
+            raise KeyError(item_id)
+        item = self._item_from(*read_md(src))
+        shutil.move(src, self._item_path(slug, item_id))
+        if item.kind == "board" and item.target:
+            try:  # it was promoted when deleted; nest it again
+                child = self.get_board(item.target)
+            except KeyError:
+                pass
+            else:
+                if child.parent is None:
+                    child.parent = slug
+                    self._save_board(child)
+        return item
 
     def add_image(self, slug: str, data: bytes, x=0, y=0) -> Item:
         self._require_canvas(slug)

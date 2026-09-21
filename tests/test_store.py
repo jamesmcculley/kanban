@@ -172,8 +172,10 @@ def test_board_order_and_areas(store):
     assert [(n, [x.slug for x in bs]) for n, bs in tree["areas"]] == [("Work", ["beta"]), ("Home", ["alpha"])]
     store.rename_area("Work", "Job")
     assert store.get_board("beta").area == "Job" and store.areas() == ["Job", "Home"]
-    with pytest.raises(ValueError):
-        store.delete_area("Job")                       # not empty
+    index, held = store.delete_area("Job")             # boards are kept, just unassigned
+    assert (index, held) == (0, ["beta"]) and store.get_board("beta").area is None
+    store.restore_area("Job", index, held)              # ...and it can be undone
+    assert store.areas() == ["Job", "Home"] and store.get_board("beta").area == "Job"
     store.apply_layout(["Job", "Home"], {"": ["gamma", "beta"], "Home": ["alpha"]})
     store.delete_area("Job")
     assert store.areas() == ["Home"]

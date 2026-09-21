@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Logbook{% endblock %}
+{% block content %}
+  <header class="page-head"><h1>Logbook</h1><span class="muted">everything you've completed, and where it came from</span></header>
+  <main class="agenda logbook">
+    {% for day, events in days.items() %}
+      <h2>{{ day|day_label }} <span class="count">{{ events|length }}</span></h2>
+      {% for e in events %}
+      <div class="row">
+        <span class="done-mark">{{ icon('check', 15) }}</span>
+        <span class="title">{{ e.title }}{% if e.repeat %} <span class="repeat" title="Repeating">↻</span>{% endif %}</span>
+        <span class="when">{{ e.at|clock }}</span>
+        <span class="ref" title="Board and list it was on">
+          {% if e.board in live %}<a href="{{ url_for('boards.board', slug=e.board) }}">{{ e.board_title }}</a>{% else %}{{ e.board_title }}{% endif %}
+          <span class="sep">›</span> {{ e.list }}
+        </span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">Nothing completed yet. Check a card off and it will appear here.</p>
+    {% endfor %}
+  </main>
+{% endblock %}

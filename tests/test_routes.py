@@ -116,3 +116,9 @@ def test_fab_has_no_list_option_on_canvas_pages(client):
     client.post("/boards", data={"title": "Sketch", "kind": "canvas"})
     page = client.get("/b/sketch").text
     assert 'id="fab"' in page and "data-list-url" not in page and 'data-action="list"' not in page
+
+
+def test_html_pages_are_not_cached_so_back_button_is_fresh(client):
+    for path in ("/b/my-board", "/today", "/logbook", "/trash"):
+        assert client.get(path).headers["Cache-Control"] == "no-store"
+    assert "no-store" not in client.get("/static/app.css").headers.get("Cache-Control", "")   # assets stay cacheable

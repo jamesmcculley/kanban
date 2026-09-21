@@ -4,7 +4,7 @@
 {% block content %}
   <header class="page-head">
     {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
-    <h1>{{ board.title }}</h1>
+    {% include "_board_title.html" %}
     {% if board.hidden %}
     <div class="hidden-lists">
       <span>Hidden lists:</span>
@@ -18,7 +18,7 @@
     </div>
     {% endif %}
   </header>
-  <main class="board" data-order-url="{{ url_for('boards.order_columns', slug=board.slug) }}" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
+  <main class="board" data-slug="{{ board.slug }}" data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id='ID') }}" data-order-url="{{ url_for('boards.order_columns', slug=board.slug) }}" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
     {% for name, cards in columns.items() if name not in board.hidden %}
     <section class="column" data-column="{{ name }}">
       <div class="col-head">
@@ -34,6 +34,9 @@
           <button type="button" title="Hide this list" aria-label="Hide list" hx-swap="none"
                   hx-post="{{ url_for('boards.hide_column', slug=board.slug) }}"
                   hx-vals='{"name": {{ name|tojson }}, "hidden": "1"}'>{{ icon('eye-off') }}</button>
+          <button type="button" title="Clear completed cards from this list" aria-label="Clear completed"
+                  data-post="{{ url_for('boards.clear_done', slug=board.slug) }}" data-vals='{{ {"name": name}|tojson }}'
+                  data-after="clear-done">{{ icon('check-square') }}</button>
           {% if not cards %}
           <button type="button" title="Delete this empty list" aria-label="Delete list" hx-swap="none"
                   hx-post="{{ url_for('boards.delete_column', slug=board.slug) }}"
@@ -58,7 +61,10 @@
   <script>
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
       group: 'cards', animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
-      onEnd: e => window.moveCard(e.item.dataset.id, e.to.closest('.column').dataset.column, e.newIndex),
+      onEnd: e => {
+        if (e.from === e.to && e.oldIndex === e.newIndex) return;     // dropped where it started
+        window.moveCard(e.item.dataset.id, e.to.closest('.column').dataset.column, e.newIndex);
+      },
     }));
     const board = document.querySelector('.board');
     new Sortable(board, {

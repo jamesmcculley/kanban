@@ -325,3 +325,216 @@ def test_fab_rejects_duplicate_list_name(page):
     fab_add(page, "New list", "todo")                   # clashes with "Todo", case-insensitively
     expect(page.locator(".fab-form input")).to_have_js_property("validationMessage", "That name is taken or not allowed")
     expect(page.locator(".column")).to_have_count(3)
+
+
+# ---- undo, logbook, trash, clear-done, inbox, move, notes, PWA --------------------------------------
+
+def toast(page):
+    return page.locator(".toast")
+
+
+def test_delete_card_toast_undo_and_trash_page(page):
+    add_card(page, "Todo", "precious")
+    card = page.locator(".card", has_text="precious")
+    card.hover()
+    card.locator(".del").click()
+    expect(page.locator(".card", has_text="precious")).to_have_count(0)
+    expect(toast(page)).to_contain_text("Deleted")
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator(".card", has_text="precious")).to_have_count(1)
+
+    page.locator(".card", has_text="precious").hover()
+    page.locator(".card", has_text="precious").locator(".del").click()
+    expect(toast(page)).to_be_visible()
+    page.click(".side-foot a")                                # Trash
+    expect(page.locator(".trash .row", has_text="precious")).to_contain_text("Todo")
+    page.get_by_role("button", name="Restore").click()
+    page.wait_for_load_state()
+    expect(page.locator(".trash .empty")).to_be_visible()
+
+
+def test_complete_toast_undo_and_logbook_reference(page):
+    add_card(page, "Doing", "Ship the thing")
+    page.locator(".card", has_text="Ship the thing").locator(".check").click()
+    expect(toast(page)).to_contain_text("Completed")
+    page.click('.sidebar [data-go="l"]')
+    row = page.locator(".logbook .row", has_text="Ship the thing")
+    expect(row).to_be_visible()
+    expect(row.locator(".ref")).to_contain_text("My Board")            # where it came from
+    expect(row.locator(".ref")).to_contain_text("Doing")
+    expect(row.locator(".ref a")).to_have_attribute("href", "/b/my-board")
+    expect(page.locator(".logbook h2").first).to_contain_text("Today")
+
+    page.go_back()
+    page.locator(".card", has_text="Ship the thing").locator(".check").click()   # un-check
+    page.click('.sidebar [data-go="l"]')
+    expect(page.locator(".logbook .empty")).to_be_visible()             # un-checking removes the entry
+
+
+def test_complete_undo_via_toast(page):
+    add_card(page, "Todo", "oops")
+    page.locator(".card", has_text="oops").locator(".check").click()
+    expect(page.locator(".card.done")).to_have_count(1)
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator(".card.done")).to_have_count(0)
+    page.click('.sidebar [data-go="l"]')
+    expect(page.locator(".logbook .empty")).to_be_visible()
+
+
+def test_clear_completed_keeps_logbook_and_undo(page):
+    for t in ("a", "b", "keep"):
+        add_card(page, "Todo", t)
+    for t in ("a", "b"):
+        page.locator(".card", has_text=t).first.locator(".check").click()
+        expect(page.locator(".card.done", has_text=t).first).to_be_visible()
+    col = page.locator('.column[data-column="Todo"]')
+    col.hover()
+    col.get_by_role("button", name="Clear completed").click()
+    expect(page.locator(".card.done")).to_have_count(0)
+    expect(col.locator(".count")).to_have_text("1")
+    expect(toast(page).last).to_contain_text("Cleared 2 completed cards")
+    page.click('.sidebar [data-go="l"]')
+    expect(page.locator(".logbook .row")).to_have_count(2)             # cleared, but still in the Logbook
+    page.go_back()
+    toast(page).last.get_by_role("button", name="Undo").click() if toast(page).count() else None
+    page.reload()
+    expect(page.locator(".card")).to_have_count(1)
+
+
+def test_rename_and_delete_board_with_two_step_confirm_and_undo(page):
+    fab_add(page, "New board", "Scratch")
+    page.wait_for_url("**/b/scratch")
+    title = page.locator(".board-title")
+    title.fill("Scratchpad")
+    title.press("Enter")
+    expect(page.locator('.sidebar a', has_text="Scratchpad")).to_be_visible()
+
+    delete = page.get_by_role("button", name="Delete board")
+    delete.click()                                            # first click only arms it
+    expect(delete).to_have_class(__import__("re").compile(r"armed"))
+    expect(page.locator(".board-title")).to_be_visible()
+    delete.click()
+    page.wait_for_url(__import__("re").compile(r"/b/my-board$"))
+    expect(toast(page)).to_contain_text("Deleted board")
+    expect(page.locator('.sidebar a', has_text="Scratchpad")).to_have_count(0)
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator('.sidebar a', has_text="Scratchpad")).to_be_visible()
+
+
+def test_area_delete_keeps_boards_and_undo(page):
+    page.fill(".newarea input", "Home")
+    page.press(".newarea input", "Enter")
+    expect(page.locator('.area[data-area="Home"]')).to_be_visible()
+    drag(page, page.locator('.board-row[data-slug="my-board"] .grip'),
+         page.locator('.area[data-area="Home"] .area-head'), dy=8)
+    expect(page.locator('.area[data-area="Home"] [data-slug="my-board"]')).to_be_visible()
+    page.locator('.area[data-area="Home"] .area-head').hover()
+    page.get_by_role("button", name="Delete area").click()
+    page.wait_for_load_state()
+    expect(page.locator('.area[data-area="Home"]')).to_have_count(0)
+    expect(page.locator('.boards-unassigned [data-slug="my-board"]')).to_be_visible()   # board kept
+    expect(toast(page)).to_contain_text("1 board kept")
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator('.area[data-area="Home"] [data-slug="my-board"]')).to_be_visible()
+
+
+def test_quick_capture_from_anywhere_lands_in_inbox(page):
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    page.keyboard.press("c")
+    expect(page.locator(".fab-form input")).to_be_focused()
+    page.keyboard.type("Phone gran tomorrow #family")
+    page.keyboard.press("Enter")
+    expect(toast(page)).to_contain_text("Added to Inbox")
+    expect(page.locator("#inbox-badge .badge")).to_have_text("1")
+    page.click('.sidebar [data-go="i"]')
+    page.wait_for_url("**/b/inbox")
+    card = page.locator(".card", has_text="Phone gran")
+    expect(card).to_be_visible()
+    expect(card.locator(".tag")).to_have_text("#family")
+    expect(card.locator(".due")).not_to_be_empty()
+
+    page.keyboard.press("Escape")
+    page.keyboard.press("c")                                  # capturing while on the Inbox shows it at once
+    page.keyboard.type("second one")
+    page.keyboard.press("Enter")
+    page.wait_for_load_state()
+    expect(page.locator(".card")).to_have_count(2)
+    expect(page.locator(".card .title").first).to_have_text("second one")   # newest on top
+    expect(page.locator(".toast")).to_contain_text("Added to Inbox")        # toast survived the reload
+
+
+def test_drag_card_onto_sidebar_board_moves_it_with_undo(page):
+    fab_add(page, "New board", "Elsewhere")
+    page.wait_for_url("**/b/elsewhere")
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "wanderer")
+    add_card(page, "Todo", "stayer")
+    drag(page, page.locator(".card", has_text="wanderer"),
+         page.locator('.board-row[data-slug="elsewhere"] a'))
+    expect(page.locator(".card", has_text="wanderer")).to_have_count(0)
+    expect(page.locator(".card", has_text="stayer")).to_have_count(1)
+    expect(toast(page)).to_contain_text("Moved “wanderer” to Elsewhere")
+    page.goto(page.base + "/b/elsewhere")
+    expect(page.locator(".card", has_text="wanderer")).to_have_count(1)
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "second-mover")
+    drag(page, page.locator(".card", has_text="second-mover"),
+         page.locator('.board-row[data-slug="elsewhere"] a'))
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator(".card", has_text="second-mover")).to_have_count(1)   # back on the original board
+
+
+def test_markdown_notes_checklist_and_safe_html(page):
+    add_card(page, "Todo", "shopping")
+    page.locator(".card .title").click()
+    page.fill(".dialog textarea[name=body]",
+              "Get it **today** <script>window.__pwned = 1</script>\n\n- [ ] milk\n- [ ] eggs\n")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+    face = page.locator(".card", has_text="shopping")
+    expect(face.locator(".meta", has_text="0/2")).to_be_visible()
+
+    page.locator(".card .title").click()
+    view = page.locator(".notes-view")
+    expect(view.locator("strong")).to_have_text("today")
+    expect(view).to_contain_text("<script>")                   # shown as text, not run
+    assert page.evaluate("window.__pwned") is None
+    view.locator('input.task[data-task="0"]').check()
+    expect(face.locator(".meta", has_text="1/2")).to_be_visible()   # the card behind the dialog updated
+    page.get_by_role("button", name="Edit notes").click()
+    expect(page.locator(".dialog textarea[name=body]")).to_have_value(__import__("re").compile(r"- \[x\] milk"))
+    page.click(".dialog button[type=submit]")                  # saving must not undo the tick
+    expect(page.locator(".card", has_text="shopping").locator(".meta", has_text="1/2")).to_be_visible()
+
+
+def test_installable_manifest_and_icons(page):
+    expect(page.locator('link[rel=manifest]')).to_have_count(1)
+    r = page.request.get(page.base + "/manifest.webmanifest")
+    assert r.status == 200 and "manifest+json" in r.headers["content-type"]
+    m = r.json()
+    assert m["display"] == "standalone" and m["start_url"] == "/" and m["name"] == "Trellis"
+    assert {i["sizes"] for i in m["icons"]} >= {"192x192", "512x512"}
+    for icon in m["icons"]:
+        assert page.request.get(page.base + icon["src"]).status == 200
+    assert page.request.get(page.base + page.get_attribute("link[rel=apple-touch-icon]", "href")).status == 200
+
+
+def test_canvas_delete_shows_undo(page):
+    open_canvas(page, "Restorable")
+    page.click("[data-tool=note]")
+    note = page.locator(".item.note")
+    expect(note).to_have_count(1)
+    note.locator(".item-text").fill("keep me")
+    page.locator("#canvas").click(position={"x": 900, "y": 600})
+    note.hover()
+    note.locator(".item-del").click()
+    expect(page.locator(".item")).to_have_count(0)
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator(".item.note .item-text")).to_have_text("keep me")

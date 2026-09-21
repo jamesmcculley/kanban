@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Trash{% endblock %}
+{% block content %}
+  {% set empty = not (trash['boards'] or trash['cards'] or trash['items']) %}
+  <header class="page-head">
+    <h1>Trash</h1>
+    <span class="muted">deleted things wait here until you empty it</span>
+    {% if not empty %}
+    <button type="button" class="danger-btn" data-post="{{ url_for('boards.empty_trash') }}"
+            data-confirm="Permanently delete everything? Click again" data-after="reload">Empty trash</button>
+    {% endif %}
+  </header>
+  <main class="agenda trash">
+    {% if trash.boards %}<h2>Boards</h2>{% endif %}
+    {% for b in trash.boards %}
+      <div class="row"><span class="title">{{ b.title }} <span class="muted">{{ 'canvas' if b.kind == 'canvas' else 'lists' }}</span></span>
+        <button type="button" class="link-btn" data-post="{{ url_for('boards.restore_board', trash_id=b.id) }}" data-after="reload">Restore</button></div>
+    {% endfor %}
+    {% if trash.cards %}<h2>Cards</h2>{% endif %}
+    {% for board, card in trash.cards %}
+      <div class="row"><span class="title">{{ card.title }}</span>
+        <span class="ref">{{ board.title }} <span class="sep">›</span> {{ card.column }}</span>
+        <button type="button" class="link-btn" data-post="{{ url_for('boards.restore_card', slug=board.slug, card_id=card.id) }}" data-after="reload">Restore</button></div>
+    {% endfor %}
+    {% if trash['items'] %}<h2>Canvas items</h2>{% endif %}
+    {% for board, item in trash['items'] %}
+      <div class="row"><span class="title">{{ item.kind|capitalize }}{% if item.text %}: {{ item.text[:60] }}{% elif item.url %}: {{ item.url }}{% endif %}</span>
+        <span class="ref">{{ board.title }}</span>
+        <button type="button" class="link-btn" data-post="{{ url_for('canvas.restore_item', slug=board.slug, item_id=item.id) }}" data-after="reload">Restore</button></div>
+    {% endfor %}
+    {% if empty %}<p class="empty">The trash is empty.</p>{% endif %}
+  </main>
+{% endblock %}

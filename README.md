@@ -3,11 +3,14 @@
 A local-first kanban board. Cards are plain Markdown files with YAML frontmatter, so the data
 directory can also be opened as an Obsidian vault.
 
-- Boards of lists, drag-and-drop cards, Markdown notes, tags (`#home`), completion timestamps
+- Boards of lists, drag-and-drop cards, tags (`#home`), Markdown notes with live checklists
 - Natural-language dates and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
-- Today and Upcoming views across all boards; search; keyboard shortcuts (press `?`)
-- Sidebar with areas (groups of boards); drag to reorder boards, areas and lists; hide lists you don't need right now
-- Canvas boards: a freeform surface for notes, links, images (paste or drop) and nested boards
+- Inbox with quick capture (`c` from anywhere); drag a card onto a board in the sidebar to move it
+- Today, Upcoming and a Logbook of everything you've completed (with the board and list it came from)
+- Undo for deletes and completions; deleted things wait in a Trash until you empty it
+- Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists
+- Canvas boards: notes, links, images (paste or drop) and nested boards on a freeform surface
+- Installable to a phone's home screen; keyboard shortcuts (press `?`)
 
 ## Run locally
 
@@ -15,7 +18,8 @@ directory can also be opened as an Obsidian vault.
     uv run flask --app kanban run --debug
 
 Data lives in `~/kanban-data` (override with `KANBAN_DATA_DIR`). Each board is a folder: `cards/` or
-`items/` (Markdown files), plus `assets/` for canvas images. Area order is kept in `.trellis.yml`.
+`items/` (Markdown files), plus `assets/` for canvas images. Area order is kept in `.trellis.yml`, the Logbook in `.trellis-log.jsonl`, and deleted things in
+`.trash` folders (all hidden from Obsidian).
 
 ## Docker
 

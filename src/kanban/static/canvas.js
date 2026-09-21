@@ -116,7 +116,11 @@
     if (!item) return;
     if (e.target.closest('.item-del')) {
       const r = await fetch(`${api}/${item.dataset.id}`, { method: 'DELETE' });
-      if (r.ok) item.remove();
+      if (r.ok) {
+        item.remove();
+        const data = await r.json();
+        window.toast(data.message, data.undo);
+      }
     } else if (e.target.closest('.dot')) {
       const color = e.target.closest('.dot').dataset.color;
       item.className = item.className.replace(/\bc-\w+/, `c-${color}`);

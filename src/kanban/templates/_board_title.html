@@ -1,0 +1,10 @@
+{% from "_icons.html" import icon %}
+<form class="title-form" hx-post="{{ url_for('boards.rename_board', slug=board.slug) }}" hx-swap="none"
+      hx-on::response-error="location.reload()">
+  <input class="board-title" name="title" value="{{ board.title }}" size="{{ [board.title|length, 6]|max }}"
+         aria-label="Board name" autocomplete="off"
+         onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
+</form>
+<button type="button" class="icon-btn danger" title="Delete this board" aria-label="Delete board"
+        data-post="{{ url_for('boards.delete_board', slug=board.slug) }}" data-confirm="Delete? Click again"
+        data-after="home">{{ icon('trash') }}</button>

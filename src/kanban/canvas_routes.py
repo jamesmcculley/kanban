@@ -1,6 +1,16 @@
 """JSON/HTML endpoints behind the canvas board's drag, paste and upload behaviour."""
 
-from flask import Blueprint, abort, current_app, make_response, render_template, request, send_file
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    jsonify,
+    make_response,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 
 from .canvas import MAX_IMAGE_BYTES
 
@@ -58,6 +68,18 @@ def update_item(slug, item_id):
 def delete_item(slug, item_id):
     try:
         store().delete_item(slug, item_id)
+    except KeyError:
+        abort(404)
+    except ValueError:
+        abort(400)
+    undo = {"url": url_for("canvas.restore_item", slug=slug, item_id=item_id)}
+    return jsonify(message="Deleted from the canvas", undo=undo)
+
+
+@cv.post("/b/<slug>/items/<item_id>/restore")
+def restore_item(slug, item_id):
+    try:
+        store().restore_item(slug, item_id)
     except KeyError:
         abort(404)
     except ValueError:

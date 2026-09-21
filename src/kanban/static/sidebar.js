@@ -29,6 +29,7 @@
       if (current) current.replaceWith(fresh);
     });
   }
+  window.refreshStats = refreshStats;
   document.body.addEventListener('htmx:afterRequest', e => {
     const verb = e.detail.requestConfig?.verb;
     if (e.detail.successful && verb && verb !== 'get') refreshStats();

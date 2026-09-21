@@ -67,7 +67,9 @@ def test_images_are_sniffed_not_trusted(store, canvas, tmp_path):
         with pytest.raises(KeyError):
             store.asset_path("ideas", evil)
     store.delete_item("ideas", item.id)
-    assert not (tmp_path / "ideas" / "assets" / item.file).exists()  # asset removed with its item
+    assert (tmp_path / "ideas" / "assets" / item.file).exists()      # kept: the delete is undoable
+    store.empty_trash()
+    assert not (tmp_path / "ideas" / "assets" / item.file).exists()  # gone once the trash is emptied
 
 
 def test_nested_boards_and_safe_delete(store, canvas):
@@ -104,8 +106,12 @@ def test_canvas_page_and_item_routes(client):
     assert client.patch(f"/b/ideas/items/{item_id}", json={"x": 99, "text": "moved"}).status_code == 204
     assert "left:99px" in client.get("/b/ideas").text
     assert client.patch("/b/ideas/items/deadbeef", json={"x": 1}).status_code == 404
-    assert client.delete(f"/b/ideas/items/{item_id}").status_code == 204
+    r = client.delete(f"/b/ideas/items/{item_id}")
+    assert r.status_code == 200 and r.get_json()["undo"]["url"].endswith(f"/items/{item_id}/restore")
     assert client.delete(f"/b/ideas/items/{item_id}").status_code == 404
+    assert client.post(f"/b/ideas/items/{item_id}/restore").status_code == 204
+    assert "left:99px" in client.get("/b/ideas").text                # back where it was
+    client.delete(f"/b/ideas/items/{item_id}")
     assert client.post("/b/ideas/items", json={"kind": "link", "url": "javascript:alert(1)"}).status_code == 400
     assert client.post("/b/ideas/items", json={"kind": "bogus"}).status_code == 400
     assert client.post("/b/nope/items", json={"kind": "note"}).status_code == 404
@@ -130,7 +136,7 @@ def test_nested_board_route_and_breadcrumb(client):
     assert r.status_code == 200 and "Sub Board" in r.text and "/b/sub-board" in r.text
     page = client.get("/b/sub-board").text
     assert 'class="crumb"' in page and "Ideas" in page
-    assert 'data-slug="sub-board"' not in page                       # not in the sidebar
+    assert 'class="board-row" data-slug="sub-board"' not in page     # not in the sidebar
     assert client.post("/boards", data={"title": "New Canvas", "kind": "canvas"}).status_code == 302
     assert 'id="canvas"' in client.get("/b/new-canvas").text
     assert client.post("/boards", data={"title": "Bad", "kind": "nope"}).status_code == 400

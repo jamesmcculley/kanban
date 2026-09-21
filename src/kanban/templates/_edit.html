@@ -1,13 +1,19 @@
 <div class="backdrop" onclick="if (event.target === this) this.remove()">
   <form class="dialog" hx-post="{{ url_for('boards.update_card', slug=board.slug, card_id=card.id) }}"
         hx-target="[data-id='{{ card.id }}']" hx-swap="outerHTML"
-        hx-on::after-request="if (event.detail.successful) this.closest('.backdrop').remove()"
+        hx-on::after-request="if (event.target === this && event.detail.successful) this.closest('.backdrop').remove()"
         hx-on::response-error="this.querySelector('.error').textContent = 'Could not parse the due date or repeat rule.'">
     <input name="title" value="{{ card.title }}" required autofocus>
     <input name="due" value="{{ card.due or '' }}" placeholder="Due: tomorrow, fri, in 3 days, jun 5…">
     <input name="repeat" value="{{ card.repeat or '' }}" placeholder="Repeat: every monday, every 2 weeks, daily…">
     <input name="tags" value="{% for t in card.tags %}#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}" placeholder="Tags: #home #errand">
-    <textarea name="body" rows="8" placeholder="Notes (Markdown)">{{ card.body }}</textarea>
+    <div class="notes">
+      {% if card.body.strip() %}
+      <div class="notes-view md" data-body-url="{{ url_for('boards.card_body', slug=board.slug, card_id=card.id) }}">{{ render_notes(card, board) }}</div>
+      <button type="button" class="link-btn" onclick="editNotes(this)">Edit notes</button>
+      {% endif %}
+      <textarea name="body" rows="8" placeholder="Notes (Markdown). “- [ ] item” makes a checklist."{% if card.body.strip() %} hidden{% endif %}>{{ card.body }}</textarea>
+    </div>
     {% set done_at = card.completed if card.done else card.last_completed %}
     {% if done_at %}<p class="muted">{{ 'Completed' if card.done else 'Last completed' }} {{ done_at|stamp }}</p>{% endif %}
     <p class="error"></p>

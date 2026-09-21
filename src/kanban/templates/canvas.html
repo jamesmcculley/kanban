@@ -4,7 +4,7 @@
 <div class="canvas-page">
   <header class="page-head">
     {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
-    <h1>{{ board.title }}</h1>
+    {% include "_board_title.html" %}
     <div class="canvas-tools">
       <button type="button" data-tool="note">+ Note</button>
       <input class="tool-link" type="text" placeholder="Paste a link, then Enter" autocomplete="off" aria-label="Add link">

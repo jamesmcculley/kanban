@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <div class="card{% if card.done %} done{% endif %}" data-id="{{ card.id }}">
   <input type="checkbox" class="check" {% if card.done %}checked{% endif %} aria-label="Complete"
          hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id) }}"
@@ -5,6 +6,9 @@
   {# a span, not a link: Sortable can't start a drag from an <a>, and the title fills the card #}
   <span class="title" role="button" tabindex="0" hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id) }}"
         hx-trigger="click, keydown[key=='Enter']" hx-target="#modal" hx-swap="innerHTML">{{ card.title }}</span>
+  {% set tasks = notes_progress(card.body) %}
+  {% if card.body.strip() %}<span class="meta" title="Has notes">{{ icon('file-text', 13) }}</span>{% endif %}
+  {% if tasks[1] %}<span class="meta" title="Checklist: {{ tasks[0] }} of {{ tasks[1] }} done">{{ icon('list-check', 13) }} {{ tasks[0] }}/{{ tasks[1] }}</span>{% endif %}
   {% if card.repeat %}<span class="repeat" title="{{ card.repeat }}">↻</span>{% endif %}
   {% if card.completed and card.done %}<span class="stamp" title="Completed {{ card.completed|stamp }}">✓ {{ card.completed|stamp }}</span>
   {% elif card.last_completed %}<span class="stamp" title="Last completed {{ card.last_completed|stamp }}">✓ {{ card.last_completed|stamp }}</span>{% endif %}

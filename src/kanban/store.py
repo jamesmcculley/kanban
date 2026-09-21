@@ -20,11 +20,14 @@ import yaml
 
 from .canvas import BOARD_KINDS, CanvasMixin
 from .dates import next_occurrence
+from .logbook import LogbookMixin
 from .mdfile import read_md as _read
 from .mdfile import slugify
 from .mdfile import write_md as _write
+from .trash import TrashMixin
 
 DEFAULT_COLUMNS = ["Todo", "Doing", "Done"]
+INBOX = "inbox"  # slug of the quick-capture board
 
 
 @dataclass
@@ -40,6 +43,7 @@ class Card:
     completed: str | None = None  # ISO timestamp of when it was checked off
     last_completed: str | None = None  # repeating cards: when it last rolled forward
     tags: list[str] = field(default_factory=list)
+    archived: bool = False  # cleared from its list; still in the Logbook and search
 
 
 @dataclass
@@ -91,11 +95,11 @@ def _card_from(meta: dict, body: str) -> Card:
         position=meta.get("position", 0), due=_iso(meta, "due"), body=body,
         repeat=meta.get("repeat") or None, done=bool(meta.get("done")),
         completed=_iso(meta, "completed"), last_completed=_iso(meta, "last_completed"),
-        tags=parse_tags(meta.get("tags")),
+        tags=parse_tags(meta.get("tags")), archived=bool(meta.get("archived")),
     )
 
 
-class Store(CanvasMixin):
+class Store(CanvasMixin, TrashMixin, LogbookMixin):
     def __init__(self, root: Path):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -179,7 +183,8 @@ class Store(CanvasMixin):
 
     def sidebar(self) -> dict:
         """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}."""
-        boards = [b for b in self.list_boards() if b.parent is None]  # nested boards live in a canvas
+        boards = [b for b in self.list_boards()
+                  if b.parent is None and b.slug != INBOX]  # nested live in a canvas; inbox is pinned
         names = self.areas()
         return {
             "unassigned": [b for b in boards if b.area not in names],
@@ -201,13 +206,31 @@ class Store(CanvasMixin):
                 board.area = new
                 self._save_board(board)
 
-    def delete_area(self, name: str) -> None:
+    def delete_area(self, name: str) -> tuple[int, list[str]]:
+        """Delete an area; its boards become unassigned, not deleted.
+        Returns (its position, the slugs it held) so the deletion can be undone."""
         names = self.areas()
         if name not in names:
             raise ValueError(f"unknown area: {name}")
-        if any(b.area == name for b in self.list_boards()):
-            raise ValueError("area is not empty")
+        held = [b.slug for b in self.list_boards() if b.area == name]
+        for slug in held:
+            board = self.get_board(slug)
+            board.area = None
+            self._save_board(board)
         self._save_areas([n for n in names if n != name])
+        return names.index(name), held
+
+    def restore_area(self, name: str, index: int, slugs: list[str]) -> None:
+        names = [n for n in self.areas() if n != name]
+        names.insert(max(0, min(index, len(names))), self._clean_name(name, names))
+        self._save_areas(names)
+        for slug in slugs:
+            try:
+                board = self.get_board(slug)
+            except KeyError:
+                continue
+            board.area = name
+            self._save_board(board)
 
     def apply_layout(self, areas: list[str], boards_by_area: dict[str, list[str]]) -> None:
         """Save a drag-and-drop result: area order, and which boards sit where.
@@ -278,7 +301,7 @@ class Store(CanvasMixin):
         board = self.get_board(slug)
         if name not in board.columns:
             raise ValueError(f"unknown list: {name}")
-        if any(c.column == name for c in self.list_cards(slug)):
+        if any(c.column == name and not c.archived for c in self.list_cards(slug)):
             raise ValueError("list is not empty")
         board.columns.remove(name)
         board.hidden = [c for c in board.hidden if c != name]
@@ -306,7 +329,20 @@ class Store(CanvasMixin):
                 meta["completed"] = card.completed
         if card.last_completed:
             meta["last_completed"] = card.last_completed
+        if card.archived:
+            meta["archived"] = True
         _write(self._card_path(slug, card.id), meta, card.body)
+
+    def _load_card(self, path: Path) -> Card:
+        return _card_from(*_read(path))
+
+    def _reindex(self, slug: str) -> None:
+        """Close gaps in list positions (after a card leaves)."""
+        for cards in self.cards_by_column(slug).values():
+            for pos, card in enumerate(cards):
+                if card.position != pos:
+                    card.position = pos
+                    self._save(slug, card)
 
     def list_cards(self, slug: str) -> list[Card]:
         self.get_board(slug)
@@ -317,7 +353,8 @@ class Store(CanvasMixin):
         board = self.get_board(slug)
         grouped: dict[str, list[Card]] = {col: [] for col in board.columns}
         for card in self.list_cards(slug):
-            grouped.setdefault(card.column, []).append(card)
+            if not card.archived:
+                grouped.setdefault(card.column, []).append(card)
         return grouped
 
     def get_card(self, slug: str, card_id: str) -> Card:
@@ -339,17 +376,78 @@ class Store(CanvasMixin):
         others toggle done/not done."""
         now = now or datetime.now()  # local time: the app is meant to run in the owner's zone
         stamp = now.isoformat(timespec="minutes")
+        board = self.get_board(slug)
         card = self.get_card(slug, card_id)
+        completed_now = True
         if card.repeat:
             due = date.fromisoformat(card.due) if card.due else None
             card.due = next_occurrence(card.repeat, due, now.date()).isoformat()
             card.last_completed = stamp
         elif card.done:
-            card.done, card.completed = False, None
+            completed_now = False
+            if card.completed:
+                self.remove_completion(card.id, card.completed)
+            card.done, card.completed, card.archived = False, None, False
         else:
             card.done, card.completed = True, stamp
         self._save(slug, card)
+        if completed_now:
+            self.log_completion(board, card, stamp)
         return card
+
+    def undo_complete(self, slug: str, card_id: str, at: str, due: str | None = None,
+                      last_completed: str | None = None) -> Card:
+        """Reverse a completion made at `at` (a repeating card gets its old dates back)."""
+        card = self.get_card(slug, card_id)
+        if card.repeat:
+            card.due, card.last_completed = due or None, last_completed or None
+        else:
+            card.done, card.completed = False, None
+        self._save(slug, card)
+        self.remove_completion(card_id, at)
+        return card
+
+    def archive_done(self, slug: str, column: str) -> list[str]:
+        """Clear completed cards out of a list; returns their ids (for undo)."""
+        cleared = [c for c in self.cards_by_column(slug).get(column, []) if c.done]
+        for card in cleared:
+            card.archived = True
+            self._save(slug, card)
+        self._reindex(slug)
+        return [c.id for c in cleared]
+
+    def unarchive(self, slug: str, ids: list[str]) -> None:
+        for card_id in ids:
+            card = self.get_card(slug, card_id)
+            if card.archived:
+                card.archived = False
+                card.position = len(self.cards_by_column(slug).get(card.column, []))
+                self._save(slug, card)
+
+    def move_card_to_board(self, slug: str, card_id: str, dest: str, column: str | None = None,
+                           index: int = 0) -> dict:
+        """Move a card to another board. Returns where it came from (enough to undo it)."""
+        if slug == dest:
+            raise ValueError("already on that board")
+        target = self.get_board(dest)
+        if target.kind != "kanban" or not target.columns:
+            raise ValueError("that board has no lists")
+        card = self.get_card(slug, card_id)
+        origin = {"board": slug, "column": card.column, "index": next(
+            (i for i, c in enumerate(self.cards_by_column(slug).get(card.column, []))
+             if c.id == card_id), 0)}
+        if column not in target.columns:
+            column = next((c for c in target.columns if c not in target.hidden), target.columns[0])
+        if self._card_path(dest, card_id).exists():
+            card.id = uuid.uuid4().hex[:8]
+        card.column = column
+        card.position = len(self.cards_by_column(dest)[column])
+        self._save(dest, card)
+        self._card_path(slug, card_id).unlink()
+        self._reindex(slug)
+        self.move_card(dest, card.id, column, index)
+        origin["id"] = card.id
+        return origin
 
     def all_cards(self) -> list[tuple[Board, Card]]:
         return [(b, c) for b in self.list_boards() if b.kind == "kanban"
@@ -423,5 +521,24 @@ class Store(CanvasMixin):
                     c.position = pos
                     self._save(slug, c)
 
-    def delete_card(self, slug: str, card_id: str) -> None:
-        self._card_path(slug, card_id).unlink(missing_ok=True)
+    # -- inbox -----------------------------------------------------------
+
+    def ensure_inbox(self) -> Board:
+        try:
+            return self.get_board(INBOX)
+        except KeyError:
+            board = self.create_board("Inbox", columns=["Inbox"])
+            assert board.slug == INBOX
+            return board
+
+    def inbox_count(self) -> int:
+        try:
+            cards = self.cards_by_column(INBOX)
+        except KeyError:
+            return 0
+        return sum(1 for column in cards.values() for c in column if not c.done)
+
+    def rename_board(self, slug: str, title: str) -> None:
+        board = self.get_board(slug)
+        board.title = self._clean_name(title, [])
+        self._save_board(board)

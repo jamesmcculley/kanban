@@ -104,12 +104,13 @@
       case 'e': el?.querySelector('.title[hx-get]')?.click(); break;
       case 'x': el?.querySelector('.check')?.click(); break;
       case 'n': openAddCard(colOf(el) ?? boardCols()[0]); break;
+      case 'c': window.openCapture?.(); break;
       case '/': e.preventDefault(); document.querySelector('.search input')?.focus(); break;
       case '?': { const h = document.getElementById('help'); h.hidden = !h.hidden; break; }
       case 'g': pendingG = true; setTimeout(() => (pendingG = false), 1000); break;
       default: return;
     }
-    if ('jkhlHLexn/?g'.includes(e.key)) e.preventDefault();
+    if ('jkhlHLexnc/?g'.includes(e.key)) e.preventDefault();
   });
 
   // Clicking a card selects it; after htmx swaps a card in place, keep the selection on it.
