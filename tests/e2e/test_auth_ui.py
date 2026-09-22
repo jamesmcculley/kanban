@@ -35,3 +35,16 @@ def test_log_out_ends_the_session(auth_page):
     expect(auth_page.locator(".login-card")).to_be_visible()
     auth_page.goto(auth_page.base + "/b/my-board")
     expect(auth_page).to_have_url(LOGIN_URL)  # gated again
+
+
+def test_a_crafted_next_never_takes_a_real_browser_off_this_origin(auth_page):
+    """A phishing link could set a `next` with a backslash where a slash would be: a browser's URL
+    parser normalizes a backslash to a forward slash when resolving a redirect target, so a
+    server-side check that only rejects a leading double-slash is not enough. This only fails in a
+    real browser (curl/Python don't do that normalization), which is why it's covered here and not
+    only in tests/test_auth.py."""
+    auth_page.goto(auth_page.base + "/login?next=%2F%5Cevil.example")
+    auth_page.fill('input[name="password"]', "right-horse-battery")
+    auth_page.click('button:has-text("Log in")')
+    expect(auth_page.locator(".board, .tasks-board")).to_be_visible()
+    assert auth_page.url.startswith(auth_page.base)  # never left this origin

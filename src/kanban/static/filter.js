@@ -11,25 +11,42 @@
   const tagsGroup = panel.querySelector('.filter-tags-group');
   const tagsBox = panel.querySelector('.filter-tags');
 
-  // Offer only the tags that actually appear on this board, not every tag in the app.
-  const tags = [...new Set([...document.querySelectorAll('.card')]
-    .flatMap(c => (c.dataset.tags || '').split(',').filter(Boolean)))].sort();
-  if (tags.length) {
-    tagsGroup.hidden = false;
-    tagsBox.innerHTML = tags.map(t =>
-      `<label class="filter-check"><input type="checkbox" class="filter-tag" value="${t}"> #${t}</label>`).join('');
+  const selected = cls => [...panel.querySelectorAll(`.${cls}:checked`)].map(i => i.value);
+
+  // Offer only the tags that actually appear on this board, not every tag in the app. Rebuilt
+  // every time the panel opens (not just once at load) so a card added since the page loaded
+  // shows its tags here too -- cards arrive via htmx after this script has already run once.
+  // Built with DOM calls rather than an innerHTML template string: server-side tag names are
+  // restricted to [a-z0-9_-] (tags.py), so this is belt-and-suspenders today, but a tag string
+  // ending up in innerHTML unescaped is exactly the kind of thing that turns into a real bug the
+  // day that invariant quietly changes -- cheaper to just not depend on it here.
+  function refreshTagOptions() {
+    const wasChecked = new Set(selected('filter-tag'));
+    const tags = [...new Set([...document.querySelectorAll('.card')]
+      .flatMap(c => (c.dataset.tags || '').split(',').filter(Boolean)))].sort();
+    tagsGroup.hidden = !tags.length;
+    tagsBox.replaceChildren(...tags.map(t => {
+      const label = document.createElement('label');
+      label.className = 'filter-check';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'filter-tag';
+      input.value = t;
+      input.checked = wasChecked.has(t);
+      label.append(input, document.createTextNode(` #${t}`));
+      return label;
+    }));
   }
+  refreshTagOptions();
 
   toggle.addEventListener('click', () => {
     panel.hidden = !panel.hidden;
-    if (!panel.hidden) textInput.focus();
+    if (!panel.hidden) { refreshTagOptions(); textInput.focus(); }
   });
   document.addEventListener('click', e => { if (!wrap.contains(e.target)) panel.hidden = true; });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !panel.hidden) { panel.hidden = true; toggle.focus(); }
   });
-
-  const selected = cls => [...panel.querySelectorAll(`.${cls}:checked`)].map(i => i.value);
 
   function apply() {
     const text = textInput.value.trim().toLowerCase();

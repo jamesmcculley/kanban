@@ -38,9 +38,17 @@ allow-list can't distinguish between. That gap is what a login closes.
   password, so a weak password (a 4-digit PIN) weakens session forgery resistance too, not just
   login brute-forcing. README asks for a real passphrase, not a PIN.
 - A simple in-memory throttle (5 failed attempts / 5 minutes, then 429) guards the login form
-  itself. It lives in a plain module-level list, safe only because the Dockerfile already commits
-  to a single gunicorn worker ("cards are plain files with no cross-process locking") — the same
-  invariant `Store` already depends on.
+  itself. It lives in a plain module-level list, which only works at all because of one gunicorn
+  *worker* (`--workers 1`, the same invariant `Store`'s file I/O already depends on) — not because
+  requests are single-threaded (`--threads 4` still runs concurrently in that one process). It
+  isn't locked; a little imprecision in the count under real concurrent requests is accepted as a
+  trade-off, not treated as a bypass, for a throttle this low-stakes.
+- `auth._safe_next` (the post-login redirect target) rejects more than a leading `//`. Verified
+  against a real browser's URL parser (not just reasoned about, since curl and Python don't
+  reproduce this): backslash is normalized to `/` for special schemes, and ASCII tab/newline/CR
+  are stripped *before* that — so `next=/\evil.example` and `next=/<TAB>/evil.example` both
+  resolve to `http://evil.example/` in a real browser even though neither starts with `//` when
+  the server sees it. `_safe_next` now also rejects `\`, tab, newline and CR.
 - `refuse_cross_origin_writes` (existing, pre-dates this ADR) becomes more important, not less: a
   session cookie is sent automatically to any request that reaches the app's origin, so a page on
   another site riding a logged-in browser's cookie is now a real CSRF-shaped risk where before

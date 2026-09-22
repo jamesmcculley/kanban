@@ -949,6 +949,20 @@ def test_board_filter_by_text_priority_and_label(page):
     expect(page.locator(".filter-status")).to_have_text("")
 
 
+def test_board_filter_tag_checkboxes(page):
+    add_card(page, "Todo", "Buy paint #home")
+    add_card(page, "Todo", "Water plants #garden")
+
+    page.get_by_role("button", name="Filter cards").click()
+    panel = page.locator(".filter-panel")
+    expect(panel.locator(".filter-tag[value=home]")).to_be_visible()
+    expect(panel.locator(".filter-tag[value=garden]")).to_be_visible()
+
+    panel.locator(".filter-tag[value=home]").check()
+    expect(page.locator(".card", has_text="Buy paint")).to_be_visible()
+    expect(page.locator(".card", has_text="Water plants")).to_be_hidden()
+
+
 def test_label_create_assign_and_display(page):
     page.get_by_role("link", name="Board settings").click()
     page.wait_for_url("**/b/my-board/settings")

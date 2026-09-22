@@ -90,8 +90,16 @@ def test_next_redirects_back_to_the_originally_requested_page(locked_client):
     assert r.headers["Location"] == next_path
 
 
-def test_open_redirect_is_rejected(locked_client):
-    r = _login(locked_client, next_="//evil.example/steal")
+@pytest.mark.parametrize("next_", [
+    "//evil.example/steal",
+    "/\\evil.example",          # backslash -> "/" for a browser's URL parser (special schemes)
+    "/\t/evil.example",         # ASCII tab is stripped before that, collapsing this to "//evil..."
+    "/\n/evil.example",
+    "/\r/evil.example",
+    "https://evil.example",
+])
+def test_open_redirect_is_rejected(locked_client, next_):
+    r = _login(locked_client, next_=next_)
     assert r.headers["Location"] == "/"  # falls back to home (boards.index), not the crafted target
 
 

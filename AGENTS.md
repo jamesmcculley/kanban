@@ -63,9 +63,26 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 10. **`/api/health` is registered directly on `app`, not on the `boards` blueprint** (`__init__.py`,
     not `routes.py`) — its endpoint name is `"health"`, not `"boards.health"`. `require_login`'s
     exempt-endpoints check has to use the bare name, or the container healthcheck starts failing
-    the moment `KANBAN_PASSWORD` is set. `auth.py`'s login throttle is a plain module-level list,
-    correct only because the Dockerfile already commits to one gunicorn worker — the same
-    invariant `Store`'s file I/O already depends on (see trap 6's neighbourhood).
+    the moment `KANBAN_PASSWORD` is set. `auth.py`'s login throttle is a plain module-level list;
+    that only works at all because of one gunicorn *worker* (`--workers 1`, same invariant
+    `Store`'s file I/O depends on — see trap 6's neighbourhood), not because it's single-threaded
+    (`--threads 4`). It's still not locked: a little imprecision under real concurrent requests is
+    an accepted trade-off for a personal app's login throttle, not a bypass — see `auth.py`'s
+    comment on `_recent_failures` before tightening it.
+11. **A redirect target built from user input needs more than `not candidate.startswith("//")`.**
+    Browsers normalize `\` to `/` when resolving a URL, and strip ASCII tab/newline/CR *before*
+    that — so `next=/\evil.example` and `next=/<TAB>/evil.example` both collapse to
+    `//evil.example` and leave the app's own origin, even though neither string starts with `//`
+    when the server sees it. `auth._safe_next` checks for all of `\`, tab, newline and CR, not
+    just a leading `//`. Verified against a real browser's `URL` parser, not just reasoned about —
+    the failure mode is invisible in curl/Python, which don't do this normalization.
+12. **A script that scans `.card` elements once when it loads misses every card added afterward.**
+    `filter.js`'s per-board filter builds its tag checkbox list once from whatever's in the DOM at
+    load time; cards added later arrive via htmx, after that scan already ran, so their tags never
+    showed up as filter options without a full page reload. Fixed by rebuilding that list each time
+    the filter panel opens (cheap, and matches when a stale list would actually be noticed), not
+    just once — found by an e2e test that added a card and then opened the filter in the same test,
+    which a test that reloads the page in between never would have caught.
 
 ## Log
 
