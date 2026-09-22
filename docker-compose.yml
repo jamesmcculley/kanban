@@ -1,6 +1,7 @@
 # Joins an existing reverse-proxy network so the proxy can reach this app by
-# service name ("kanban:8000"). Set PROXY_NETWORK in .env (see .env.example).
-# The app has no authentication: keep the proxy route restricted to trusted networks.
+# service name ("kanban:8000"). Set PROXY_NETWORK and KANBAN_PASSWORD in .env (see .env.example).
+# The login is one shared password, not accounts -- keep the proxy route restricted to trusted
+# networks too (defense in depth, not a substitute for the login).
 services:
   kanban:
     build:
@@ -15,6 +16,7 @@ services:
     security_opt: [no-new-privileges:true]
     environment:
       TZ: ${TZ:-UTC}
+      KANBAN_PASSWORD: ${KANBAN_PASSWORD:?set KANBAN_PASSWORD in .env}
     volumes:
       # Markdown files live here; a rebuild never touches them.
       - kanban-data:/data

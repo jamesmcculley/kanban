@@ -6,6 +6,7 @@
   `logbook.py`, `preferences.py`) own all file I/O; pure modules hold the logic (`rules.py`, `settings.py`,
   `dates.py`, `notes.py`, `tags.py`, `labels.py`). No canvas/freeform-board code — tried (2026-09-19), removed
   (2026-09-22). Two board kinds: `kanban` and `tasks` (a flat, single-column Things3-style list).
+  `auth.py` adds an optional single-password login (`KANBAN_PASSWORD`), LAN mode only — see ADR 0005.
 - **Data** (`KANBAN_DATA_DIR`, a named volume in Docker): one folder per board with `board.md` and `cards/`;
   root files `.trellis.yml` (areas, global settings and rules, saved filters, `format: 1`),
   `.trellis-log.jsonl` (Logbook), `.trash/`. All Markdown/YAML/JSON, readable in Obsidian.
@@ -27,6 +28,11 @@
 
 ## Changelog
 
+- 2026-09-22 — Optional single-password login (`KANBAN_PASSWORD`), LAN mode only; localhost mode is
+  unaffected (no route changes, no login page registered, verified byte-for-byte). Session-signing
+  key is derived from the password itself (no extra secret file); a 5-attempts/5-minute in-memory
+  throttle guards the login form; `docker-compose.yml` now requires `KANBAN_PASSWORD` in `.env` and
+  refuses to start without it, `docker-compose.localhost.yml` never sets it. See ADR 0005.
 - 2026-09-22 — Decluttered several always-visible controls behind buttons/badges, same pattern as the
   per-board filter: Scheduled/Logbook's preset chips, saved filters, and custom From/To range all now
   live behind a single filter icon (was: a permanently-open date form plus a chip row); a board's

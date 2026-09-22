@@ -68,7 +68,8 @@ def nav():
                    if b.kind in ("kanban", "tasks") and b.parent is None]
     return {"sidebar": store().sidebar(), "tags": store().tag_counts(), "today": today,
             "today_count": due_now, "current_board": current, "card_boards": card_boards,
-            "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES}
+            "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES,
+            "auth_enabled": bool(current_app.config.get("PASSWORD"))}
 
 
 @bp.get("/")

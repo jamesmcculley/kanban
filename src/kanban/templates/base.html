@@ -88,6 +88,11 @@
         <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
                 onclick="document.getElementById('help').hidden = false">{{ icon('help-circle') }}</button>
         <button type="button" class="icon-btn" data-sidebar-toggle aria-label="Collapse sidebar" title="Collapse sidebar">{{ icon('panel-left') }}</button>
+        {% if auth_enabled %}
+        <form method="post" action="{{ url_for('auth.logout') }}" class="logout-form">
+          <button type="submit" class="icon-btn" aria-label="Log out" title="Log out">{{ icon('log-out') }}</button>
+        </form>
+        {% endif %}
       </div>
     </aside>
     <button type="button" class="sidebar-rail" data-sidebar-toggle aria-label="Show sidebar" title="Show sidebar">{{ icon('panel-left') }}</button>

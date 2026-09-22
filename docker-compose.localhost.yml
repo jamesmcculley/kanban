@@ -1,6 +1,8 @@
 # Localhost-only: no reverse proxy, no LAN exposure. Publishes to 127.0.0.1 only, so only this
 # machine can reach it -- not your phone, not other devices on the network. Self-contained: does
-# not need PROXY_NETWORK or a Caddy route (unlike docker-compose.yml, the LAN-hosted setup).
+# not need PROXY_NETWORK or a Caddy route (unlike docker-compose.yml, the LAN-hosted setup), and
+# deliberately never sets KANBAN_PASSWORD -- a login has nothing to add when only this machine's
+# own OS user account can reach the port at all (see docs/decisions/0005).
 #   docker compose -f docker-compose.localhost.yml up -d --build
 #   open http://localhost:8000
 services:

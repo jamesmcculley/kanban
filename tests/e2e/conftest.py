@@ -49,3 +49,31 @@ def page(browser, server):
     unexpected = [p for p in problems if not any(x in p for x in pg.expected_errors)]
     ctx.close()
     assert not unexpected, unexpected
+
+
+@pytest.fixture
+def auth_server(tmp_path):
+    """Same as `server`, but with KANBAN_PASSWORD set -- for testing the LAN-mode login itself."""
+    app = create_app(tmp_path, password="right-horse-battery")
+    srv = make_server("127.0.0.1", 0, app, threaded=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_port}"
+    srv.shutdown()
+
+
+@pytest.fixture
+def auth_page(browser, auth_server):
+    """Like `page`, but starts at /login instead of the (gated) board -- logging in is each
+    test's job, since that's usually the thing under test."""
+    ctx = browser.new_context(viewport={"width": 1280, "height": 800})
+    pg = ctx.new_page()
+    problems: list[str] = []
+    pg.expected_errors = []
+    pg.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
+    pg.on("console", lambda m: m.type == "error" and problems.append(f"console: {m.text}"))
+    pg.base = auth_server
+    pg.goto(auth_server + "/login")
+    yield pg
+    unexpected = [p for p in problems if not any(x in p for x in pg.expected_errors)]
+    ctx.close()
+    assert not unexpected, unexpected

@@ -4,9 +4,10 @@ A personal, local-first kanban and task manager: list boards, a flat Tasks-board
 Things3-style to-dos, tags, labels, priorities, start/due dates and repeats, a per-board filter, a
 Scheduled view and a Logbook (both with a date-range filter and saved filters), per-board and
 global rules, and twelve colour themes. Flask + htmx, no build step. Cards are Markdown files, so
-the data folder also opens as an Obsidian vault. Runs on the homelab behind Caddy, LAN-only (it has
-no login). Status: in daily use. There is no canvas/freeform board and no Inbox board — both were
-tried and removed; quick capture (`c`) now asks which board, remembered per device.
+the data folder also opens as an Obsidian vault. Runs on the homelab behind Caddy, LAN-only, behind
+a single shared password (`KANBAN_PASSWORD`; see ADR 0005) — localhost deployments never need one.
+Status: in daily use. There is no canvas/freeform board and no Inbox board — both were tried and
+removed; quick capture (`c`) now asks which board, remembered per device.
 
 ## Standards
 
@@ -59,6 +60,12 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
    `change` event. The Scheduled/Logbook date-range popover shares the *look* (`.filter-panel` for
    CSS) but uses its own `.date-filter-wrap`/`.date-filter-panel` classes and a separate toggle
    (`data-date-filter-toggle`, handled in `ui.js`) for exactly this reason.
+10. **`/api/health` is registered directly on `app`, not on the `boards` blueprint** (`__init__.py`,
+    not `routes.py`) — its endpoint name is `"health"`, not `"boards.health"`. `require_login`'s
+    exempt-endpoints check has to use the bare name, or the container healthcheck starts failing
+    the moment `KANBAN_PASSWORD` is set. `auth.py`'s login throttle is a plain module-level list,
+    correct only because the Dockerfile already commits to one gunicorn worker — the same
+    invariant `Store`'s file I/O already depends on (see trap 6's neighbourhood).
 
 ## Log
 

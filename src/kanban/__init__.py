@@ -1,11 +1,13 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Flask, abort, jsonify, request, url_for
+from flask import Flask, abort, jsonify, redirect, request, session, url_for
 
 from . import notes
+from .auth import bp as auth_bp
+from .auth import secret_key_for
 from .store import Store
 
 
@@ -34,11 +36,21 @@ def _day_label(day: str) -> str:
     return {0: "Today", 1: "Yesterday"}.get(delta) or d.strftime("%a, %b %-d" + ("" if d.year == datetime.now().year else ", %Y"))
 
 
-def create_app(data_dir: str | Path | None = None) -> Flask:
+def create_app(data_dir: str | Path | None = None, password: str | None = None) -> Flask:
     app = Flask(__name__)
     root = data_dir or os.environ.get("KANBAN_DATA_DIR") or Path.home() / "kanban-data"
     app.config["STORE"] = Store(Path(root))
     app.jinja_env.filters.update(stamp=_stamp, clock=_clock, day_label=_day_label)
+
+    # Login is opt-in and LAN-only: unset (the default, and always true for a localhost deployment)
+    # means every route stays open exactly as before this existed. See docs/decisions/0005.
+    password = password if password is not None else (os.environ.get("KANBAN_PASSWORD") or None)
+    app.config["PASSWORD"] = password
+    if password:
+        app.secret_key = secret_key_for(password)
+        app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+        app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+        app.register_blueprint(auth_bp)
 
     def render_notes(card, board):
         """A card's notes as HTML; checklist boxes tick through the server (see toggle_task)."""
@@ -55,9 +67,25 @@ def create_app(data_dir: str | Path | None = None) -> Flask:
     app.register_blueprint(bp)
 
     @app.before_request
+    def require_login():
+        """No-op when KANBAN_PASSWORD is unset (localhost deployments, and any LAN deployment that
+        hasn't opted in yet). When it is set, every route needs an authenticated session except the
+        login/logout routes, static assets (the login page has to load its own CSS) and the
+        container healthcheck (must keep passing whether or not anyone has ever logged in)."""
+        if not app.config["PASSWORD"] or request.endpoint in (None, "auth.login", "auth.logout", "static", "health"):
+            return
+        if session.get("authed"):
+            return
+        if request.method != "GET":
+            abort(401)
+        return redirect(url_for("auth.login", next=request.path))
+
+    @app.before_request
     def refuse_cross_origin_writes():
-        """The app has no login (it is LAN-only), so a web page on another site must not be able to
-        drive it from a device on the LAN. Browsers send Origin on writes; it must be this host."""
+        """Even with a login, a session cookie is sent automatically to any request that reaches
+        this origin -- a web page on another site (or another device on the LAN) must not be able
+        to ride it. Without a login this is the *only* thing stopping a drive-by page from driving
+        the app. Browsers send Origin on writes; it must be this host."""
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return
         origin = request.headers.get("Origin")

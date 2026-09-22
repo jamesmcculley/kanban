@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in — Kanban</title>
+  {% include "_theme_boot.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='themes.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="login-body">
+  {% from "_icons.html" import icon %}
+  <form class="login-card" method="post" action="{{ url_for('auth.login') }}">
+    <div class="login-mark">{{ icon('mark', 30) }}</div>
+    <h1>Kanban</h1>
+    <input type="password" name="password" placeholder="Password" aria-label="Password"
+           autocomplete="current-password" autofocus required>
+    <input type="hidden" name="next" value="{{ next or '' }}">
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <button type="submit" class="primary-btn">Log in</button>
+  </form>
+</body>
+</html>
