@@ -15,6 +15,11 @@ window.Theme = (() => {
     syncBrowserChrome();
   }
   const get = () => root.getAttribute('data-theme') || 'default';
+  function cycle() {                       // Default, then the 12 named themes, then back to Default
+    const order = ['default', ...THEMES];
+    set(order[(order.indexOf(get()) + 1) % order.length]);
+    return get();
+  }
   function setSize(size) {
     root.setAttribute('data-font-size', size);
     try { localStorage.setItem('font-size', size); } catch { /* ignore */ }
@@ -22,8 +27,17 @@ window.Theme = (() => {
   const getSize = () => root.getAttribute('data-font-size') || 'medium';
 
   document.addEventListener('DOMContentLoaded', syncBrowserChrome);
-  return { list: THEMES, get, set, setSize, getSize };
+  return { list: THEMES, get, set, cycle, setSize, getSize };
 })();
+
+// The sidebar's quick theme toggle: shows the current theme, cycles on click.
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('theme-toggle');
+  const label = document.getElementById('theme-label');
+  const paint = () => { if (label) label.textContent = Theme.get() === 'default' ? 'Default' : Theme.get()[0].toUpperCase() + Theme.get().slice(1); };
+  paint();
+  btn?.addEventListener('click', () => { Theme.cycle(); paint(); });
+});
 
 // Appearance settings: radios that mirror the current theme / text size and apply on change.
 document.addEventListener('DOMContentLoaded', () => {

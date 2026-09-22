@@ -172,7 +172,7 @@ def test_security_headers_and_health(client, monkeypatch):
 
 
 def test_manifest_and_pages_do_not_regress(client):
-    assert client.get("/manifest.webmanifest").get_json()["name"] == "Trellis"
+    assert client.get("/manifest.webmanifest").get_json()["name"] == "Kanban"
     for path in ("/today", "/logbook", "/trash", "/settings", "/b/my-board/settings"):
         assert client.get(path).status_code == 200
 

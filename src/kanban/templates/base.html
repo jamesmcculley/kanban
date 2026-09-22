@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Trellis{% endblock %}</title>
+  <title>{% block title %}Kanban{% endblock %}</title>
   {% include "_theme_boot.html" %}
   <link rel="stylesheet" href="{{ url_for('static', filename='themes.css') }}">
   <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}"></script>
@@ -14,7 +14,7 @@
   <meta name="theme-color" content="#3b82f6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Trellis">
+  <meta name="apple-mobile-web-app-title" content="Kanban">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
   <script src="{{ url_for('static', filename='toast.js') }}" defer></script>
@@ -27,7 +27,12 @@
   {% from "_icons.html" import icon %}
   <div class="app">
     <aside class="sidebar" data-layout-url="{{ url_for('boards.layout') }}" data-stats-url="{{ url_for('boards.sidebar_stats') }}">
-      <a class="brand" href="{{ url_for('boards.index') }}">Trellis</a>
+      <div class="side-head">
+        <a class="brand" href="{{ url_for('boards.index') }}" aria-label="Home">{{ icon('mark', 22) }}</a>
+        <button type="button" id="theme-toggle" class="theme-btn" aria-label="Cycle colour theme" title="Cycle colour theme">
+          <span class="theme-dot" aria-hidden="true"></span><span id="theme-label">Default</span>
+        </button>
+      </div>
       <form method="get" action="{{ url_for('boards.search') }}" class="search">
         <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
       </form>
@@ -85,9 +90,12 @@
         <div id="tag-section">{% include "_tags.html" %}</div>
       </nav>
       <div class="side-foot">
-        <a href="{{ url_for('boards.trash') }}" class="{{ 'active' if request.endpoint == 'boards.trash' }}">Trash</a>
-        <a href="{{ url_for('boards.settings') }}" class="{{ 'active' if request.endpoint == 'boards.settings' }}">Settings</a>
-        <button type="button" class="help-btn" onclick="document.getElementById('help').hidden = false">? Shortcuts</button>
+        <a href="{{ url_for('boards.trash') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.trash' }}"
+           aria-label="Trash" title="Trash">{{ icon('trash') }}</a>
+        <a href="{{ url_for('boards.settings') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.settings' }}"
+           aria-label="Settings" title="Settings">{{ icon('settings') }}</a>
+        <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
+                onclick="document.getElementById('help').hidden = false">{{ icon('help-circle') }}</button>
       </div>
     </aside>
     <div class="content">{% block content %}{% endblock %}</div>

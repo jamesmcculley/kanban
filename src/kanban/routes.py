@@ -526,7 +526,7 @@ def manifest():
         "src": url_for("static", filename=f"icons/{name}"), "sizes": f"{size}x{size}",
         "type": "image/png", "purpose": purpose}
     return jsonify(
-        name="Trellis", short_name="Trellis", start_url="/", scope="/", display="standalone",
+        name="Kanban", short_name="Kanban", start_url="/", scope="/", display="standalone",
         background_color="#16181d", theme_color="#3b82f6",
         icons=[icon("icon-192.png", 192), icon("icon-512.png", 512),
                icon("icon-maskable-512.png", 512, "maskable")],

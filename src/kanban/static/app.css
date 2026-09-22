@@ -1,4 +1,4 @@
-/* Trellis's own Default look (no data-theme attribute): follows the OS. The named themes live in
+/* This app's own Default look (no data-theme attribute): follows the OS. The named themes live in
    themes.css and set the same tokens; see engineering-standards/standards/13-themes.md. */
 :root:not([data-theme]) {
   color-scheme: light dark;
@@ -34,7 +34,13 @@ input, textarea, button { font:inherit; }
 .sidebar { width:230px; flex:none; background:var(--bg-surface); border-right:1px solid var(--border);
            padding:16px 12px; display:flex; flex-direction:column; gap:12px;
            position:sticky; top:0; height:100vh; overflow-y:auto; }
-.brand { font-weight:700; font-size:18px; color:var(--text-primary); text-decoration:none; padding:0 8px; }
+.side-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 4px; }
+.brand { display:grid; place-items:center; color:var(--accent-text); text-decoration:none; padding:4px; border-radius:6px; }
+.brand:hover { background:var(--hover); }
+.theme-btn { display:flex; align-items:center; gap:6px; border:1px solid var(--border); background:var(--bg-card);
+             color:var(--text-primary); border-radius:14px; padding:4px 10px 4px 8px; font-size:12px; cursor:pointer; }
+.theme-btn:hover { border-color:var(--accent); }
+.theme-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); flex:none; }
 .sidebar nav { display:flex; flex-direction:column; gap:2px; flex:1; }
 .sidebar nav a { display:flex; justify-content:space-between; align-items:center; gap:8px;
                  padding:7px 10px; border-radius:7px; color:var(--text-primary); text-decoration:none; }
@@ -123,7 +129,7 @@ h1 { margin:0; font-size:22px; }
   .app { flex-direction:column; }
   .sidebar { position:static; width:auto; height:auto; border-right:0; border-bottom:1px solid var(--border); }
   .sidebar nav { flex-direction:row; flex-wrap:wrap; }
-  .sidebar h3, .help-btn { display:none; }
+  .sidebar h3 { display:none; }
 }
 
 /* grips, areas, tags */
@@ -223,9 +229,8 @@ h1 { margin:0; font-size:22px; }
 @keyframes toast-in { from { opacity:0; transform:translateY(8px); } }
 @media (max-width: 720px) { #toasts { left:12px; right:12px; bottom:90px; } }
 .badge.quiet { background:var(--hover-strong); color:var(--text-primary); }
-.side-foot { display:flex; justify-content:space-between; align-items:center; padding:0 6px; }
-.side-foot a { color:var(--text-subtle); text-decoration:none; padding:6px 10px; border-radius:7px; }
-.side-foot a:hover, .side-foot a.active { color:var(--text-primary); background:var(--hover); }
+.side-foot { display:flex; justify-content:center; align-items:center; gap:4px; padding:6px; }
+.side-foot .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
 .drop-hover { outline:2px dashed var(--accent); outline-offset:-2px; background:var(--accent-dim); border-radius:7px; }
 .meta { display:inline-flex; align-items:center; gap:3px; font-size:12px; color:var(--text-subtle); white-space:nowrap; }
 .title-form { margin:0; }
@@ -302,4 +307,4 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .primary-btn { border:0; background:var(--accent); color:var(--on-accent); border-radius:7px; padding:7px 16px; cursor:pointer; font-weight:600; }
 .rule-error { color:var(--danger); font-size:13px; margin:0; min-height:1.2em; }
 .settings a { color:var(--accent-text); }
-.side-foot { flex-wrap:wrap; gap:2px 4px; } .side-foot a, .side-foot .help-btn { white-space:nowrap; padding:6px 8px; }
+.side-foot { flex-wrap:wrap; }

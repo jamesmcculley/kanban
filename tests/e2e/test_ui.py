@@ -518,7 +518,7 @@ def test_installable_manifest_and_icons(page):
     r = page.request.get(page.base + "/manifest.webmanifest")
     assert r.status == 200 and "manifest+json" in r.headers["content-type"]
     m = r.json()
-    assert m["display"] == "standalone" and m["start_url"] == "/" and m["name"] == "Trellis"
+    assert m["display"] == "standalone" and m["start_url"] == "/" and m["name"] == "Kanban"
     assert {i["sizes"] for i in m["icons"]} >= {"192x192", "512x512"}
     for icon in m["icons"]:
         assert page.request.get(page.base + icon["src"]).status == 200
@@ -557,6 +557,31 @@ def theme_bg(name):
 
 def body_bg(page):
     return page.evaluate("getComputedStyle(document.body).backgroundColor")
+
+
+def test_sidebar_theme_toggle_cycles_and_stays_in_sync_with_settings(page):
+    from kanban.themes import THEME_NAMES
+    label = page.locator("#theme-label")
+    expect(label).to_have_text("Default")
+    page.click("#theme-toggle")
+    expect(label).to_have_text("Dark")
+    expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+    for _ in range(len(THEME_NAMES)):                 # cycle all the way around, back to Default
+        page.click("#theme-toggle")
+    expect(label).to_have_text("Default")
+    expect(page.locator("html")).not_to_have_attribute("data-theme", __import__("re").compile(".+"))
+    page.click("#theme-toggle")                        # dark again
+    page.goto(page.base + "/settings")
+    expect(page.locator('input[name=theme]:checked')).to_have_value("dark")   # toggle and picker share storage
+    page.locator('label.theme-card:has(input[value="nord"])').click()
+    page.goto(page.base + "/b/my-board")
+    expect(page.locator("#theme-label")).to_have_text("Nord")                 # picker updates the toggle too
+
+
+def test_no_brand_name_and_icon_only_footer_controls(page):
+    assert "Trellis" not in page.content() and "Kanban" not in page.locator(".sidebar").inner_text()
+    for name in ("Trash", "Settings", "Keyboard shortcuts", "Home"):
+        expect(page.get_by_role("link", name=name, exact=True).or_(page.get_by_role("button", name=name, exact=True))).to_have_count(1)
 
 
 def test_theme_picker_applies_all_twelve_and_persists(page):
