@@ -29,6 +29,21 @@
         <div class="pref-row"><div><label for="b-inherit">Also run the global rules</label><small>Rules from Settings that apply to every board.</small></div>
           <span><input type="hidden" name="inherit_global_rules" value="0">
             <input id="b-inherit" type="checkbox" name="inherit_global_rules" value="1" {% if inherits %}checked{% endif %}></span></div>
+        <div class="pref-row"><div><label for="b-board-title">Board title</label><small>Declutter a board you already know by heart.</small></div>
+          <select id="b-board-title" name="hide_board_title">
+            <option value="">Use global ({{ 'hidden' if resolved.hide_board_title else 'shown' }})</option>
+            <option value="0" {% if raw.hide_board_title is defined and not raw.hide_board_title %}selected{% endif %}>Show it</option>
+            <option value="1" {% if raw.hide_board_title %}selected{% endif %}>Hide it</option></select></div>
+        <div class="pref-row"><div><label for="b-list-titles">List titles</label><small>The lists themselves still work; just the names are hidden.</small></div>
+          <select id="b-list-titles" name="hide_list_titles">
+            <option value="">Use global ({{ 'hidden' if resolved.hide_list_titles else 'shown' }})</option>
+            <option value="0" {% if raw.hide_list_titles is defined and not raw.hide_list_titles %}selected{% endif %}>Show them</option>
+            <option value="1" {% if raw.hide_list_titles %}selected{% endif %}>Hide them</option></select></div>
+        <div class="pref-row"><div><label for="b-counts">Card counts</label><small>The little number next to each list's name.</small></div>
+          <select id="b-counts" name="hide_card_counts">
+            <option value="">Use global ({{ 'hidden' if resolved.hide_card_counts else 'shown' }})</option>
+            <option value="0" {% if raw.hide_card_counts is defined and not raw.hide_card_counts %}selected{% endif %}>Show them</option>
+            <option value="1" {% if raw.hide_card_counts %}selected{% endif %}>Hide them</option></select></div>
         <p id="save-status" class="muted" role="status" aria-live="polite"></p>
       </form>
     </section>

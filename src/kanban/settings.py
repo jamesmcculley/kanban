@@ -15,9 +15,15 @@ DEFAULTS = {
     "hide_done": False,              # hide completed cards from the lists (they stay in the Logbook)
     "auto_hide_done_days": 0,        # hide a completed card this many days after completion; 0 = never
     "inherit_global_rules": True,    # boards only: also run the global rules
+    "hide_list_titles": False,       # display only: declutter a board you already know by heart
+    "hide_board_title": False,
+    "hide_card_counts": False,
 }
+_BOOL_KEYS = ("hide_done", "inherit_global_rules", "hide_list_titles", "hide_board_title",
+              "hide_card_counts")
 BOARD_KEYS = tuple(DEFAULTS)
-GLOBAL_KEYS = ("new_card_position", "hide_done", "auto_hide_done_days", "default_columns")
+GLOBAL_KEYS = ("new_card_position", "hide_done", "auto_hide_done_days", "default_columns",
+              "hide_list_titles", "hide_board_title", "hide_card_counts")
 
 
 def _bool(value) -> bool | None:
@@ -53,7 +59,7 @@ def clean(values: dict, keys: tuple[str, ...]) -> dict:
             if raw not in POSITIONS:
                 raise ValueError("New cards go at the top or the bottom of a list")
             out[key] = raw
-        elif key in ("hide_done", "inherit_global_rules"):
+        elif key in _BOOL_KEYS:
             flag = _bool(raw)
             if flag is None:
                 raise ValueError(f"{key.replace('_', ' ')} must be on or off")

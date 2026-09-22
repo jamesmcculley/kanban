@@ -102,35 +102,16 @@ def test_restore_card_whose_list_was_deleted(store):
     assert store.restore_card(b.slug, c.id).column == "Todo"          # falls back to the first list
 
 
-def test_trash_board_promotes_children_and_restores(store):
-    canvas = store.create_board("Ideas", kind="canvas")
-    item = store.add_child_board(canvas.slug, "Sub", "kanban")
-    store.add_card("sub", "keep me", "Todo")
+def test_trash_board_and_restore(store):
+    store.create_board("Ideas")
     tid = store.trash_board("ideas")
-    assert [b.slug for b in store.list_boards()] == ["sub"] and store.get_board("sub").parent is None
+    assert store.list_boards() == []
     assert store.list_trash()["boards"][0]["title"] == "Ideas"
     store.create_board("Ideas")                                       # slug taken meanwhile
     restored = store.restore_board(tid)
     assert restored.slug == "ideas-2" and restored.title == "Ideas"
-    assert [c.title for c in store.cards_by_column("sub")["Todo"]] == ["keep me"]
-    assert item.target == "sub"
     with pytest.raises(KeyError):
         store.restore_board("../etc@1")
-
-
-def test_canvas_item_trash_restore_and_nested_board_reparenting(store):
-    canvas = store.create_board("Ideas", kind="canvas")
-    note = store.add_item("ideas", "note", 5, 6, text="hi")
-    child = store.add_child_board("ideas", "Sub", "canvas")
-    store.delete_item("ideas", note.id)
-    store.delete_item("ideas", child.id)
-    assert store.list_items("ideas") == [] and store.get_board("sub").parent is None
-    assert len(store.list_trash()["items"]) == 2
-    store.restore_item("ideas", child.id)
-    assert store.get_board("sub").parent == canvas.slug                # nested again
-    assert store.restore_item("ideas", note.id).text == "hi"
-    with pytest.raises(KeyError):
-        store.restore_item("ideas", note.id)
 
 
 def test_empty_trash_is_permanent(store):
@@ -139,7 +120,7 @@ def test_empty_trash_is_permanent(store):
     store.trash_card(b.slug, c.id)
     store.trash_board(store.create_board("Gone").slug)
     store.empty_trash()
-    assert store.list_trash() == {"boards": [], "cards": [], "items": []}
+    assert store.list_trash() == {"boards": [], "cards": []}
     with pytest.raises(KeyError):
         store.restore_card(b.slug, c.id)
 
@@ -176,22 +157,8 @@ def test_move_card_to_board_and_back(store):
     assert store.get_card("a", keep.id).tags == ["x"] and a and b
     with pytest.raises(ValueError):
         store.move_card_to_board("a", keep.id, "a")
-    store.create_board("Canvas", kind="canvas")
-    with pytest.raises(ValueError):
-        store.move_card_to_board("a", keep.id, "canvas")
-
-
-def test_inbox_is_pinned_and_lazy(store):
-    assert store.inbox_count() == 0 and store.list_boards() == []
-    inbox = store.ensure_inbox()
-    assert inbox.slug == "inbox" and inbox.columns == ["Inbox"]
-    store.add_card("inbox", "a", "Inbox")
-    store.add_card("inbox", "b", "Inbox")
-    assert store.inbox_count() == 2
-    assert store.ensure_inbox().slug == "inbox"                        # idempotent
-    other = store.create_board("Other")
-    tree = store.sidebar()
-    assert [b.slug for b in tree["unassigned"]] == [other.slug]        # not in the board list
+    with pytest.raises(KeyError):
+        store.move_card_to_board("a", keep.id, "nope")
 
 
 def test_rename_board(store):
@@ -261,17 +228,18 @@ def test_complete_from_agenda_toast_survives_reload(client):
     assert __import__("json").loads(r.headers["HX-Trigger"])["toast"]["later"] is True
 
 
-def test_capture_and_inbox_routes(client):
-    r = client.post("/capture", data={"title": "Phone gran tomorrow #family"})
+def test_capture_routes(client):
+    r = client.post("/capture", data={"title": "Phone gran tomorrow #family", "board": "my-board"})
     data = r.get_json()
-    assert r.status_code == 200 and data["board"] == "inbox" and data["undo"]["method"] == "DELETE"
-    assert client.post("/capture", data={"title": "  "}).status_code == 400
-    page = client.get("/b/inbox").text
-    assert "Phone gran" in page and "#family" in page and "Added to Inbox" in data["message"]
-    assert client.get("/inbox").headers["Location"].endswith("/b/inbox")
-    assert 'data-drop-board="inbox"' in client.get("/b/my-board").text   # Inbox link, and a drop target
+    assert r.status_code == 200 and data["board"] == "my-board" and data["undo"]["method"] == "DELETE"
+    assert client.post("/capture", data={"title": "  ", "board": "my-board"}).status_code == 400
+    assert client.post("/capture", data={"title": "x"}).status_code == 400          # no board given
+    assert client.post("/capture", data={"title": "x", "board": "nope"}).status_code == 404
+    page = client.get("/b/my-board").text
+    assert "Phone gran" in page and "#family" in page and "Added to My Board" in data["message"]
+    assert 'data-drop-board="my-board"' in page                       # boards are drop targets
     assert client.delete(data["undo"]["url"]).status_code == 200      # the undo really removes it
-    assert "Phone gran" not in client.get("/b/inbox").text
+    assert "Phone gran" not in client.get("/b/my-board").text
 
 
 def test_clear_done_and_unarchive_routes(client):

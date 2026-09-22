@@ -46,6 +46,18 @@
             {% if days not in [0, 1, 7, 14, 30] %}<option value="{{ days }}" selected>{{ days }} days</option>{% endif %}</select></div>
         <div class="pref-row"><div><label for="p-cols">Lists on a new board</label><small>Comma-separated. Existing boards are not changed.</small></div>
           <input id="p-cols" name="default_columns" value="{{ resolved.default_columns|join(', ') }}" autocomplete="off"></div>
+        <div class="pref-row"><div><label for="p-board-title">Board title</label><small>Declutter a board you already know by heart.</small></div>
+          <select id="p-board-title" name="hide_board_title">
+            <option value="0" {% if not resolved.hide_board_title %}selected{% endif %}>Show it</option>
+            <option value="1" {% if resolved.hide_board_title %}selected{% endif %}>Hide it</option></select></div>
+        <div class="pref-row"><div><label for="p-list-titles">List titles</label><small>The lists themselves still work; just the names are hidden.</small></div>
+          <select id="p-list-titles" name="hide_list_titles">
+            <option value="0" {% if not resolved.hide_list_titles %}selected{% endif %}>Show them</option>
+            <option value="1" {% if resolved.hide_list_titles %}selected{% endif %}>Hide them</option></select></div>
+        <div class="pref-row"><div><label for="p-counts">Card counts</label><small>The little number next to each list's name.</small></div>
+          <select id="p-counts" name="hide_card_counts">
+            <option value="0" {% if not resolved.hide_card_counts %}selected{% endif %}>Show them</option>
+            <option value="1" {% if resolved.hide_card_counts %}selected{% endif %}>Hide them</option></select></div>
         <p id="save-status" class="muted" role="status" aria-live="polite"></p>
       </form>
     </section>

@@ -43,16 +43,10 @@
       </div>
       {% endmacro %}
       <nav>
-        <a href="{{ url_for('boards.inbox') }}" data-go="i" data-drop-board="inbox"
-           class="{{ 'active' if current_board == 'inbox' }}">
-          <span>Inbox</span><span id="inbox-badge">{% include "_inbox_badge.html" %}</span>
+        <a href="{{ url_for('boards.scheduled') }}" data-go="s"
+           class="{{ 'active' if request.endpoint == 'boards.scheduled' }}">
+          <span>Scheduled</span><span id="today-badge">{% include "_badge.html" %}</span>
         </a>
-        <a href="{{ url_for('boards.today_view') }}" data-go="t"
-           class="{{ 'active' if request.endpoint == 'boards.today_view' }}">
-          <span>Today</span><span id="today-badge">{% include "_badge.html" %}</span>
-        </a>
-        <a href="{{ url_for('boards.upcoming_view') }}" data-go="u"
-           class="{{ 'active' if request.endpoint == 'boards.upcoming_view' }}"><span>Upcoming</span></a>
         <a href="{{ url_for('boards.logbook') }}" data-go="l"
            class="{{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
 
@@ -91,22 +85,28 @@
            aria-label="Settings" title="Settings">{{ icon('settings') }}</a>
         <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
                 onclick="document.getElementById('help').hidden = false">{{ icon('help-circle') }}</button>
+        <button type="button" class="icon-btn" data-sidebar-toggle aria-label="Collapse sidebar" title="Collapse sidebar">{{ icon('panel-left') }}</button>
       </div>
     </aside>
+    <button type="button" class="sidebar-rail" data-sidebar-toggle aria-label="Show sidebar" title="Show sidebar">{{ icon('panel-left') }}</button>
     <div class="content">{% block content %}{% endblock %}</div>
   </div>
   <div class="fab" id="fab" data-board-url="{{ url_for('boards.create_board') }}" data-capture-url="{{ url_for('boards.capture') }}"
        data-area-url="{{ url_for('boards.add_area') }}"
        {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}data-list-url="{{ url_for('boards.add_column', slug=board.slug) }}"{% endif %}>
-    <form class="fab-form" hidden><input name="name" autocomplete="off" required aria-label="Name"></form>
+    <form class="fab-form" hidden>
+      <input name="name" autocomplete="off" required aria-label="Name">
+      <select name="board" class="fab-board" hidden aria-label="Add to board">
+        {% for b in kanban_boards %}<option value="{{ b.slug }}">{{ b.title }}</option>{% endfor %}
+      </select>
+    </form>
     <div class="fab-menu" hidden>
-      <button type="button" data-action="capture">Quick add to Inbox</button>
+      <button type="button" data-action="capture">Quick add</button>
       {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}<button type="button" data-action="list">New list</button>{% endif %}
       <button type="button" data-action="board">New board</button>
-      <button type="button" data-action="canvas">New canvas</button>
       <button type="button" data-action="area">New area</button>
     </div>
-    <button type="button" class="fab-btn" aria-label="Add list, board or canvas" title="Add">{{ icon('plus', 24) }}</button>
+    <button type="button" class="fab-btn" aria-label="Add" title="Add">{{ icon('plus', 24) }}</button>
   </div>
   <div id="toasts" aria-live="polite"></div>
   <div id="modal"></div>
@@ -122,9 +122,9 @@
         <dt>n</dt><dd>add a card to the selected list</dd>
         <dt>/</dt><dd>search</dd>
         <dt>#tag</dt><dd>add tags when typing a card: “Buy paint #home”</dd>
-        <dt>c</dt><dd>quick-add to the Inbox from anywhere</dd>
-        <dt>g i / g t / g u / g l</dt><dd>go to Inbox / Today / Upcoming / Logbook</dd>
-        <dt>drag a card</dt><dd>onto a board (or Inbox) in the sidebar to move it there</dd>
+        <dt>c</dt><dd>quick-add a card to a board of your choice, from anywhere</dd>
+        <dt>g s / g l</dt><dd>go to Scheduled / Logbook</dd>
+        <dt>drag a card</dt><dd>onto a board in the sidebar to move it there</dd>
         <dt>Esc</dt><dd>close dialog</dd>
       </dl>
     </div>

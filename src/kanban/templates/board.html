@@ -9,16 +9,7 @@
     <a class="chip" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Hidden by this board's settings">{{ hidden_done }} completed hidden</a>
     {% endif %}
     {% if board.hidden %}
-    <div class="hidden-lists">
-      <span>Hidden lists:</span>
-      {% for name in board.hidden %}
-      <button type="button" class="chip" title="Show this list" hx-swap="none"
-              hx-post="{{ url_for('boards.hide_column', slug=board.slug) }}"
-              hx-vals='{"name": {{ name|tojson }}, "hidden": "0"}'>
-        {{ name }} <span class="count">{{ columns[name]|length }}</span> · show
-      </button>
-      {% endfor %}
-    </div>
+    <span class="chip" title="{{ board.hidden|join(', ') }} — click the eye icon above to show them">{{ board.hidden|length }} list{{ 's' if board.hidden|length != 1 }} hidden</span>
     {% endif %}
   </header>
   <main class="board" data-slug="{{ board.slug }}" data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id='ID') }}" data-order-url="{{ url_for('boards.order_columns', slug=board.slug) }}" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
@@ -26,13 +17,17 @@
     <section class="column" data-column="{{ name }}">
       <div class="col-head">
         <span class="grip col-grip" title="Drag to reorder lists">⋮⋮</span>
+        {% if not display.hide_list_titles %}
         <form hx-post="{{ url_for('boards.rename_column', slug=board.slug) }}" hx-swap="none"
               hx-on::response-error="location.reload()">
           <input type="hidden" name="old" value="{{ name }}">
           <input class="col-title" name="new" value="{{ name }}" aria-label="List name" autocomplete="off"
                  onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
         </form>
-        <span class="count">{{ cards|length }}</span>
+        {% else %}
+        <span class="col-title-hidden" aria-hidden="true"></span>
+        {% endif %}
+        {% if not display.hide_card_counts %}<span class="count">{{ cards|length }}</span>{% endif %}
         <div class="col-actions">
           <button type="button" title="Hide this list" aria-label="Hide list" hx-swap="none"
                   hx-post="{{ url_for('boards.hide_column', slug=board.slug) }}"

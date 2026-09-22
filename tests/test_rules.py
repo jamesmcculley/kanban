@@ -178,9 +178,6 @@ def test_disabled_rules_and_rule_crud(store):
         store.delete_rule(b.slug, "nope")
     with pytest.raises(ValueError):
         store.add_rule(b.slug, {"when": "completed", "do": "move", "arg": "Nowhere"})    # validated against this board
-    store.create_board("Sketch", kind="canvas")
-    with pytest.raises(ValueError):
-        store.add_rule("sketch", {"when": "completed", "do": "archive"})
 
 
 def test_undo_restores_what_a_rule_changed(store):
@@ -252,9 +249,3 @@ def test_unknown_frontmatter_is_preserved_across_edits(store, tmp_path):
     store.add_rule(b.slug, {"when": "added", "do": "archive"})
     assert "aliases:" in card_path.read_text() and "cssclasses: wide" in card_path.read_text()
     assert "obsidian_note: keep" in board_path.read_text()
-    canvas = store.create_board("Sketch", kind="canvas")
-    item = store.add_item(canvas.slug, "note", 1, 1, text="hi")
-    item_path = tmp_path / canvas.slug / "items" / f"{item.id}.md"
-    item_path.write_text(item_path.read_text().replace("kind: note", "kind: note\nlinks: [a]"))
-    store.update_item(canvas.slug, item.id, x=50)
-    assert "links:" in item_path.read_text()

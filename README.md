@@ -4,15 +4,20 @@ A local-first kanban board. Cards are plain Markdown files with YAML frontmatter
 directory can also be opened as an Obsidian vault.
 
 - Boards of lists, drag-and-drop cards, tags (`#home`), Markdown notes with live checklists
-- Natural-language dates and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
+- Natural-language start and due dates, and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
+- **Move any card to any list on any board** from its edit dialog, not just by dragging
 - **Rules and settings**, per board and global: e.g. "when a card is completed, move it to Done"; new-card
-  position; hide completed cards; default lists for new boards
+  position; hide completed cards; default lists for new boards; hide list/board titles or card counts
 - Twelve colour themes plus a Default that follows your device, and three text sizes (Settings)
-- Inbox with quick capture (`c` from anywhere); drag a card onto a board in the sidebar to move it
-- Today, Upcoming and a Logbook of everything you've completed (with the board and list it came from)
+- Quick capture (`c` from anywhere) to a board of your choice, remembered per device
+- **Scheduled**: every card with a start or due date, across all boards, with a date-range filter,
+  quick presets and filters you can save and reuse
+- A Logbook of everything you've completed (with the board and list it came from), the same date
+  filter, and a way to fix a completion date you forgot to check off on time
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
-- Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists
-- Canvas boards: notes, links, images (paste or drop) and nested boards on a freeform surface
+- Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists,
+  and a collapse toggle
+- A "show or hide lists" panel (the eye icon) to see and toggle every list's visibility at once
 - Installable to a phone's home screen; keyboard shortcuts (press `?`)
 
 ## Installing
@@ -59,10 +64,10 @@ has the full add-an-app checklist if you're deploying next to other apps this wa
 ## Data
 
 Data lives in `~/kanban-data` (override with `KANBAN_DATA_DIR`; the Docker modes use a named volume
-instead). Each board is a folder: `cards/` or `items/` (Markdown files), plus `assets/` for canvas
-images. Area order is kept in `.trellis.yml`, the Logbook in `.trellis-log.jsonl`, and deleted things
-in `.trash` folders (all hidden from Obsidian). Board settings and rules live in each `board.md`;
-global ones in `.trellis.yml`. Frontmatter fields this app doesn't know are kept when it saves.
+instead). Each board is a folder of `cards/` (Markdown files). Area order and saved filters are kept
+in `.trellis.yml`, the Logbook in `.trellis-log.jsonl`, and deleted things in `.trash` folders (all
+hidden from Obsidian). Board settings and rules live in each `board.md`; global ones in
+`.trellis.yml`. Frontmatter fields this app doesn't know are kept when it saves.
 
 ## Themes
 

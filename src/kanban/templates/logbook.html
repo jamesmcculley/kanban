@@ -2,7 +2,8 @@
 {% from "_icons.html" import icon %}
 {% block title %}Logbook{% endblock %}
 {% block content %}
-  <header class="page-head"><h1>Logbook</h1><span class="muted">everything you've completed, and where it came from</span></header>
+  <header class="page-head"><h1>Logbook</h1></header>
+  {% include "_date_filter.html" %}
   <main class="agenda logbook">
     {% for day, events in days.items() %}
       <h2>{{ day|day_label }} <span class="count">{{ events|length }}</span></h2>
@@ -15,10 +16,20 @@
           {% if e.board in live %}<a href="{{ url_for('boards.board', slug=e.board) }}">{{ e.board_title }}</a>{% else %}{{ e.board_title }}{% endif %}
           <span class="sep">›</span> {{ e.list }}
         </span>
+        {% if e.board in live and not e.repeat %}
+        <button type="button" class="link-btn" data-toggle-edit-at title="Forgot to check it off on time?">Edit date</button>
+        {% endif %}
       </div>
+      {% if e.board in live and not e.repeat %}
+      <div class="completed-at-row logbook-inline-edit" hidden>
+        <input type="datetime-local" class="completed-at-input" value="{{ e.at[:16] }}">
+        <button type="button" class="link-btn" data-completed-at-save data-card="{{ e.card }}"
+                data-url="{{ url_for('boards.edit_completed_at', slug=e.board, card_id=e.card) }}">Save</button>
+      </div>
+      {% endif %}
       {% endfor %}
     {% else %}
-      <p class="empty">Nothing completed yet. Check a card off and it will appear here.</p>
+      <p class="empty">{% if date_from or date_to %}Nothing completed in this range.{% else %}Nothing completed yet. Check a card off and it will appear here.{% endif %}</p>
     {% endfor %}
   </main>
 {% endblock %}

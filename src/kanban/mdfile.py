@@ -1,4 +1,4 @@
-"""Markdown files with YAML frontmatter: the on-disk format for boards, cards and canvas items."""
+"""Markdown files with YAML frontmatter: the on-disk format for boards and cards."""
 
 from __future__ import annotations
 

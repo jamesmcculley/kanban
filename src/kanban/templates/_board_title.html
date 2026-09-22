@@ -1,13 +1,34 @@
 {% from "_icons.html" import icon %}
+{% if not display.hide_board_title %}
 <form class="title-form" hx-post="{{ url_for('boards.rename_board', slug=board.slug) }}" hx-swap="none"
       hx-on::response-error="location.reload()">
   <input class="board-title" name="title" value="{{ board.title }}" size="{{ [board.title|length, 6]|max }}"
          aria-label="Board name" autocomplete="off"
          onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
 </form>
+{% endif %}
 <button type="button" class="icon-btn danger" title="Delete this board" aria-label="Delete board"
         data-post="{{ url_for('boards.delete_board', slug=board.slug) }}" data-confirm="Delete? Click again"
         data-after="home">{{ icon('trash') }}</button>
 {% if board.kind == 'kanban' %}
+<div class="eye-menu-wrap">
+  <button type="button" class="icon-btn" data-eye-toggle aria-label="Show or hide lists" title="Show or hide lists">{{ icon('eye') }}</button>
+  <div class="eye-menu" hidden>
+    <div class="eye-menu-head">
+      <span>Lists</span>
+      <div class="eye-all">
+        <button type="button" class="link-btn" data-eye-all="show">Show all</button>
+        <button type="button" class="link-btn" data-eye-all="hide">Hide all</button>
+      </div>
+    </div>
+    {% for col in board.columns %}
+    <label class="eye-row">
+      <input type="checkbox" class="eye-check" data-url="{{ url_for('boards.hide_column', slug=board.slug) }}"
+             data-name="{{ col }}" {% if col not in board.hidden %}checked{% endif %}>
+      <span>{{ col }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
 <a class="icon-btn" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Board settings and rules" aria-label="Board settings and rules">{{ icon('sliders') }}</a>
 {% endif %}

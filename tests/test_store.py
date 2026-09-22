@@ -42,7 +42,7 @@ def test_update_and_dated_cards(store):
     c = store.add_card(b.slug, "x", "Todo")
     store.add_card(b.slug, "no date", "Todo")
     store.update_card(b.slug, c.id, "renamed", "notes", "2026-10-01")
-    assert [(bd.slug, cd.title, cd.due) for bd, cd in store.dated_cards()] == [
+    assert [(bd.slug, cd.title, cd.due) for bd, cd in store.scheduled_cards()] == [
         ("b", "renamed", "2026-10-01")]
     assert store.get_card(b.slug, c.id).body.strip() == "notes"
 
@@ -62,9 +62,9 @@ def test_complete_toggles_and_hides_from_agenda(store):
     done = store.complete_card(b.slug, c.id, datetime(2026, 9, 30, 15, 42))
     assert done.done and done.completed == "2026-09-30T15:42"
     assert store.get_card(b.slug, c.id).completed == "2026-09-30T15:42"  # persisted, not just returned
-    assert store.dated_cards() == []
+    assert store.scheduled_cards() == []
     assert not store.complete_card(b.slug, c.id).done  # second press undoes it
-    assert len(store.dated_cards()) == 1
+    assert len(store.scheduled_cards()) == 1
 
 
 def test_complete_repeating_rolls_forward(store):
@@ -119,12 +119,12 @@ def test_hidden_columns_persist_and_leave_agenda(store):
     store.add_card(b.slug, "now thing", "Todo", due="2026-10-01")
     store.set_column_hidden(b.slug, "Done", True)
     assert store.get_board(b.slug).hidden == ["Done"]
-    assert [c.title for _, c in store.dated_cards()] == ["now thing"]
+    assert [c.title for _, c in store.scheduled_cards()] == ["now thing"]
     assert len(store.search("later")) == 1  # still findable
     store.rename_column(b.slug, "Done", "Archive")
     assert store.get_board(b.slug).hidden == ["Archive"]
     store.set_column_hidden(b.slug, "Archive", False)
-    assert store.get_board(b.slug).hidden == [] and len(store.dated_cards()) == 2
+    assert store.get_board(b.slug).hidden == [] and len(store.scheduled_cards()) == 2
 
 
 def test_delete_column_only_when_empty(store):

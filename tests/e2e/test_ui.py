@@ -26,7 +26,7 @@ def add_card(page, column, text):
 
 
 def fab_add(page, what, name):
-    """what: 'New list' | 'New board' | 'New canvas'"""
+    """what: 'New list' | 'New board' | 'New area'"""
     page.click(".fab-btn")
     page.get_by_role("button", name=what).click()
     page.fill(".fab-form input", name)
@@ -39,7 +39,7 @@ def column_order(page):
 
 def test_layout_and_quick_add(page):
     expect(page.locator(".sidebar")).to_be_visible()
-    expect(page.locator(".sidebar a", has_text="Today")).to_be_visible()
+    expect(page.locator(".sidebar a", has_text="Scheduled")).to_be_visible()
     add_card(page, "Todo", "Buy paint #home tomorrow")
     card = page.locator(".card", has_text="Buy paint")
     expect(card).to_be_visible()
@@ -76,9 +76,13 @@ def test_add_rename_hide_delete_lists(page):
     col.hover()
     col.get_by_role("button", name="Hide list").click()
     expect(page.locator('.column[data-column="Someday"]')).to_have_count(0)
-    chip = page.locator(".chip", has_text="Someday")
-    expect(chip).to_contain_text("1")
-    chip.click()
+    expect(page.locator(".chip", has_text="1 list hidden")).to_be_visible()
+
+    page.get_by_role("button", name="Show or hide lists").click()
+    row = page.locator(".eye-row", has_text="Someday")
+    expect(row.locator("input")).not_to_be_checked()
+    row.locator("input").check()
+    page.wait_for_load_state()
     expect(page.locator('.column[data-column="Someday"]')).to_be_visible()
     expect(page.locator('.column[data-column="Someday"] .card')).to_have_count(1)  # cards followed the rename
 
@@ -198,139 +202,13 @@ def test_keyboard_shortcuts(page):
     expect(page.locator("#help")).to_be_visible()
     page.keyboard.press("Escape")
     page.keyboard.press("g")
-    page.keyboard.press("u")
-    page.wait_for_url("**/upcoming")
-
-
-# ---- canvas -----------------------------------------------------------------------------------
-
-import base64
-
-PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
-
-
-def open_canvas(page, name="Sketch"):
-    fab_add(page, "New canvas", name)
-    page.wait_for_selector("#canvas")
-
-
-def test_canvas_note_create_edit_move_persist(page):
-    open_canvas(page)
-    expect(page.locator(".canvas-hint")).to_be_visible()
-    page.locator("#canvas").dblclick(position={"x": 300, "y": 200})
-    note = page.locator(".item.note")
-    expect(note).to_have_count(1)
-    expect(page.locator(".canvas-hint")).to_have_count(0)
-    page.keyboard.type("hello canvas")
-    page.keyboard.press("j")                       # typing in a note must not trigger shortcuts
-    page.locator("#canvas").click(position={"x": 900, "y": 600})      # blur -> saves
-    expect(note.locator(".item-text")).to_have_text("hello canvasj")
-
-    before = note.bounding_box()
-    page.mouse.move(before["x"] + 30, before["y"] + 30)
-    page.mouse.down()
-    page.mouse.move(before["x"] + 130, before["y"] + 90, steps=6)
-    page.mouse.up()
-    after = note.bounding_box()
-    assert abs((after["x"] - before["x"]) - 100) < 3 and abs((after["y"] - before["y"]) - 60) < 3
-
-    page.reload()
-    again = page.locator(".item.note")
-    expect(again.locator(".item-text")).to_have_text("hello canvasj")
-    moved = again.bounding_box()
-    assert abs(moved["x"] - after["x"]) < 3 and abs(moved["y"] - after["y"]) < 3   # position persisted
-
-
-def test_canvas_note_color_resize_delete(page):
-    open_canvas(page)
-    page.click("[data-tool=note]")
-    note = page.locator(".item.note")
-    expect(note).to_have_count(1)
-    note.hover()
-    note.locator(".dot[data-color=blue]").click()
-    expect(note).to_have_class(__import__("re").compile(r"c-blue"))
-    w0 = note.bounding_box()["width"]
-    note.hover()
-    h = note.locator(".resize").bounding_box()
-    page.mouse.move(h["x"] + 6, h["y"] + 6)
-    page.mouse.down()
-    page.mouse.move(h["x"] + 106, h["y"] + 6, steps=5)
-    page.mouse.up()
-    assert note.bounding_box()["width"] > w0 + 80
-    page.reload()
-    expect(page.locator(".item.note")).to_have_class(__import__("re").compile(r"c-blue"))
-    assert page.locator(".item.note").bounding_box()["width"] > w0 + 80
-    page.locator(".item.note").hover()
-    page.locator(".item.note .item-del").click()
-    expect(page.locator(".item")).to_have_count(0)
-    page.reload()
-    expect(page.locator(".item")).to_have_count(0)
-
-
-def test_canvas_link_image_paste_drop(page):
-    page.expected_errors.append("status of 400")      # the javascript: link below is refused on purpose
-    open_canvas(page)
-    page.fill(".tool-link", "https://example.com/docs")
-    page.press(".tool-link", "Enter")
-    link = page.locator(".item.link a")
-    expect(link).to_have_attribute("href", "https://example.com/docs")
-    expect(link).to_have_attribute("rel", "noopener noreferrer")
-    page.fill(".tool-link", "javascript:alert(1)")
-    page.press(".tool-link", "Enter")
-    expect(page.locator(".item.link")).to_have_count(1)                # rejected, not added
-
-    page.set_input_files(".tool-file", files=[{"name": "dot.png", "mimeType": "image/png", "buffer": PNG}])
-    img = page.locator(".item.image img")
-    expect(img).to_have_count(1)
-    page.wait_for_function("() => document.querySelector('.item.image img').naturalWidth > 0")
-
-    page.evaluate("""() => {
-        const dt = new DataTransfer(); dt.setData('text/plain', 'https://example.org/pasted');
-        document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-    }""")
-    expect(page.locator(".item.link")).to_have_count(2)
-    page.evaluate("""() => {
-        const dt = new DataTransfer(); dt.setData('text/plain', 'a pasted thought');
-        document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-    }""")
-    expect(page.locator(".item.note .item-text", has_text="a pasted thought")).to_have_count(1)
-
-    page.evaluate("""(b64) => {
-        const dt = new DataTransfer(); dt.items.add(new File([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], 'x.png', {type: 'image/png'}));
-        document.getElementById('scroller').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, clientX: 400, clientY: 400 }));
-    }""", base64.b64encode(PNG).decode())
-    expect(page.locator(".item.image")).to_have_count(2)
-    page.reload()
-    expect(page.locator(".item")).to_have_count(5)
-
-
-def test_canvas_nested_board(page):
-    open_canvas(page, "Parent Canvas")
-    page.fill(".tool-board input", "Sub List")
-    page.press(".tool-board input", "Enter")
-    card = page.locator(".item.board a")
-    expect(card).to_contain_text("Sub List")
-    expect(page.locator('.sidebar [data-slug="sub-list"]')).to_have_count(0)
-    card.click()
-    page.wait_for_url("**/b/sub-list")
-    expect(page.locator(".crumb")).to_have_text("Parent Canvas")
-    expect(page.locator(".column")).to_have_count(3)                # it's a lists board
-    page.click(".crumb")
-    page.wait_for_selector("#canvas")
-    drag_card = page.locator(".item.board")
-    box = drag_card.bounding_box()
-    page.mouse.move(box["x"] + 10, box["y"] + 10)
-    page.mouse.down()
-    page.mouse.move(box["x"] + 150, box["y"] + 100, steps=6)
-    page.mouse.up()
-    expect(page).to_have_url(__import__("re").compile(r"/b/parent-canvas$"))   # a drag must not navigate
+    page.keyboard.press("s")
+    page.wait_for_url("**/scheduled")
 
 
 def test_fab_menu_contents_and_new_card_placement(page):
-    # on a lists board the + offers list, board and canvas; on a canvas, no "New list"
     page.click(".fab-btn")
-    for name in ("New list", "New board", "New canvas"):
+    for name in ("New list", "New board", "New area"):
         expect(page.get_by_role("button", name=name)).to_be_visible()
     page.keyboard.press("Escape")
     expect(page.locator(".fab-menu")).to_be_hidden()
@@ -352,8 +230,7 @@ def test_fab_menu_contents_and_new_card_placement(page):
     page.keyboard.press("n")                            # keyboard shortcut opens the same input
     expect(col.locator("input[name=title]")).to_be_focused()
 
-    fab_add(page, "New canvas", "Board B")
-    page.wait_for_selector("#canvas")
+    page.goto(page.base + "/scheduled")                 # not a board page: no "New list" offered
     page.click(".fab-btn")
     expect(page.get_by_role("button", name="New list")).to_have_count(0)
     expect(page.get_by_role("button", name="New board")).to_be_visible()
@@ -366,7 +243,7 @@ def test_fab_rejects_duplicate_list_name(page):
     expect(page.locator(".column")).to_have_count(3)
 
 
-# ---- undo, logbook, trash, clear-done, inbox, move, notes, PWA --------------------------------------
+# ---- undo, logbook, trash, clear-done, capture, move, notes, PWA -------------------------------------
 
 def toast(page):
     return page.locator(".toast")
@@ -480,30 +357,38 @@ def test_area_delete_keeps_boards_and_undo(page):
     expect(page.locator('.area[data-area="Home"] [data-slug="my-board"]')).to_be_visible()
 
 
-def test_quick_capture_from_anywhere_lands_in_inbox(page):
-    page.click('.sidebar [data-go="t"]')
-    page.wait_for_url("**/today")
-    page.keyboard.press("c")
+def test_quick_capture_from_anywhere_remembers_the_chosen_board(page):
+    fab_add(page, "New board", "Groceries")
+    page.wait_for_url("**/b/groceries")
+    page.keyboard.press("c")                                  # no memory yet: defaults to the board you're on
     expect(page.locator(".fab-form input")).to_be_focused()
+    expect(page.locator(".fab-board")).to_be_visible()
+    expect(page.locator(".fab-board")).to_have_value("groceries")
+    page.select_option(".fab-board", "my-board")               # explicitly pick a different one
     page.keyboard.type("Phone gran tomorrow #family")
     page.keyboard.press("Enter")
-    expect(toast(page)).to_contain_text("Added to Inbox")
-    expect(page.locator("#inbox-badge .badge")).to_have_text("1")
-    page.click('.sidebar [data-go="i"]')
-    page.wait_for_url("**/b/inbox")
+    expect(toast(page)).to_contain_text("Added to My Board")
+
+    page.goto(page.base + "/b/my-board")
     card = page.locator(".card", has_text="Phone gran")
     expect(card).to_be_visible()
     expect(card.locator(".tag")).to_have_text("#family")
     expect(card.locator(".due")).not_to_be_empty()
 
     page.keyboard.press("Escape")
-    page.keyboard.press("c")                                  # capturing while on the Inbox shows it at once
+    page.keyboard.press("c")                                  # capturing while on that board shows it at once
+    expect(page.locator(".fab-board")).to_have_value("my-board")   # remembered from the last capture
     page.keyboard.type("second one")
     page.keyboard.press("Enter")
     page.wait_for_load_state()
     expect(page.locator(".card")).to_have_count(2)
     expect(page.locator(".card .title").first).to_have_text("second one")   # newest on top
-    expect(page.locator(".toast")).to_contain_text("Added to Inbox")        # toast survived the reload
+    expect(page.locator(".toast")).to_contain_text("Added to My Board")     # toast survived the reload
+
+    page.click('.sidebar [data-go="s"]')                       # from a non-board page too: remembered wins
+    page.wait_for_url("**/scheduled")
+    page.keyboard.press("c")
+    expect(page.locator(".fab-board")).to_have_value("my-board")
 
 
 def test_drag_card_onto_sidebar_board_moves_it_with_undo(page):
@@ -561,21 +446,6 @@ def test_installable_manifest_and_icons(page):
     for icon in m["icons"]:
         assert page.request.get(page.base + icon["src"]).status == 200
     assert page.request.get(page.base + page.get_attribute("link[rel=apple-touch-icon]", "href")).status == 200
-
-
-def test_canvas_delete_shows_undo(page):
-    open_canvas(page, "Restorable")
-    page.click("[data-tool=note]")
-    note = page.locator(".item.note")
-    expect(note).to_have_count(1)
-    note.locator(".item-text").fill("keep me")
-    page.locator("#canvas").click(position={"x": 900, "y": 600})
-    note.hover()
-    note.locator(".item-del").click()
-    expect(page.locator(".item")).to_have_count(0)
-    toast(page).get_by_role("button", name="Undo").click()
-    page.wait_for_load_state()
-    expect(page.locator(".item.note .item-text")).to_have_text("keep me")
 
 
 # ---- themes, settings and rules ---------------------------------------------------------------------
@@ -851,3 +721,138 @@ def test_cross_origin_page_cannot_drive_the_app(browser, server):
     assert "403" in pg.content() or "Forbidden" in pg.content()  # the form post got an explicit refusal
     ctx.close()
     evil.shutdown()
+
+
+# ---- start/due dates, move-to, editable completion date, hidden-lists panel, collapse, filters ----
+
+def test_start_and_due_dates_shown_and_editable(page):
+    add_card(page, "Todo", "Buy paint")
+    page.locator(".card .title").click()
+    page.fill(".dialog input[name=start]", "today")
+    page.fill(".dialog input[name=due]", "tomorrow")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+    card = page.locator(".card", has_text="Buy paint")
+    expect(card.locator(".start")).to_be_visible()
+    expect(card.locator(".due")).to_be_visible()
+
+
+def test_move_to_within_board_and_across_boards(page):
+    fab_add(page, "New board", "Elsewhere")
+    page.wait_for_url("**/b/elsewhere")
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "mover")
+    page.locator(".card", has_text="mover").locator(".title").click()
+    page.select_option(".move-to", "my-board|Doing")           # within-board move
+    page.click(".move-btn")
+    page.wait_for_load_state()
+    expect(page.locator('.column[data-column="Doing"] .card', has_text="mover")).to_be_visible()
+
+    page.locator(".card", has_text="mover").locator(".title").click()
+    page.select_option(".move-to", "elsewhere|Todo")           # cross-board move
+    page.click(".move-btn")
+    page.wait_for_load_state()
+    expect(toast(page)).to_contain_text("Moved “mover” to Elsewhere")
+    expect(page.locator(".card", has_text="mover")).to_have_count(0)
+    page.goto(page.base + "/b/elsewhere")
+    expect(page.locator('.column[data-column="Todo"] .card', has_text="mover")).to_be_visible()
+
+
+def test_editable_completion_date_from_card_and_logbook(page):
+    add_card(page, "Todo", "backdate me")
+    page.locator(".card", has_text="backdate me").locator(".check").click()
+    expect(page.locator(".card.done")).to_be_visible()
+    page.locator(".card .title").click()
+    expect(page.locator(".completed-at-row")).to_be_visible()
+    page.fill(".completed-at-input", "2026-09-01T09:00")
+    page.click("[data-completed-at-save]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+    expect(toast(page).last).to_contain_text("Completion date updated")
+
+    page.click('.sidebar [data-go="l"]')
+    page.wait_for_url("**/logbook")
+    expect(page.locator(".logbook .row", has_text="backdate me")).to_contain_text("9:00 AM")
+    page.get_by_role("button", name="Edit date").click()
+    editor = page.locator(".logbook-inline-edit")
+    expect(editor).to_be_visible()
+    editor.locator(".completed-at-input").fill("2026-08-15T14:30")
+    editor.locator("[data-completed-at-save]").click()
+    page.wait_for_load_state()
+    expect(page.locator(".logbook .row", has_text="backdate me")).to_contain_text("2:30 PM")
+
+
+def test_hidden_lists_panel_toggle_each_and_all(page):
+    page.get_by_role("button", name="Show or hide lists").click()
+    menu = page.locator(".eye-menu")
+    expect(menu).to_be_visible()
+    expect(menu.locator(".eye-row")).to_have_count(3)                  # Todo, Doing, Done
+    page.locator("body").click(position={"x": 700, "y": 700})          # outside click closes it
+    expect(menu).to_be_hidden()
+
+    page.get_by_role("button", name="Show or hide lists").click()
+    page.get_by_role("button", name="Hide all").click()
+    page.wait_for_load_state()
+    expect(page.locator(".column")).to_have_count(0)
+    expect(page.locator(".chip", has_text="3 lists hidden")).to_be_visible()
+
+    page.get_by_role("button", name="Show or hide lists").click()
+    page.get_by_role("button", name="Show all").click()
+    page.wait_for_load_state()
+    expect(page.locator(".column")).to_have_count(3)
+    expect(page.locator(".chip", has_text="lists hidden")).to_have_count(0)
+
+
+def test_sidebar_collapses_and_persists(page):
+    expect(page.locator(".sidebar")).to_be_visible()
+    page.get_by_role("button", name="Collapse sidebar").click()
+    expect(page.locator(".sidebar")).to_be_hidden()
+    rail = page.get_by_role("button", name="Show sidebar")
+    expect(rail).to_be_visible()
+    page.reload()
+    expect(page.locator(".sidebar")).to_be_hidden()                    # persisted across reload
+    rail.click()
+    expect(page.locator(".sidebar")).to_be_visible()
+
+
+def test_scheduled_filters_presets_and_saved_filters(page):
+    add_card(page, "Todo", "Today thing")
+    page.locator(".card", has_text="Today thing").locator(".title").click()
+    page.fill(".dialog input[name=due]", "today")
+    page.click(".dialog button[type=submit]")
+    add_card(page, "Todo", "Next month thing")
+    page.locator(".card", has_text="Next month thing").locator(".title").click()
+    page.fill(".dialog input[name=due]", "in 5 weeks")
+    page.click(".dialog button[type=submit]")
+
+    page.click('.sidebar [data-go="s"]')
+    page.wait_for_url("**/scheduled")
+    expect(page.locator(".agenda .row", has_text="Today thing")).to_be_visible()
+    expect(page.locator(".agenda .row", has_text="Next month thing")).to_be_visible()
+
+    page.get_by_role("link", name="Today", exact=True).click()
+    page.wait_for_load_state()
+    expect(page.locator(".agenda .row", has_text="Today thing")).to_be_visible()
+    expect(page.locator(".agenda .row", has_text="Next month thing")).to_have_count(0)
+
+    page.fill(".save-filter input[name=name]", "My range")
+    page.click(".save-filter button")
+    page.wait_for_load_state()
+    expect(page.locator(".saved-chip", has_text="My range")).to_be_visible()
+
+    page.get_by_role("link", name="All", exact=True).click()
+    page.wait_for_load_state()
+    expect(page.locator(".agenda .row", has_text="Next month thing")).to_be_visible()
+    page.locator(".saved-chip", has_text="My range").get_by_role("link").click()
+    page.wait_for_load_state()
+    expect(page.locator(".agenda .row", has_text="Next month thing")).to_have_count(0)
+
+    page.locator(".saved-chip", has_text="My range").locator(".chip-x").click()
+    page.wait_for_load_state()
+    expect(page.locator(".saved-chip", has_text="My range")).to_have_count(0)
+
+
+def test_logbook_has_its_own_filter_bar(page):
+    page.click('.sidebar [data-go="l"]')
+    page.wait_for_url("**/logbook")
+    expect(page.locator(".filter-bar")).to_be_visible()
+    expect(page.locator(".filter-chips .chip", has_text="This week")).to_be_visible()

@@ -1,4 +1,4 @@
-"""Prove a backup opens: load every board, card, canvas item and the Logbook with the app's own loader.
+"""Prove a backup opens: load every board, card and the Logbook with the app's own loader.
 
     python -m kanban.restore_check /path/to/unpacked/data
 
@@ -20,12 +20,9 @@ def check(root: Path) -> dict:
         raise SystemExit(f"restore-check: {root} is not a directory")
     store = Store(root)
     boards = store.list_boards()
-    counts = {"boards": len(boards), "cards": 0, "items": 0, "logbook": len(store.logbook())}
+    counts = {"boards": len(boards), "cards": 0, "logbook": len(store.logbook())}
     for board in boards:
-        if board.kind == "kanban":
-            counts["cards"] += len(store.list_cards(board.slug))
-        else:
-            counts["items"] += len(store.list_items(board.slug))
+        counts["cards"] += len(store.list_cards(board.slug))
     store.global_settings()
     store.list_trash()
     return counts

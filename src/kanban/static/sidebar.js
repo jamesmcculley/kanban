@@ -1,3 +1,15 @@
+// Collapse/expand the sidebar. Two buttons drive the same state: one inside the sidebar (visible
+// expanded), one a slim rail fixed at the edge (visible collapsed, since the sidebar itself is
+// hidden then and can't hold its own re-expand control).
+(() => {
+  const root = document.documentElement;
+  document.querySelectorAll('[data-sidebar-toggle]').forEach(btn => btn.addEventListener('click', () => {
+    const collapsed = root.getAttribute('data-sidebar') !== 'collapsed';
+    root.setAttribute('data-sidebar', collapsed ? 'collapsed' : 'expanded');
+    try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch { /* ignore */ }
+  }));
+})();
+
 // Sidebar drag-and-drop: reorder boards, move them between areas, reorder areas.
 (() => {
   const side = document.querySelector('.sidebar');

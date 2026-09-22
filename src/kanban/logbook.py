@@ -53,12 +53,31 @@ class LogbookMixin:
         self._log_path().write_text(
             "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events), encoding="utf-8")
 
-    def logbook(self, limit: int = 500) -> list[dict]:
-        """Newest first. Cards completed before the log existed are folded in from their files."""
+    def edit_completion_at(self, card_id: str, old_at: str, new_at: str) -> None:
+        """Move a logged completion to a different timestamp (see Store.edit_completion)."""
+        events = self._read_log()
+        for i in range(len(events) - 1, -1, -1):
+            if events[i]["card"] == card_id and events[i]["at"] == old_at:
+                events[i]["at"] = new_at
+                break
+        else:
+            return
+        self._log_path().write_text(
+            "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events), encoding="utf-8")
+
+    def logbook(self, limit: int = 500, date_from: str | None = None,
+               date_to: str | None = None) -> list[dict]:
+        """Newest first. Cards completed before the log existed are folded in from their files.
+        `date_from`/`date_to` (inclusive ISO dates) filter by completion day, applied before the
+        limit so a date-range query is never truncated by an unrelated recency cap."""
         events = self._read_log()
         seen = {(e["card"], e["at"]) for e in events}
         for board, card in self.all_cards():
             if card.done and card.completed and (card.id, card.completed) not in seen:
                 events.append(self._event(board, card, card.completed))
+        if date_from:
+            events = [e for e in events if e["at"][:10] >= date_from]
+        if date_to:
+            events = [e for e in events if e["at"][:10] <= date_to]
         events.sort(key=lambda e: e["at"], reverse=True)
         return events[:limit]

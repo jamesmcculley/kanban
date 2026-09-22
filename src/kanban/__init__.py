@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 from flask import Flask, abort, jsonify, request, url_for
 
 from . import notes
-from .canvas import COLORS
 from .store import Store
 
 
@@ -49,21 +48,11 @@ def create_app(data_dir: str | Path | None = None) -> Flask:
 
     app.jinja_env.globals.update(render_notes=render_notes, notes_progress=notes.progress)
 
-    app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # a 10 MB image plus form overhead
+    app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024  # text forms only now; no image uploads
 
-    def board_title(slug: str) -> str:
-        try:
-            return app.config["STORE"].get_board(slug).title
-        except KeyError:
-            return "(missing board)"
-
-    app.jinja_env.globals.update(board_title=board_title, COLORS=COLORS)
-
-    from .canvas_routes import cv
     from .routes import bp
 
     app.register_blueprint(bp)
-    app.register_blueprint(cv)
 
     @app.before_request
     def refuse_cross_origin_writes():

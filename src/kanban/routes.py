@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime
 
 from flask import (
     Blueprint,
@@ -16,7 +16,8 @@ from flask import (
 from . import notes
 from . import rules as R
 from . import settings as S
-from .dates import first_due, parse_due, parse_repeat, split_due, split_repeat
+from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
+from .store import effective_date
 from .tags import parse_tags, split_tags
 from .themes import TEXT_SIZES, THEME_NAMES, theme_cards
 
@@ -60,10 +61,11 @@ def _parse_quick(raw: str):
 @bp.app_context_processor
 def nav():
     today = date.today().isoformat()
-    due_now = sum(1 for _, c in store().dated_cards() if c.due <= today)
+    due_now = len(store().scheduled_cards(date_to=today))
     current = (request.view_args or {}).get("slug") if request.endpoint == "boards.board" else None
+    kanban_boards = [b for b in store().list_boards() if b.kind == "kanban" and b.parent is None]
     return {"sidebar": store().sidebar(), "tags": store().tag_counts(), "today": today,
-            "today_count": due_now, "current_board": current, "inbox_count": store().inbox_count(),
+            "today_count": due_now, "current_board": current, "kanban_boards": kanban_boards,
             "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES}
 
 
@@ -81,7 +83,7 @@ def create_board():
     if not title:
         abort(400)
     try:
-        board = store().create_board(title, kind=request.form.get("kind", "kanban"))
+        board = store().create_board(title)
     except ValueError:
         abort(400)
     return redirect(url_for("boards.board", slug=board.slug))
@@ -94,12 +96,11 @@ def board(slug):
     except KeyError:
         abort(404)
     parent = store().get_board(b.parent) if b.parent else None
-    if b.kind == "canvas":
-        return render_template("canvas.html", board=b, parent=parent, items=store().list_items(slug))
     columns, hidden_done = store().view_columns(slug)
-    new_top = store().settings_for(slug)["new_card_position"] == "top"
+    display = store().settings_for(slug)
     return render_template("board.html", board=b, parent=parent, columns=columns,
-                           hidden_done=hidden_done, new_top=new_top)
+                           hidden_done=hidden_done, new_top=display["new_card_position"] == "top",
+                           display=display)
 
 
 @bp.post("/b/<slug>/cards")
@@ -133,14 +134,18 @@ def update_card(slug, card_id):
     title = request.form.get("title", "").strip()
     raw_due = request.form.get("due", "").strip()
     due = parse_due(raw_due) if raw_due else None
+    raw_start = request.form.get("start", "").strip()
+    start = parse_due(raw_start) if raw_start else None
     raw_repeat = request.form.get("repeat", "").strip()
     rule = parse_repeat(raw_repeat) if raw_repeat else None
-    if not title or (raw_due and due is None) or (raw_repeat and rule is None):
+    if (not title or (raw_due and due is None) or (raw_start and start is None)
+            or (raw_repeat and rule is None)):
         abort(400)
     try:
         card = store().update_card(slug, card_id, title, request.form.get("body", ""),
                                    due.isoformat() if due else None, rule,
-                                   parse_tags(request.form.get("tags", "")))
+                                   parse_tags(request.form.get("tags", "")),
+                                   start.isoformat() if start else None)
     except KeyError:
         abort(404)
     return render_template("_card.html", board=store().get_board(slug), card=card)
@@ -309,24 +314,57 @@ def unarchive(slug):
     return "", 204
 
 
-def _agenda(title, keep):
-    items = [(b, c) for b, c in store().dated_cards() if keep(c.due)]
+def _week_bounds(today):
+    from datetime import timedelta
+    monday = today - timedelta(days=today.weekday())
+    return monday, monday + timedelta(days=6)
+
+
+def _presets(today, overdue: bool):
+    """Quick-filter chips. `overdue` is left out for the Logbook (nothing is "overdue" once done)."""
+    from datetime import timedelta
+    monday, sunday = _week_bounds(today)
+    presets = [("Today", today.isoformat(), today.isoformat()), ("This week", monday.isoformat(), sunday.isoformat())]
+    if overdue:
+        presets.insert(1, ("Overdue", None, (today - timedelta(days=1)).isoformat()))
+    presets.append(("All", None, None))
+    return [{"label": label, "from": f, "to": t} for label, f, t in presets]
+
+
+def _filter_from_query():
+    """The from/to this GET request asked for. A malformed query string is quietly ignored
+    (unfiltered) rather than erroring — the only way to hit one is hand-editing the URL, since
+    the date-range form and every preset/saved-filter link always produce well-formed values."""
+    try:
+        return parse_iso_range(request.args.get("from", ""), request.args.get("to", ""))
+    except ValueError:
+        return None, None
+
+
+@bp.get("/scheduled")
+def scheduled():
+    date_from, date_to = _filter_from_query()
     groups: dict[str, list] = {}
-    for b, c in items:
-        groups.setdefault(c.due, []).append((b, c))
-    return render_template("agenda.html", title=title, groups=groups)
+    for b, c in store().scheduled_cards(date_from, date_to):
+        groups.setdefault(effective_date(c), []).append((b, c))
+    return render_template("agenda.html", title="Scheduled", groups=groups, date_from=date_from,
+                           date_to=date_to, presets=_presets(date.today(), overdue=True),
+                           saved=store().list_filters(), filter_url=url_for("boards.scheduled"))
 
 
-@bp.get("/today")
-def today_view():
-    today = date.today().isoformat()
-    return _agenda("Today", lambda d: d <= today)
-
-
-@bp.get("/upcoming")
-def upcoming_view():
-    today = date.today().isoformat()
-    return _agenda("Upcoming", lambda d: d > today)
+@bp.post("/filters")
+def save_filter():
+    try:
+        date_from, date_to = parse_iso_range(request.form.get("from", ""), request.form.get("to", ""))
+    except ValueError as exc:
+        return str(exc), 422
+    name = request.form.get("name", "")
+    return_to = request.form.get("return_to") or url_for("boards.scheduled")
+    try:
+        store().save_filter(name, date_from, date_to)
+    except ValueError as exc:
+        return str(exc), 422
+    return redirect(return_to)
 
 
 # -- lists (columns): structural changes just refresh the board -----------------------------
@@ -477,35 +515,73 @@ def restore_board(trash_id):
     return jsonify(board=board.slug, message=f"Restored board “{_short(board.title)}”")
 
 
-@bp.get("/inbox")
-def inbox():
-    return redirect(url_for("boards.board", slug=store().ensure_inbox().slug))
-
-
 @bp.post("/capture")
 def capture():
-    """Quick-add from anywhere: lands at the top of the Inbox."""
+    """Quick-add from anywhere: lands at the top of whichever board the client asked for."""
     title, due, rule, tags = _parse_quick(request.form.get("title", ""))
-    if not title:
+    slug = request.form.get("board", "")
+    if not title or not slug:
         abort(400)
-    board = store().ensure_inbox()
-    if not board.columns:
-        store().add_column(board.slug, "Inbox")
-        board = store().get_board(board.slug)
+    try:
+        board = store().get_board(slug)
+    except KeyError:
+        abort(404)
+    if board.kind != "kanban" or not board.columns:
+        abort(400)
     top = store().settings_for(board.slug)["new_card_position"] == "top"
     card = store().add_card(board.slug, title, board.columns[0], due, rule, tags, top=top)
     undo = {"url": url_for("boards.delete_card", slug=board.slug, card_id=card.id),
             "method": "DELETE"}
-    return jsonify({**_toast(f"Added to Inbox: “{_short(title)}”", undo), "board": board.slug})
+    return jsonify({**_toast(f"Added to {board.title}: “{_short(title)}”", undo), "board": board.slug})
 
 
 @bp.get("/logbook")
 def logbook():
+    date_from, date_to = _filter_from_query()
     days: dict[str, list] = {}
-    for event in store().logbook():
+    for event in store().logbook(date_from=date_from, date_to=date_to):
         days.setdefault(event["at"][:10], []).append(event)
     live = {b.slug for b in store().list_boards()}
-    return render_template("logbook.html", days=days, live=live)
+    return render_template("logbook.html", days=days, live=live, date_from=date_from,
+                           date_to=date_to, presets=_presets(date.today(), overdue=False),
+                           saved=store().list_filters(), filter_url=url_for("boards.logbook"))
+
+
+@bp.post("/b/<slug>/cards/<card_id>/completed-at")
+def edit_completed_at(slug, card_id):
+    raw = request.form.get("at", "").strip()
+    try:
+        at = datetime.fromisoformat(raw.replace(" ", "T")).isoformat(timespec="minutes")
+    except ValueError:
+        abort(400)
+    try:
+        card = store().edit_completion(slug, card_id, at)
+    except KeyError:
+        abort(404)
+    except ValueError:
+        abort(400)
+    return render_template("_card.html", board=store().get_board(slug), card=card)
+
+
+@bp.post("/filters/<filter_id>/delete")
+def delete_filter(filter_id):
+    try:
+        index, entry = store().delete_filter(filter_id)
+    except KeyError:
+        abort(404)
+    undo = {"url": url_for("boards.restore_filter"),
+            "body": {"index": index, "entry": json.dumps(entry)}}
+    return jsonify(_toast(f"Deleted filter “{_short(entry['name'])}”", undo))
+
+
+@bp.post("/filters/restore")
+def restore_filter():
+    try:
+        entry = json.loads(request.form.get("entry", ""))
+        store().restore_filter(entry, int(request.form.get("index") or 0))
+    except (ValueError, TypeError, KeyError):
+        abort(400)
+    return "", 204
 
 
 @bp.get("/trash")

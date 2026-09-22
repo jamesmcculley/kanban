@@ -56,8 +56,6 @@ def test_board_settings_page_save_and_inherit_toggle(client):
     assert '<option value="bottom" selected' in page and 'name="inherit_global_rules" value="1" checked' not in page
     assert client.post("/b/my-board/settings", data={"inherit_global_rules": ["0", "1"]}).text == "Saved"
     assert 'value="1" checked' in client.get("/b/my-board/settings").text          # hidden 0 then checkbox 1 = on
-    client.post("/boards", data={"title": "Sketch", "kind": "canvas"})
-    assert client.get("/b/sketch/settings").status_code == 404 and client.post("/b/sketch/settings").status_code == 404
     assert client.get("/b/nope/settings").status_code == 404
 
 
@@ -173,7 +171,7 @@ def test_security_headers_and_health(client, monkeypatch):
 
 def test_manifest_and_pages_do_not_regress(client):
     assert client.get("/manifest.webmanifest").get_json()["name"] == "Kanban"
-    for path in ("/today", "/logbook", "/trash", "/settings", "/b/my-board/settings"):
+    for path in ("/scheduled", "/logbook", "/trash", "/settings", "/b/my-board/settings"):
         assert client.get(path).status_code == 200
 
 
@@ -183,10 +181,9 @@ def test_restore_check_opens_a_good_backup_and_fails_on_a_corrupt_one(app, tmp_p
     store = app.config["STORE"]
     cid = store.add_card("my-board", "keep", "Todo").id
     store.complete_card("my-board", cid)
-    store.create_board("Sketch", kind="canvas")
-    store.add_item("sketch", "note", 1, 1, text="hi")
+    store.create_board("Second")
     counts = check(tmp_path)
-    assert counts["boards"] == 2 and counts["cards"] == 1 and counts["items"] == 1 and counts["logbook"] == 1
+    assert counts["boards"] == 2 and counts["cards"] == 1 and counts["logbook"] == 1
     (tmp_path / "my-board" / "cards" / f"{cid}.md").write_text("---\nid: [unclosed\n---\n")     # corrupt frontmatter
     with pytest.raises(Exception, match=r".+"):
         check(tmp_path)

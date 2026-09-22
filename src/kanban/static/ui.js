@@ -113,4 +113,80 @@
     form.addEventListener('change', sync);
     sync();
   });
+
+  // -- hidden-lists panel: the eye icon next to Settings ---------------------------------------
+  document.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-eye-toggle]');
+    if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
+    if (!e.target.closest('.eye-menu-wrap')) document.querySelectorAll('.eye-menu').forEach(m => (m.hidden = true));
+  });
+  document.addEventListener('change', e => {
+    const cb = e.target.closest('.eye-check');
+    if (!cb) return;
+    fetch(cb.dataset.url, { method: 'POST', body: new URLSearchParams({ name: cb.dataset.name, hidden: cb.checked ? '0' : '1' }) })
+      .then(() => location.reload());
+  });
+  document.querySelectorAll('[data-eye-all]').forEach(btn => btn.addEventListener('click', async () => {
+    const wantVisible = btn.dataset.eyeAll === 'show';
+    const boxes = [...document.querySelectorAll('.eye-check')].filter(cb => cb.checked !== wantVisible);
+    if (!boxes.length) return;
+    // One at a time, not Promise.all: each hide/show is a read-modify-write of the same board.md,
+    // so concurrent requests race and the last writer silently clobbers the others' changes.
+    for (const cb of boxes) {
+      await fetch(cb.dataset.url, { method: 'POST', body: new URLSearchParams({ name: cb.dataset.name, hidden: wantVisible ? '0' : '1' }) });
+    }
+    location.reload();
+  }));
+
+  // -- "Move to": any card, to any list on any board, from the edit dialog --------------------
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.move-btn');
+    if (!btn) return;
+    const select = btn.closest('.move-row').querySelector('.move-to');
+    const val = select.value;
+    if (!val) return;
+    const [destSlug, destCol] = val.split('|');
+    btn.disabled = true;
+    let r, data = null;
+    if (destSlug === btn.dataset.current) {
+      r = await fetch(btn.dataset.moveUrl, { method: 'POST', body: new URLSearchParams({ column: destCol, index: '0' }) });
+      if (r.ok && r.status === 200) data = await r.json();
+    } else {
+      r = await fetch(btn.dataset.moveboardUrl, { method: 'POST', body: new URLSearchParams({ to: destSlug, column: destCol }) });
+      if (r.ok) data = await r.json();
+    }
+    btn.disabled = false;
+    if (!r.ok) return window.toast('Could not move that card');
+    document.getElementById('modal').innerHTML = '';
+    window.toast.later(data?.message || 'Moved', data?.undo);
+    location.reload();
+  });
+
+  // -- editing when a completed card was actually completed (forgot to check it off yesterday?) --
+  // Used from the card edit dialog and, inline, from the Logbook -- the two show different markup
+  // on success (the card dialog wants the fresh card face; the Logbook just reloads).
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-completed-at-save]');
+    if (!btn) return;
+    const input = btn.closest('.completed-at-row').querySelector('.completed-at-input');
+    const r = await fetch(btn.dataset.url, { method: 'POST', body: new URLSearchParams({ at: input.value }) });
+    if (!r.ok) return window.toast('Could not update the completion date');
+    const card = document.querySelector(`.card[data-id="${btn.dataset.card}"]`);
+    if (card) {
+      card.outerHTML = await r.text();
+      document.getElementById('modal').innerHTML = '';
+      window.toast('Completion date updated');
+    } else {
+      window.toast.later('Completion date updated');
+      location.reload();
+    }
+  });
+
+  // -- Logbook: reveal the inline date editor for one entry ------------------------------------
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-toggle-edit-at]');
+    if (!btn) return;
+    const editor = btn.closest('.row').nextElementSibling;
+    if (editor?.classList.contains('logbook-inline-edit')) editor.hidden = !editor.hidden;
+  });
 })();

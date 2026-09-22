@@ -1,10 +1,14 @@
+{% from "_icons.html" import icon %}
 <div class="backdrop" onclick="if (event.target === this) this.remove()">
   <form class="dialog" hx-post="{{ url_for('boards.update_card', slug=board.slug, card_id=card.id) }}"
         hx-target="[data-id='{{ card.id }}']" hx-swap="outerHTML"
         hx-on::after-request="if (event.target === this && event.detail.successful) this.closest('.backdrop').remove()"
-        hx-on::response-error="this.querySelector('.error').textContent = 'Could not parse the due date or repeat rule.'">
+        hx-on::response-error="this.querySelector('.error').textContent = 'Could not parse a date or the repeat rule.'">
     <input name="title" value="{{ card.title }}" required autofocus>
-    <input name="due" value="{{ card.due or '' }}" placeholder="Due: tomorrow, fri, in 3 days, jun 5…">
+    <div class="start-field">
+      <input name="start" value="{{ card.start or '' }}" placeholder="Start: tomorrow, fri, jun 5…">
+      <input name="due" value="{{ card.due or '' }}" placeholder="Due: tomorrow, fri, in 3 days…">
+    </div>
     <input name="repeat" value="{{ card.repeat or '' }}" placeholder="Repeat: every monday, every 2 weeks, daily…">
     <input name="tags" value="{% for t in card.tags %}#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}" placeholder="Tags: #home #errand">
     <div class="notes">
@@ -14,8 +18,31 @@
       {% endif %}
       <textarea name="body" rows="8" placeholder="Notes (Markdown). “- [ ] item” makes a checklist."{% if card.body.strip() %} hidden{% endif %}>{{ card.body }}</textarea>
     </div>
-    {% set done_at = card.completed if card.done else card.last_completed %}
-    {% if done_at %}<p class="muted">{{ 'Completed' if card.done else 'Last completed' }} {{ done_at|stamp }}</p>{% endif %}
+    <div class="move-row">
+      <select class="move-to" aria-label="Move to">
+        <option value="" selected disabled>Move to…</option>
+        {% for b in kanban_boards %}
+        <optgroup label="{{ b.title }}">
+          {% for col in b.columns %}
+          <option value="{{ b.slug }}|{{ col }}" {% if b.slug == board.slug and col == card.column %}disabled{% endif %}>{{ col }}{% if col in b.hidden %} (hidden){% endif %}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+      <button type="button" class="move-btn" data-current="{{ board.slug }}"
+              data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id=card.id) }}"
+              data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id=card.id) }}">{{ icon('move', 14) }} Move</button>
+    </div>
+    {% if card.done and not card.repeat %}
+    <div class="completed-at-row">
+      <label for="completed-at-{{ card.id }}">Completed</label>
+      <input id="completed-at-{{ card.id }}" type="datetime-local" class="completed-at-input" value="{{ card.completed[:16] if card.completed else '' }}">
+      <button type="button" class="link-btn" data-completed-at-save data-card="{{ card.id }}"
+              data-url="{{ url_for('boards.edit_completed_at', slug=board.slug, card_id=card.id) }}">Save</button>
+    </div>
+    {% elif card.last_completed %}
+    <p class="muted">Last completed {{ card.last_completed|stamp }}</p>
+    {% endif %}
     <p class="error"></p>
     <div class="actions">
       <button type="button" onclick="this.closest('.backdrop').remove()">Cancel</button>

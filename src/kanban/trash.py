@@ -2,7 +2,6 @@
 trash is emptied, and every deletion can be undone.
 
     <board>/.trash/cards/<id>.md      trashed cards
-    <board>/.trash/items/<id>.md      trashed canvas items (their image files stay put)
     .trash/boards/<slug>@<time>/      whole trashed boards
 """
 
@@ -83,21 +82,14 @@ class TrashMixin:
         base = self._trash_root() / "boards"
         for folder in sorted(base.iterdir()) if base.exists() else []:
             meta = read_md(folder / "board.md")[0] if (folder / "board.md").exists() else {}
-            boards.append({"id": folder.name, "title": meta.get("title", folder.name),
-                           "kind": meta.get("kind", "kanban")})
-        cards, items = [], []
+            boards.append({"id": folder.name, "title": meta.get("title", folder.name)})
+        cards = []
         for board in self.list_boards():
             trash = self._board_dir(board.slug) / ".trash"
             cards += [(board, self._load_card(p)) for p in sorted((trash / "cards").glob("*.md"))]
-            items += [(board, self._item_from(*read_md(p))) for p in sorted((trash / "items").glob("*.md"))]
-        return {"boards": boards, "cards": cards, "items": items}
+        return {"boards": boards, "cards": cards}
 
     def empty_trash(self) -> None:
         shutil.rmtree(self._trash_root(), ignore_errors=True)
         for board in self.list_boards():
-            trash = self._board_dir(board.slug) / ".trash"
-            for path in (trash / "items").glob("*.md"):
-                item = self._item_from(*read_md(path))
-                if item.file:
-                    self.asset_path(board.slug, item.file).unlink(missing_ok=True)
-            shutil.rmtree(trash, ignore_errors=True)
+            shutil.rmtree(self._board_dir(board.slug) / ".trash", ignore_errors=True)

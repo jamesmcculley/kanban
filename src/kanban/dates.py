@@ -54,6 +54,23 @@ def parse_due(text: str, today: date | None = None) -> date | None:
     return None
 
 
+def parse_iso_range(raw_from: str, raw_to: str) -> tuple[str | None, str | None]:
+    """Validate a from/to pair of plain ISO dates (what an <input type=date> submits). Either
+    side blank means open-ended. Used for Scheduled/Logbook date-range filters, not free text."""
+    def one(raw: str) -> str | None:
+        raw = (raw or "").strip()
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(raw).isoformat()
+        except ValueError:
+            raise ValueError("dates must be in YYYY-MM-DD form") from None
+    d_from, d_to = one(raw_from), one(raw_to)
+    if d_from and d_to and d_from > d_to:
+        raise ValueError("the start of the range must be before the end")
+    return d_from, d_to
+
+
 def split_due(title: str, today: date | None = None) -> tuple[str, date | None]:
     """'Buy paint tomorrow' -> ('Buy paint', <tomorrow>). Leaves the title alone otherwise."""
     m = _TRAILING.match(title.strip())

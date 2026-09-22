@@ -1,9 +1,11 @@
 # Trellis (kanban) — start here
 
-A personal, local-first kanban and task manager: list boards, freeform canvas boards, tags, repeating
-tasks, a Logbook, an Inbox, per-board and global rules, and twelve colour themes. Flask + htmx, no build
-step. Cards are Markdown files, so the data folder also opens as an Obsidian vault. Runs on the homelab
-behind Caddy, LAN-only (it has no login). Status: in daily use.
+A personal, local-first kanban and task manager: list boards, tags, start/due dates and repeats,
+a Scheduled view and a Logbook (both with a date-range filter and saved filters), per-board and
+global rules, and twelve colour themes. Flask + htmx, no build step. Cards are Markdown files, so
+the data folder also opens as an Obsidian vault. Runs on the homelab behind Caddy, LAN-only (it has
+no login). Status: in daily use. There is no canvas/freeform board and no Inbox board — both were
+tried and removed; quick capture (`c`) now asks which board, remembered per device.
 
 ## Standards
 
@@ -37,6 +39,10 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 4. **Rules must not chain** (an action never fires another rule) and must skip repeating cards.
 5. HTML is served `Cache-Control: no-store` on purpose (Back must not show a stale board). Writes require
    a same-origin `Origin` header (`refuse_cross_origin_writes`); tests using the Flask client send none, which is allowed.
+6. **A client that fires several requests at once against the same file (e.g. hiding every list) must
+   await them one at a time, not `Promise.all`.** Each one is a read-modify-write of `board.md`; run
+   concurrently, the last writer clobbers the others silently. Found via the real-browser "Hide all"
+   test, not by reasoning about it in advance — a reminder that e2e tests catch races unit tests can't.
 
 ## Log
 

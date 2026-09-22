@@ -3,8 +3,8 @@
 Layout under the data directory (open it as an Obsidian vault if you like):
 
     <board-slug>/board.md          frontmatter: title, columns, hidden (list names)
-    <board-slug>/cards/<id>.md     frontmatter: id, title, column, position, due, repeat, done,
-                                   completed, last_completed; body = notes
+    <board-slug>/cards/<id>.md     frontmatter: id, title, column, position, start, due, repeat,
+                                   done, completed, last_completed; body = notes
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ from pathlib import Path
 
 import yaml
 
-from .canvas import BOARD_KINDS, CanvasMixin
 from .dates import next_occurrence
 from .logbook import LogbookMixin
 from .mdfile import extra_fields, slugify
@@ -29,7 +28,7 @@ from .settings import DEFAULT_COLUMNS
 from .tags import parse_tags
 from .trash import TrashMixin
 
-INBOX = "inbox"  # slug of the quick-capture board
+BOARD_KINDS = ("kanban",)  # kept as a tuple: the canvas kind existed briefly and was removed
 
 
 @dataclass
@@ -38,6 +37,7 @@ class Card:
     title: str
     column: str
     position: int = 0
+    start: str | None = None  # when you plan to start it
     due: str | None = None
     body: str = ""
     repeat: str | None = None
@@ -58,8 +58,8 @@ class Board:
     hidden: list[str] = field(default_factory=list)  # lists that exist but are tucked away
     area: str | None = None  # sidebar group ("Home", "Work"...)
     position: int = 0  # sidebar order
-    kind: str = "kanban"  # or "canvas"
-    parent: str | None = None  # set on boards nested inside a canvas
+    kind: str = "kanban"
+    parent: str | None = None  # unused; kept so a file from when boards could nest still reads back
     settings: dict = field(default_factory=dict)  # this board's overrides of the global settings
     rules: list = field(default_factory=list)  # this board's automation rules
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
@@ -75,23 +75,27 @@ def _iso(meta: dict, key: str) -> str | None:
     return str(value)
 
 
-_CARD_KEYS = {"id", "title", "column", "position", "due", "repeat", "tags", "done", "completed",
-              "last_completed", "archived"}
+_CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "done",
+              "completed", "last_completed", "archived"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules"}
 
 
 def _card_from(meta: dict, body: str) -> Card:
     return Card(extra=extra_fields(meta, _CARD_KEYS),
-                
         id=meta["id"], title=meta["title"], column=meta["column"],
-        position=meta.get("position", 0), due=_iso(meta, "due"), body=body,
+        position=meta.get("position", 0), start=_iso(meta, "start"), due=_iso(meta, "due"), body=body,
         repeat=meta.get("repeat") or None, done=bool(meta.get("done")),
         completed=_iso(meta, "completed"), last_completed=_iso(meta, "last_completed"),
         tags=parse_tags(meta.get("tags")), archived=bool(meta.get("archived")),
     )
 
 
-class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
+def effective_date(card: Card) -> str | None:
+    """The date that decides where a card sits in Scheduled: due if it has one, else start."""
+    return card.due or card.start
+
+
+class Store(TrashMixin, LogbookMixin, PreferencesMixin):
     def __init__(self, root: Path):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -142,18 +146,14 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
             meta["rules"] = board.rules
         _write(self._board_dir(board.slug) / "board.md", {**board.extra, **meta})
 
-    def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban",
-                     parent: str | None = None) -> Board:
-        if kind not in BOARD_KINDS:
-            raise ValueError(f"unknown board kind: {kind}")
+    def create_board(self, title: str, columns: list[str] | None = None) -> Board:
         slug, n = slugify(title), 2
         while (self.root / slug).exists():
             slug, n = f"{slugify(title)}-{n}", n + 1
         last = max((b.position for b in self.list_boards()), default=0)
         chosen = columns or self.global_settings().get("default_columns") or list(DEFAULT_COLUMNS)
-        board = Board(slug, title, chosen if kind == "kanban" else [],
-                      position=last + 1, kind=kind, parent=parent)
-        (self.root / slug / ("cards" if kind == "kanban" else "items")).mkdir(parents=True)
+        board = Board(slug, title, chosen, position=last + 1)
+        (self.root / slug / "cards").mkdir(parents=True)
         self._save_board(board)
         return board
 
@@ -181,8 +181,7 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
 
     def sidebar(self) -> dict:
         """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}."""
-        boards = [b for b in self.list_boards()
-                  if b.parent is None and b.slug != INBOX]  # nested live in a canvas; inbox is pinned
+        boards = [b for b in self.list_boards() if b.parent is None]
         names = self.areas()
         return {
             "unassigned": [b for b in boards if b.area not in names],
@@ -315,6 +314,8 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
     def _save(self, slug: str, card: Card) -> None:
         meta = {"id": card.id, "title": card.title, "column": card.column,
                 "position": card.position}
+        if card.start:
+            meta["start"] = card.start
         if card.due:
             meta["due"] = card.due
         if card.repeat:
@@ -362,10 +363,11 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
         return _card_from(*_read(path))
 
     def update_card(self, slug: str, card_id: str, title: str, body: str, due: str | None,
-                    repeat: str | None = None, tags: list[str] | None = None) -> Card:
+                    repeat: str | None = None, tags: list[str] | None = None,
+                    start: str | None = None) -> Card:
         card = self.get_card(slug, card_id)
         card.title, card.body, card.due, card.repeat = title, body, due or None, repeat or None
-        card.tags = parse_tags(tags)
+        card.tags, card.start = parse_tags(tags), start or None
         self._save(slug, card)
         return card
 
@@ -404,6 +406,19 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
             effects = self._run_rules(slug, "completed", card_id, now)
         card = self.get_card(slug, card_id)
         card.effects = effects
+        return card
+
+    def edit_completion(self, slug: str, card_id: str, new_at: str) -> Card:
+        """Change WHEN a completed card shows as completed (forgot to check it off yesterday?).
+        Only for a currently-done, non-repeating card: a repeating card has no single `completed`
+        stamp to move, only a rolling `last_completed`."""
+        card = self.get_card(slug, card_id)
+        if card.repeat or not card.done or not card.completed:
+            raise ValueError("only a completed, non-repeating card has a date to change")
+        old_at = card.completed
+        card.completed = new_at
+        self._save(slug, card)
+        self.edit_completion_at(card.id, old_at, new_at)
         return card
 
     def undo_complete(self, slug: str, card_id: str, at: str, due: str | None = None,
@@ -482,14 +497,22 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
                          if not c.done and c.column not in b.hidden for t in c.tags)
         return sorted(counts.items())
 
-    def dated_cards(self) -> list[tuple[Board, Card]]:
-        """Every open card with a due date, across all boards, soonest first.
+    def scheduled_cards(self, date_from: str | None = None,
+                        date_to: str | None = None) -> list[tuple[Board, Card]]:
+        """Every open card with a start or due date, across all boards, soonest first.
 
-        Cards in hidden lists are left out: hiding a list means "not now".
+        A card's position in this list is decided by `effective_date` (its due date, or its start
+        date if it has no due date). `date_from`/`date_to` (inclusive ISO dates) narrow the range;
+        leave either blank for an open end. Cards in hidden lists are left out: hiding a list means
+        "not now".
         """
         found = [(b, c) for b, c in self.all_cards()
-                 if c.due and not c.done and c.column not in b.hidden]
-        return sorted(found, key=lambda bc: (str(bc[1].due), bc[0].slug, bc[1].position))
+                 if effective_date(c) and not c.done and c.column not in b.hidden]
+        if date_from:
+            found = [(b, c) for b, c in found if effective_date(c) >= date_from]
+        if date_to:
+            found = [(b, c) for b, c in found if effective_date(c) <= date_to]
+        return sorted(found, key=lambda bc: (effective_date(bc[1]), bc[0].slug, bc[1].position))
 
     def search(self, query: str) -> list[tuple[Board, Card]]:
         """Cards whose title, notes or board name contain every word of the query."""
@@ -506,13 +529,13 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
 
     def add_card(self, slug: str, title: str, column: str, due: str | None = None,
                  repeat: str | None = None, tags: list[str] | None = None,
-                 top: bool = False) -> Card:
+                 top: bool = False, start: str | None = None) -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
         siblings = self.cards_by_column(slug)[column]
         card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
-                    repeat=repeat, tags=parse_tags(tags))
+                    repeat=repeat, tags=parse_tags(tags), start=start)
         self._save(slug, card)
         if top and siblings:
             self._move(slug, card.id, column, 0)
@@ -548,22 +571,39 @@ class Store(CanvasMixin, TrashMixin, LogbookMixin, PreferencesMixin):
                     c.position = pos
                     self._save(slug, c)
 
-    # -- inbox -----------------------------------------------------------
+    # -- saved filters: named date ranges, reused by Scheduled and Logbook ----------------------
 
-    def ensure_inbox(self) -> Board:
-        try:
-            return self.get_board(INBOX)
-        except KeyError:
-            board = self.create_board("Inbox", columns=["Inbox"])
-            assert board.slug == INBOX
-            return board
+    def list_filters(self) -> list[dict]:
+        return [f for f in (self._meta().get("filters") or []) if isinstance(f, dict) and f.get("id")]
 
-    def inbox_count(self) -> int:
-        try:
-            cards = self.cards_by_column(INBOX)
-        except KeyError:
-            return 0
-        return sum(1 for column in cards.values() for c in column if not c.done)
+    def _store_filters(self, filters: list[dict]) -> None:
+        meta = self._meta()
+        meta["filters"] = filters
+        self._write_meta(meta)
+
+    def save_filter(self, name: str, date_from: str | None, date_to: str | None) -> dict:
+        name = " ".join(name.split())
+        if not name:
+            raise ValueError("give the filter a name")
+        filters = self.list_filters()
+        entry = {"id": uuid.uuid4().hex[:8], "name": name, "from": date_from or None, "to": date_to or None}
+        filters.append(entry)
+        self._store_filters(filters)
+        return entry
+
+    def delete_filter(self, filter_id: str) -> tuple[int, dict]:
+        filters = self.list_filters()
+        for i, f in enumerate(filters):
+            if f["id"] == filter_id:
+                del filters[i]
+                self._store_filters(filters)
+                return i, f
+        raise KeyError(filter_id)
+
+    def restore_filter(self, entry: dict, index: int | None = None) -> None:
+        filters = self.list_filters()
+        filters.insert(len(filters) if index is None else max(0, min(index, len(filters))), entry)
+        self._store_filters(filters)
 
     def rename_board(self, slug: str, title: str) -> None:
         board = self.get_board(slug)
