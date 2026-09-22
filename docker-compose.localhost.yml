@@ -1,0 +1,26 @@
+# Localhost-only: no reverse proxy, no LAN exposure. Publishes to 127.0.0.1 only, so only this
+# machine can reach it -- not your phone, not other devices on the network. Self-contained: does
+# not need PROXY_NETWORK or a Caddy route (unlike docker-compose.yml, the LAN-hosted setup).
+#   docker compose -f docker-compose.localhost.yml up -d --build
+#   open http://localhost:8000
+services:
+  kanban:
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    container_name: kanban-local
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    environment:
+      TZ: ${TZ:-UTC}
+    ports:
+      - "127.0.0.1:8000:8000"   # loopback only -- drop the "127.0.0.1:" prefix and it's LAN-reachable
+    volumes:
+      - kanban-data-local:/data
+
+volumes:
+  kanban-data-local:

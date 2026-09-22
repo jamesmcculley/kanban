@@ -15,23 +15,54 @@ directory can also be opened as an Obsidian vault.
 - Canvas boards: notes, links, images (paste or drop) and nested boards on a freeform surface
 - Installable to a phone's home screen; keyboard shortcuts (press `?`)
 
-## Run locally
+## Installing
+
+**There is no login.** Anyone who can reach the app can read and change everything in it. Pick a
+mode based on who that should be — this is the one decision that matters before you install it.
+
+| Mode | Who can reach it | Good for | Not for |
+| --- | --- | --- | --- |
+| **Localhost** | Only this machine | One person, one computer; anything sensitive | Your phone, or anyone else |
+| **LAN** | Every device on your network | A household sharing boards, using it from a phone | Sensitive data, unless the network itself is trusted and segmented |
+
+Never expose either mode directly to the internet. If you need off-LAN access, put a real login and
+TLS in front of it (a VPN into your LAN is the simplest way to get that without changing the app).
+
+### Localhost, no Docker
 
     uv sync
-    uv run flask --app kanban run --debug
+    uv run flask --app kanban run
 
-Data lives in `~/kanban-data` (override with `KANBAN_DATA_DIR`). Each board is a folder: `cards/` or
-`items/` (Markdown files), plus `assets/` for canvas images. Area order is kept in `.trellis.yml`, the Logbook in `.trellis-log.jsonl`, and deleted things in
-`.trash` folders (all hidden from Obsidian). Board settings and rules live in each `board.md`; global ones in
-`.trellis.yml`. Frontmatter fields Trellis doesn't know are kept when it saves.
+Flask's dev server binds to `127.0.0.1` by default — confirmed with `lsof`, not assumed. Nothing
+outside this machine can reach it. Leave off `--debug` for anything you'll keep running: it enables
+an interactive in-browser debugger, which is a code-execution risk on a process left up for days.
 
-## Docker
+### Localhost, in Docker
+
+    docker compose -f docker-compose.localhost.yml up -d --build
+    open http://localhost:8000
+
+This is `docker-compose.yml`'s isolation (non-root, read-only, no secrets) with the port published
+to `127.0.0.1` only, and no reverse proxy or `.env` required. Verified end to end (built, started,
+answered on `127.0.0.1`, healthcheck passed) with no other services running.
+
+### LAN, behind a reverse proxy
 
     cp .env.example .env    # set PROXY_NETWORK to your reverse proxy's network
     docker compose up -d --build     # or, on the host, ./deploy.sh (backs up, pulls, rebuilds)
 
-The container listens on port 8000 on that network only (no published ports). There is
-**no authentication**, so put it behind a proxy route restricted to your LAN or VPN.
+The container publishes no ports of its own; it only joins your proxy's Docker network. Your proxy
+must restrict the route to your LAN or VPN (a `remote_ip` allow-list in Caddy, for example) — the
+app has no access control of its own to fall back on. `engineering-standards/standards/11-asus-host-runbook.md`
+has the full add-an-app checklist if you're deploying next to other apps this way.
+
+## Data
+
+Data lives in `~/kanban-data` (override with `KANBAN_DATA_DIR`; the Docker modes use a named volume
+instead). Each board is a folder: `cards/` or `items/` (Markdown files), plus `assets/` for canvas
+images. Area order is kept in `.trellis.yml`, the Logbook in `.trellis-log.jsonl`, and deleted things
+in `.trash` folders (all hidden from Obsidian). Board settings and rules live in each `board.md`;
+global ones in `.trellis.yml`. Frontmatter fields this app doesn't know are kept when it saves.
 
 ## Themes
 
