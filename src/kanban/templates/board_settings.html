@@ -56,26 +56,31 @@
       <div class="label-list">
         {% for lbl in board.labels %}
         <div class="label-manage-row" data-label="{{ lbl.id }}">
-          <form hx-post="{{ url_for('boards.update_label', slug=board.slug, label_id=lbl.id) }}" hx-swap="none"
+          <div class="label-view">
+            <span class="label-chip c-{{ lbl.color }}">{{ lbl.name }}</span>
+            <button type="button" class="icon-btn" title="Edit label" aria-label="Edit label {{ lbl.name }}"
+                    onclick="editLabel(this)">{{ icon('edit', 15) }}</button>
+            <button type="button" class="icon-btn danger" title="Delete label" aria-label="Delete label {{ lbl.name }}"
+                    data-post="{{ url_for('boards.delete_label', slug=board.slug, label_id=lbl.id) }}"
+                    data-confirm="Delete? Click again" data-after="reload">{{ icon('trash') }}</button>
+          </div>
+          <form class="label-edit-form" hx-post="{{ url_for('boards.update_label', slug=board.slug, label_id=lbl.id) }}" hx-swap="none"
                 hx-on::after-request="if (event.detail.successful) location.reload()"
                 hx-on::response-error="this.querySelector('.error').textContent = event.detail.xhr.responseText">
-            <span class="label-chip c-{{ lbl.color }}">{{ lbl.name }}</span>
             <input type="text" name="name" value="{{ lbl.name }}" aria-label="Label name" required>
             <input type="hidden" name="color" value="{{ lbl.color }}">
             <div class="label-swatch-row">
               {% for c in colors %}
               <button type="button" class="label-swatch c-{{ c }}{% if c == lbl.color %} selected{% endif %}"
                       title="{{ c }}" aria-label="{{ c }}"
-                      onclick="this.closest('form').color.value=this.dataset.c; this.closest('.label-swatch-row').querySelectorAll('.label-swatch').forEach(s=>s.classList.toggle('selected', s===this)); this.form.requestSubmit()"
+                      onclick="this.closest('form').color.value=this.dataset.c; this.closest('.label-swatch-row').querySelectorAll('.label-swatch').forEach(s=>s.classList.toggle('selected', s===this))"
                       data-c="{{ c }}"></button>
               {% endfor %}
             </div>
             <button type="submit" class="link-btn">Save</button>
+            <button type="button" class="link-btn" onclick="cancelLabelEdit(this)">Cancel</button>
             <p class="error" role="alert"></p>
           </form>
-          <button type="button" class="icon-btn danger" title="Delete label" aria-label="Delete label {{ lbl.name }}"
-                  data-post="{{ url_for('boards.delete_label', slug=board.slug, label_id=lbl.id) }}"
-                  data-confirm="Delete? Click again" data-after="reload">{{ icon('trash') }}</button>
         </div>
         {% else %}
         <p class="empty">No labels yet.</p>

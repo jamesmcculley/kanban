@@ -85,6 +85,14 @@
     });
   });
 
+  // -- board settings: a label stays a plain chip until "Edit" is clicked ----------------------
+  window.editLabel = btn => {
+    const row = btn.closest('.label-manage-row');
+    row.classList.add('editing');
+    row.querySelector('.label-edit-form input[name=name]').focus();
+  };
+  window.cancelLabelEdit = btn => btn.closest('.label-manage-row').classList.remove('editing');
+
   // -- card dialog: rendered notes with live checklist ------------------------------------------
   window.editNotes = btn => {
     const box = btn.closest('.notes');
@@ -137,6 +145,15 @@
     }
     location.reload();
   }));
+
+  // -- Scheduled/Logbook: custom date range behind a filter icon, same reveal-a-sibling-panel
+  // pattern as the eye menu above (kept separate from it, and from filter.js's per-board filter,
+  // so the three popovers never share a selector by accident).
+  document.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-date-filter-toggle]');
+    if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
+    if (!e.target.closest('.date-filter-wrap')) document.querySelectorAll('.date-filter-panel').forEach(m => (m.hidden = true));
+  });
 
   // -- "Move to": any card, to any list on any board, from the edit dialog --------------------
   document.addEventListener('click', async e => {

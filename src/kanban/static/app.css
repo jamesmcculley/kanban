@@ -184,8 +184,12 @@ h1 { margin:0; font-size:22px; }
 .label-swatch-row { display:flex; flex-wrap:wrap; gap:6px; }
 .label-manage-row { display:flex; align-items:center; gap:8px; padding:4px 0; }
 .label-manage-row .label-chip { min-width:80px; text-align:center; }
-.label-manage-row form { display:flex; align-items:center; gap:8px; margin:0; flex:1; }
 .label-manage-row input[type=text] { flex:1; max-width:180px; }
+/* a label stays a plain chip + edit/delete icons until "Edit" swaps in the name+colour form */
+.label-view { display:flex; align-items:center; gap:8px; }
+.label-edit-form { display:none; align-items:center; gap:8px; margin:0; flex:1; flex-wrap:wrap; }
+.label-manage-row.editing .label-view { display:none; }
+.label-manage-row.editing .label-edit-form { display:flex; }
 .label-add { display:flex; flex-direction:column; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 .col-grip { cursor:grab; }
 .sortable-ghost { opacity:.4; }
@@ -330,11 +334,15 @@ html[data-sidebar=collapsed] .sidebar-rail { display:grid; place-items:center; }
 .completed-at-row input { padding:5px 7px; border-radius:6px; border:1px solid var(--border);
                           background:var(--bg); color:var(--text-primary); font-size:13px; }
 
-/* per-board filter (text/labels/priority/tags): purely client-side, see filter.js */
-.filter-wrap { position:relative; }
+/* per-board filter (text/labels/priority/tags, filter.js) and the Scheduled/Logbook custom date-range
+   popover (data-date-filter-toggle, ui.js): same floating-panel look, unrelated JS -- kept as separate
+   wrapper classes (.filter-wrap / .date-filter-wrap) on purpose so filter.js's `.filter-wrap` lookup
+   never picks up the date panel by accident. */
+.filter-wrap, .date-filter-wrap { position:relative; }
 .filter-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:8; background:var(--bg-card);
                 border:1px solid var(--border); border-radius:10px; padding:14px; width:230px;
                 display:flex; flex-direction:column; gap:12px; box-shadow:0 6px 20px #0003; }
+.date-filter-panel { width:max-content; max-width:280px; }
 .filter-panel .filter-text { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
                               background:var(--bg); color:var(--text-primary); }
 .filter-group { display:flex; flex-direction:column; gap:5px; max-height:160px; overflow:auto; }
@@ -342,7 +350,7 @@ html[data-sidebar=collapsed] .sidebar-rail { display:grid; place-items:center; }
 .filter-check input { flex:none; }
 .filter-status { margin:0; font-size:12px; min-height:1em; }
 .card.filter-hidden { display:none; }
-.filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
+.filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
 
 /* Scheduled/Logbook date-range filter bar */
 .filter-bar { display:flex; flex-direction:column; gap:10px; padding:0 24px 16px; max-width:680px; }

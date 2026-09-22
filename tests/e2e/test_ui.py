@@ -834,6 +834,7 @@ def test_scheduled_filters_presets_and_saved_filters(page):
     expect(page.locator(".agenda .row", has_text="Today thing")).to_be_visible()
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_have_count(0)
 
+    page.get_by_role("button", name="Custom date range").click()      # the save-as form lives behind it
     page.fill(".save-filter input[name=name]", "My range")
     page.click(".save-filter button")
     page.wait_for_load_state()
@@ -856,6 +857,20 @@ def test_logbook_has_its_own_filter_bar(page):
     page.wait_for_url("**/logbook")
     expect(page.locator(".filter-bar")).to_be_visible()
     expect(page.locator(".filter-chips .chip", has_text="This week")).to_be_visible()
+
+
+def test_scheduled_custom_range_hidden_behind_filter_button(page):
+    page.click('.sidebar [data-go="s"]')
+    page.wait_for_url("**/scheduled")
+    toggle = page.get_by_role("button", name="Custom date range")
+    panel = page.locator(".date-filter-panel")
+    expect(panel).to_be_hidden()                                   # collapsed by default: no clutter
+    expect(page.locator('.filter-range input[name="from"]')).to_be_hidden()
+
+    toggle.click()
+    expect(panel).to_be_visible()
+    page.locator("body").click(position={"x": 700, "y": 700})      # outside click closes it
+    expect(panel).to_be_hidden()
 
 
 def test_tasks_board_create_add_complete_delete(page):
@@ -938,3 +953,25 @@ def test_label_create_assign_and_display(page):
     expect(page.locator("#modal .backdrop")).to_have_count(0)
     card = page.locator(".card", has_text="Fix bug")
     expect(card.locator(".label-chip.c-red", has_text="Urgent")).to_be_visible()
+
+
+def test_label_edit_stays_collapsed_until_asked_for(page):
+    page.get_by_role("link", name="Board settings").click()
+    page.wait_for_url("**/b/my-board/settings")
+    page.fill(".label-add input[name=name]", "Urgent")
+    page.get_by_role("button", name="Add label").click()
+    page.wait_for_load_state()
+
+    row = page.locator(".label-manage-row", has_text="Urgent")
+    expect(row.locator(".label-edit-form")).to_be_hidden()          # no swatches/inputs by default
+
+    row.get_by_role("button", name="Edit label Urgent").click()
+    expect(row.locator(".label-edit-form")).to_be_visible()
+    row.locator("input[name=name]").fill("Urgent!")
+    row.locator(".label-swatch.c-blue").click()
+    row.get_by_role("button", name="Save").click()
+    page.wait_for_load_state()
+
+    row = page.locator(".label-manage-row", has_text="Urgent!")
+    expect(row.locator(".label-edit-form")).to_be_hidden()          # collapses again after saving
+    expect(row.locator(".label-chip.c-blue")).to_be_visible()

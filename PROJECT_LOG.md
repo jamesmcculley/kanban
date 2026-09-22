@@ -27,6 +27,11 @@
 
 ## Changelog
 
+- 2026-09-22 — Decluttered two always-visible controls behind buttons, same pattern as the per-board
+  filter: Scheduled/Logbook's custom From/To date-range form now lives behind a filter icon next to
+  the preset chips (presets and saved filters stay visible, since those are the one-click common
+  case); a board's existing labels now show as a plain chip until "Edit" is clicked, instead of every
+  label's name field and full 10-swatch colour picker being permanently expanded.
 - 2026-09-22 — Tasks board kind (a flat Things3-style list for small to-dos, reusing the kanban card
   machinery with one hidden column); board-scoped labels (`labels.py`, a fixed 10-colour AA-checked
   palette) and card priorities (low/medium/high); a per-board filter (text, labels, priority, tags) —

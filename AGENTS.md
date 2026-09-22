@@ -53,6 +53,12 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
    this board" section is gated behind `{% if board.kind == 'kanban' %}` rather than relying on
    `_rules.html`'s internal `{% if rules %}` — that guard alone isn't enough, since `_rules.html` also
    has an unconditional `{% for recipe in recipes %}` that would 500 on an undefined `recipes`.
+9. **`filter.js` grabs the page's first (and only expected) `.filter-wrap` unconditionally** — any
+   other popover that reuses that class name (even just to inherit its floating-panel CSS) gets
+   silently mistaken for the per-board filter and crashes the moment its panel receives an `input`/
+   `change` event. The Scheduled/Logbook date-range popover shares the *look* (`.filter-panel` for
+   CSS) but uses its own `.date-filter-wrap`/`.date-filter-panel` classes and a separate toggle
+   (`data-date-filter-toggle`, handled in `ui.js`) for exactly this reason.
 
 ## Log
 
