@@ -121,3 +121,62 @@ def test_html_pages_are_not_cached_so_back_button_is_fresh(client):
     for path in ("/b/my-board", "/today", "/logbook", "/trash"):
         assert client.get(path).headers["Cache-Control"] == "no-store"
     assert "no-store" not in client.get("/static/app.css").headers.get("Cache-Control", "")   # assets stay cacheable
+
+
+# ---- tasks board -----------------------------------------------------------------------------
+
+def test_create_and_use_a_tasks_board(client):
+    r = client.post("/boards", data={"title": "Errands", "kind": "tasks"})
+    assert r.status_code == 302 and r.headers["Location"].endswith("/b/errands")
+    page = client.get("/b/errands").text
+    assert 'id="fab"' in page and "New card" not in page          # tasks.html, not board.html
+    r = client.post("/b/errands/cards", data={"title": "Buy milk", "column": "Tasks"})
+    assert r.status_code == 200 and "Buy milk" in r.text
+    page = client.get("/b/errands").text
+    assert "Buy milk" in page
+    assert client.get("/b/errands/settings").status_code == 200
+
+
+def test_unknown_board_kind_is_rejected(client):
+    assert client.post("/boards", data={"title": "X", "kind": "canvas"}).status_code == 400
+
+
+def test_tasks_board_cards_appear_in_search_and_scheduled(client):
+    client.post("/boards", data={"title": "Errands", "kind": "tasks"})
+    client.post("/b/errands/cards", data={"title": "Call mum tomorrow", "column": "Tasks"})
+    assert "Call mum" in client.get("/search?q=mum").text
+    assert "Call mum" in client.get("/scheduled").text
+
+
+# ---- priorities and labels ---------------------------------------------------------------------
+
+def test_update_card_with_priority(client):
+    cid, _ = _add(client, "x")
+    r = client.post(f"/b/my-board/cards/{cid}", data={"title": "x", "priority": "high"})
+    assert r.status_code == 200 and 'p-high' in r.text
+    bad = client.post(f"/b/my-board/cards/{cid}", data={"title": "x", "priority": "urgent-ish"})
+    assert bad.status_code == 400
+
+
+def test_label_crud_routes(client):
+    r = client.post("/b/my-board/labels", data={"name": "Urgent", "color": "red"})
+    assert r.status_code == 200
+    page = client.get("/b/my-board/settings").text
+    assert "Urgent" in page and 'c-red' in page
+    label_id = page.split('data-label="')[1][:8]
+    r = client.post(f"/b/my-board/labels/{label_id}", data={"name": "Urgent!", "color": "orange"})
+    assert r.status_code == 200
+    assert "Urgent!" in client.get("/b/my-board/settings").text
+    bad = client.post("/b/my-board/labels", data={"name": "Urgent!", "color": "blue"})
+    assert bad.status_code == 422       # duplicate name
+    r = client.post(f"/b/my-board/labels/{label_id}/delete")
+    assert r.status_code == 200
+    assert "Urgent!" not in client.get("/b/my-board/settings").text
+
+
+def test_card_labels_round_trip_through_update_card(client):
+    client.post("/b/my-board/labels", data={"name": "Urgent", "color": "red"})
+    label_id = client.get("/b/my-board/settings").text.split('data-label="')[1][:8]
+    cid, _ = _add(client, "x")
+    r = client.post(f"/b/my-board/cards/{cid}", data={"title": "x", "labels": label_id})
+    assert r.status_code == 200 and "label-chip" in r.text and "Urgent" in r.text

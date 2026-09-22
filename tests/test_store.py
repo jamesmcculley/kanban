@@ -203,3 +203,106 @@ def test_add_card_at_top(store):
     assert [c.position for c in store.cards_by_column(b.slug)["Todo"]] == [0, 1, 2]
     other = store.add_card(b.slug, "elsewhere", "Doing", top=True)          # empty list: no shuffling
     assert store.get_card(b.slug, other.id).position == 0
+
+
+# ---- tasks board kind ------------------------------------------------------------------------
+
+def test_create_tasks_board_gets_a_single_hidden_tasks_list(store):
+    b = store.create_board("Errands", kind="tasks")
+    assert b.kind == "tasks" and b.columns == ["Tasks"]
+
+
+def test_unknown_board_kind_rejected(store):
+    with pytest.raises(ValueError):
+        store.create_board("B", kind="canvas")
+
+
+def test_tasks_board_cards_show_up_everywhere_kanban_cards_do(store):
+    b = store.create_board("Errands", kind="tasks")
+    store.add_card(b.slug, "buy milk", "Tasks", tags=["home"])
+    assert [c.title for _, c in store.all_cards()] == ["buy milk"]
+    assert [c.title for _, c in store.search("milk")] == ["buy milk"]
+
+
+def test_move_card_onto_a_tasks_board(store):
+    kanban = store.create_board("K")
+    tasks = store.create_board("T", kind="tasks")
+    card = store.add_card(kanban.slug, "x", "Todo")
+    origin = store.move_card_to_board(kanban.slug, card.id, tasks.slug)
+    assert origin["board"] == "k" and origin["column"] == "Todo" and origin["index"] == 0
+    assert store.get_card(tasks.slug, origin["id"]).column == "Tasks"
+
+
+def test_move_card_onto_a_board_with_no_lists_fails(store):
+    empty = store.create_board("Empty")
+    for col in list(empty.columns):
+        store.delete_column(empty.slug, col)
+    kanban = store.create_board("K")
+    card = store.add_card(kanban.slug, "x", "Todo")
+    with pytest.raises(ValueError):
+        store.move_card_to_board(kanban.slug, card.id, empty.slug)
+
+
+# ---- labels and priorities --------------------------------------------------------------------
+
+def test_add_update_delete_label(store):
+    b = store.create_board("B")
+    label = store.add_label(b.slug, "Urgent", "red")
+    assert store.list_labels(b.slug) == [label]
+    updated = store.update_label(b.slug, label["id"], "Urgent!", "orange")
+    assert updated["name"] == "Urgent!" and updated["color"] == "orange"
+    assert store.list_labels(b.slug) == [updated]
+    store.delete_label(b.slug, label["id"])
+    assert store.list_labels(b.slug) == []
+
+
+def test_delete_label_removes_it_from_every_card(store):
+    b = store.create_board("B")
+    label = store.add_label(b.slug, "Urgent", "red")
+    c1 = store.add_card(b.slug, "a", "Todo", labels=[label["id"]])
+    c2 = store.add_card(b.slug, "b", "Todo", labels=[label["id"]])
+    store.delete_label(b.slug, label["id"])
+    assert store.get_card(b.slug, c1.id).labels == [] and store.get_card(b.slug, c2.id).labels == []
+
+
+def test_add_label_rejects_duplicate_or_bad_color(store):
+    b = store.create_board("B")
+    store.add_label(b.slug, "Urgent", "red")
+    with pytest.raises(ValueError):
+        store.add_label(b.slug, "urgent", "blue")   # duplicate, case-insensitive
+    with pytest.raises(ValueError):
+        store.add_label(b.slug, "Later", "not-a-color")
+
+
+def test_add_label_caps_at_max(store, monkeypatch):
+    import kanban.labels as L
+    monkeypatch.setattr(L, "MAX_LABELS", 2)
+    b = store.create_board("B")
+    store.add_label(b.slug, "one", "red")
+    store.add_label(b.slug, "two", "blue")
+    with pytest.raises(ValueError):
+        store.add_label(b.slug, "three", "green")
+
+
+def test_card_labels_and_priority_persist(store):
+    b = store.create_board("B")
+    label = store.add_label(b.slug, "Urgent", "red")
+    card = store.add_card(b.slug, "x", "Todo", labels=[label["id"]], priority="high")
+    reloaded = store.get_card(b.slug, card.id)
+    assert reloaded.labels == [label["id"]] and reloaded.priority == "high"
+
+
+def test_unknown_label_ids_and_priorities_are_dropped(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "x", "Todo", labels=["forged"], priority="urgent-ish")
+    reloaded = store.get_card(b.slug, card.id)
+    assert reloaded.labels == [] and reloaded.priority is None
+
+
+def test_update_card_labels_and_priority(store):
+    b = store.create_board("B")
+    label = store.add_label(b.slug, "Urgent", "red")
+    card = store.add_card(b.slug, "x", "Todo")
+    store.update_card(b.slug, card.id, "x", "", None, labels=[label["id"]], priority="low")
+    reloaded = store.get_card(b.slug, card.id)
+    assert reloaded.labels == [label["id"]] and reloaded.priority == "low"

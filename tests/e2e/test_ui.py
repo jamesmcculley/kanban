@@ -856,3 +856,85 @@ def test_logbook_has_its_own_filter_bar(page):
     page.wait_for_url("**/logbook")
     expect(page.locator(".filter-bar")).to_be_visible()
     expect(page.locator(".filter-chips .chip", has_text="This week")).to_be_visible()
+
+
+def test_tasks_board_create_add_complete_delete(page):
+    fab_add(page, "New task list", "Groceries")
+    page.wait_for_url("**/b/groceries")
+    expect(page.locator(".tasks-board")).to_be_visible()
+    expect(page.locator(".column")).to_have_count(0)          # no kanban list chrome
+
+    box = page.locator(".add-task input[name=title]")
+    box.fill("Buy milk")
+    box.press("Enter")
+    card = page.locator(".card", has_text="Buy milk")
+    expect(card).to_be_visible()
+
+    card.locator(".check").click()
+    expect(page.locator(".card.done", has_text="Buy milk")).to_be_visible()
+
+    card.locator(".del").click()
+    expect(page.locator(".card", has_text="Buy milk")).to_have_count(0)
+
+
+def test_tasks_board_has_no_rules_section_but_has_labels(page):
+    fab_add(page, "New task list", "Errands")
+    page.wait_for_url("**/b/errands")
+    page.get_by_role("link", name="Board settings").click()
+    page.wait_for_url("**/b/errands/settings")
+    expect(page.locator("#labels-h")).to_be_visible()
+    expect(page.locator("#rules-h")).to_have_count(0)
+
+
+def test_priority_set_from_card_dialog_and_shown_on_card(page):
+    add_card(page, "Todo", "Ship it")
+    page.locator(".card", has_text="Ship it").locator(".title").click()
+    page.select_option(".dialog select[name=priority]", "high")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+    expect(page.locator(".card", has_text="Ship it").locator(".priority.p-high")).to_be_visible()
+
+
+def test_board_filter_by_text_priority_and_label(page):
+    add_card(page, "Todo", "Buy paint")
+    page.locator(".card", has_text="Buy paint").locator(".title").click()
+    page.select_option(".dialog select[name=priority]", "high")
+    page.click(".dialog button[type=submit]")
+    add_card(page, "Todo", "Water plants")
+
+    page.get_by_role("button", name="Filter cards").click()
+    panel = page.locator(".filter-panel")
+    expect(panel).to_be_visible()
+
+    panel.locator(".filter-text").fill("paint")
+    expect(page.locator(".card", has_text="Buy paint")).to_be_visible()
+    expect(page.locator(".card", has_text="Water plants")).to_be_hidden()
+    expect(page.locator(".filter-status")).to_contain_text("Showing 1 of 2")
+
+    panel.locator(".filter-text").fill("")
+    panel.locator(".filter-priority[value=high]").check()
+    expect(page.locator(".card", has_text="Buy paint")).to_be_visible()
+    expect(page.locator(".card", has_text="Water plants")).to_be_hidden()
+
+    page.get_by_role("button", name="Clear filters").click()
+    expect(page.locator(".card", has_text="Water plants")).to_be_visible()
+    expect(page.locator(".filter-status")).to_have_text("")
+
+
+def test_label_create_assign_and_display(page):
+    page.get_by_role("link", name="Board settings").click()
+    page.wait_for_url("**/b/my-board/settings")
+    page.fill(".label-add input[name=name]", "Urgent")
+    page.locator(".label-add .label-swatch.c-red").click()
+    page.get_by_role("button", name="Add label").click()
+    page.wait_for_load_state()
+    expect(page.locator(".label-manage-row", has_text="Urgent")).to_be_visible()
+
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "Fix bug")
+    page.locator(".card", has_text="Fix bug").locator(".title").click()
+    page.locator(".label-picker .label-check", has_text="Urgent").locator("input").check()
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+    card = page.locator(".card", has_text="Fix bug")
+    expect(card.locator(".label-chip.c-red", has_text="Urgent")).to_be_visible()

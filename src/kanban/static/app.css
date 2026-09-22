@@ -160,6 +160,33 @@ h1 { margin:0; font-size:22px; }
 .card-tags { flex-basis:100%; padding-left:24px; order:10; }   /* own line, after the delete button */
 .card .stamp { flex-basis:100%; padding-left:24px; order:9; }     /* completion time under the title */
 .card { flex-wrap:wrap; }
+.priority { display:inline-flex; align-items:center; flex:none; }
+.priority.p-low { color:var(--text-subtle); }
+.priority.p-medium { color:#e0a300; }
+.priority.p-high { color:var(--danger); }
+.card-labels { display:inline-flex; flex-wrap:wrap; gap:4px; flex:none; }
+.label-chip { display:inline-block; font-size:11px; font-weight:600; border-radius:10px; padding:1px 8px; line-height:1.5; white-space:nowrap; }
+.label-chip.c-green  { background:#4bae4f; color:#000; }
+.label-chip.c-yellow { background:#e0b400; color:#000; }
+.label-chip.c-orange { background:#e08a2a; color:#000; }
+.label-chip.c-red    { background:#e5484d; color:#000; }
+.label-chip.c-purple { background:#8a5cd6; color:#fff; }
+.label-chip.c-blue   { background:#3b82f6; color:#000; }
+.label-chip.c-sky    { background:#0ea5c4; color:#000; }
+.label-chip.c-pink   { background:#e0629e; color:#000; }
+.label-chip.c-lime   { background:#84b917; color:#000; }
+.label-chip.c-grey   { background:#78808c; color:#000; }
+.label-picker { display:flex; flex-direction:column; gap:6px; }
+.label-check { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+.label-check input { width:auto; }
+.label-swatch { width:22px; height:22px; border-radius:6px; border:2px solid transparent; cursor:pointer; padding:0; flex:none; }
+.label-swatch.selected { border-color:var(--text-primary); }
+.label-swatch-row { display:flex; flex-wrap:wrap; gap:6px; }
+.label-manage-row { display:flex; align-items:center; gap:8px; padding:4px 0; }
+.label-manage-row .label-chip { min-width:80px; text-align:center; }
+.label-manage-row form { display:flex; align-items:center; gap:8px; margin:0; flex:1; }
+.label-manage-row input[type=text] { flex:1; max-width:180px; }
+.label-add { display:flex; flex-direction:column; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 .col-grip { cursor:grab; }
 .sortable-ghost { opacity:.4; }
 
@@ -302,6 +329,20 @@ html[data-sidebar=collapsed] .sidebar-rail { display:grid; place-items:center; }
 .completed-at-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-subtle); }
 .completed-at-row input { padding:5px 7px; border-radius:6px; border:1px solid var(--border);
                           background:var(--bg); color:var(--text-primary); font-size:13px; }
+
+/* per-board filter (text/labels/priority/tags): purely client-side, see filter.js */
+.filter-wrap { position:relative; }
+.filter-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:8; background:var(--bg-card);
+                border:1px solid var(--border); border-radius:10px; padding:14px; width:230px;
+                display:flex; flex-direction:column; gap:12px; box-shadow:0 6px 20px #0003; }
+.filter-panel .filter-text { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
+                              background:var(--bg); color:var(--text-primary); }
+.filter-group { display:flex; flex-direction:column; gap:5px; max-height:160px; overflow:auto; }
+.filter-check { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:2px 0; }
+.filter-check input { flex:none; }
+.filter-status { margin:0; font-size:12px; min-height:1em; }
+.card.filter-hidden { display:none; }
+.filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
 
 /* Scheduled/Logbook date-range filter bar */
 .filter-bar { display:flex; flex-direction:column; gap:10px; padding:0 24px 16px; max-width:680px; }

@@ -4,7 +4,8 @@
 
 - **App:** Flask (`src/kanban`). `routes.py` is HTTP glue; `Store` (`store.py`) plus mixins (`trash.py`,
   `logbook.py`, `preferences.py`) own all file I/O; pure modules hold the logic (`rules.py`, `settings.py`,
-  `dates.py`, `notes.py`, `tags.py`). No canvas/freeform-board code — tried (2026-09-19), removed (2026-09-22).
+  `dates.py`, `notes.py`, `tags.py`, `labels.py`). No canvas/freeform-board code — tried (2026-09-19), removed
+  (2026-09-22). Two board kinds: `kanban` and `tasks` (a flat, single-column Things3-style list).
 - **Data** (`KANBAN_DATA_DIR`, a named volume in Docker): one folder per board with `board.md` and `cards/`;
   root files `.trellis.yml` (areas, global settings and rules, saved filters, `format: 1`),
   `.trellis-log.jsonl` (Logbook), `.trash/`. All Markdown/YAML/JSON, readable in Obsidian.
@@ -26,6 +27,11 @@
 
 ## Changelog
 
+- 2026-09-22 — Tasks board kind (a flat Things3-style list for small to-dos, reusing the kanban card
+  machinery with one hidden column); board-scoped labels (`labels.py`, a fixed 10-colour AA-checked
+  palette) and card priorities (low/medium/high); a per-board filter (text, labels, priority, tags) —
+  entirely client-side, hides non-matching cards in place, no server round-trip. `move_card_to_board`
+  now accepts a tasks board as a destination. See ADR 0004.
 - 2026-09-22 — Start dates alongside due dates; Today+Upcoming merged into Scheduled with a date-range
   filter, presets and saved filters (shared with a new Logbook filter); editable completion date/time
   (forgot to check something off on time); "Move to" any list on any board from the edit dialog; a

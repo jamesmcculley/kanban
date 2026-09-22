@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ board.title }}{% endblock %}
+{% block content %}
+  <header class="page-head">
+    {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
+    {% include "_board_title.html" %}
+    {% if not display.hide_card_counts %}<span class="count">{{ cards|length }}</span>{% endif %}
+    {% include "_filter_panel.html" %}
+    {% if hidden_done %}
+    <a class="chip" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Hidden by this board's settings">{{ hidden_done }} completed hidden</a>
+    {% endif %}
+  </header>
+  <main class="board tasks-board" data-slug="{{ board.slug }}" data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id='ID') }}" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
+    <form class="add-card add-task" hx-post="{{ url_for('boards.add_card', slug=board.slug) }}"
+          hx-target=".tasks-board .cards" hx-swap="{{ 'afterbegin' if new_top else 'beforeend' }}"
+          hx-on::after-request="if (event.detail.successful) this.reset()">
+      <input type="hidden" name="column" value="Tasks">
+      <input name="title" placeholder="New task… (try “Call mum tomorrow #home”)" autocomplete="off" required autofocus>
+    </form>
+    <div class="cards">
+      {% for card in cards %}{% include "_card.html" %}{% endfor %}
+    </div>
+    {% if not cards %}<p class="empty">Nothing here yet. Add a small task above — no board or list required.</p>{% endif %}
+  </main>
+  <script>
+    document.querySelectorAll('.tasks-board .cards').forEach(el => new Sortable(el, {
+      animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
+      onEnd: e => {
+        if (e.oldIndex === e.newIndex) return;
+        window.moveCard(e.item.dataset.id, 'Tasks', e.newIndex);
+      },
+    }));
+  </script>
+{% endblock %}

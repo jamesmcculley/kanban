@@ -13,11 +13,12 @@ from flask import (
     url_for,
 )
 
+from . import labels as L
 from . import notes
 from . import rules as R
 from . import settings as S
 from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
-from .store import effective_date
+from .store import PRIORITIES, TASKS_COLUMN, effective_date
 from .tags import parse_tags, split_tags
 from .themes import TEXT_SIZES, THEME_NAMES, theme_cards
 
@@ -63,9 +64,10 @@ def nav():
     today = date.today().isoformat()
     due_now = len(store().scheduled_cards(date_to=today))
     current = (request.view_args or {}).get("slug") if request.endpoint == "boards.board" else None
-    kanban_boards = [b for b in store().list_boards() if b.kind == "kanban" and b.parent is None]
+    card_boards = [b for b in store().list_boards()
+                   if b.kind in ("kanban", "tasks") and b.parent is None]
     return {"sidebar": store().sidebar(), "tags": store().tag_counts(), "today": today,
-            "today_count": due_now, "current_board": current, "kanban_boards": kanban_boards,
+            "today_count": due_now, "current_board": current, "card_boards": card_boards,
             "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES}
 
 
@@ -83,7 +85,7 @@ def create_board():
     if not title:
         abort(400)
     try:
-        board = store().create_board(title)
+        board = store().create_board(title, kind=request.form.get("kind", "kanban"))
     except ValueError:
         abort(400)
     return redirect(url_for("boards.board", slug=board.slug))
@@ -96,11 +98,17 @@ def board(slug):
     except KeyError:
         abort(404)
     parent = store().get_board(b.parent) if b.parent else None
-    columns, hidden_done = store().view_columns(slug)
     display = store().settings_for(slug)
+    if b.kind == "tasks":
+        cards, hidden_done = store().view_columns(slug)
+        cards = cards.get(TASKS_COLUMN, [])
+        return render_template("tasks.html", board=b, parent=parent, cards=cards,
+                               hidden_done=hidden_done, new_top=display["new_card_position"] == "top",
+                               display=display, labels=store().list_labels(slug))
+    columns, hidden_done = store().view_columns(slug)
     return render_template("board.html", board=b, parent=parent, columns=columns,
                            hidden_done=hidden_done, new_top=display["new_card_position"] == "top",
-                           display=display)
+                           display=display, labels=store().list_labels(slug))
 
 
 @bp.post("/b/<slug>/cards")
@@ -138,14 +146,16 @@ def update_card(slug, card_id):
     start = parse_due(raw_start) if raw_start else None
     raw_repeat = request.form.get("repeat", "").strip()
     rule = parse_repeat(raw_repeat) if raw_repeat else None
+    priority = request.form.get("priority") or None
     if (not title or (raw_due and due is None) or (raw_start and start is None)
-            or (raw_repeat and rule is None)):
+            or (raw_repeat and rule is None) or (priority and priority not in PRIORITIES)):
         abort(400)
     try:
         card = store().update_card(slug, card_id, title, request.form.get("body", ""),
                                    due.isoformat() if due else None, rule,
                                    parse_tags(request.form.get("tags", "")),
-                                   start.isoformat() if start else None)
+                                   start.isoformat() if start else None,
+                                   request.form.getlist("labels"), priority)
     except KeyError:
         abort(404)
     return render_template("_card.html", board=store().get_board(slug), card=card)
@@ -216,7 +226,8 @@ def toggle_task(slug, card_id, n):
         abort(404)
     except IndexError:
         abort(400)
-    card = store().update_card(slug, card_id, card.title, body, card.due, card.repeat, card.tags)
+    card = store().update_card(slug, card_id, card.title, body, card.due, card.repeat, card.tags,
+                               card.start, card.labels, card.priority)
     return render_template("_card.html", board=store().get_board(slug), card=card)
 
 
@@ -526,7 +537,7 @@ def capture():
         board = store().get_board(slug)
     except KeyError:
         abort(404)
-    if board.kind != "kanban" or not board.columns:
+    if board.kind not in ("kanban", "tasks") or not board.columns:
         abort(400)
     top = store().settings_for(board.slug)["new_card_position"] == "top"
     card = store().add_card(board.slug, title, board.columns[0], due, rule, tags, top=top)
@@ -652,29 +663,31 @@ def save_settings():
     return "Saved"
 
 
-def _kanban_or_404(slug):
+def _configurable_or_404(slug):
+    """A board with its own settings page: kanban or tasks (canvas never existed with settings)."""
     try:
         board = store().get_board(slug)
     except KeyError:
         abort(404)
-    if board.kind != "kanban":
+    if board.kind not in ("kanban", "tasks"):
         abort(404)
     return board
 
 
 @bp.get("/b/<slug>/settings")
 def board_settings(slug):
-    board = _kanban_or_404(slug)
+    board = _configurable_or_404(slug)
     gs = store().global_settings()
+    ctx = _rules_context(slug, board.columns) if board.kind == "kanban" else {}
     return render_template(
         "board_settings.html", board=board, parent=None, raw=store().board_settings(slug),
         resolved=S.resolve(gs), inherits=S.resolve(gs, board.settings)["inherit_global_rules"],
-        global_rules=_rule_rows(None), **_rules_context(slug, board.columns))
+        global_rules=_rule_rows(None) if board.kind == "kanban" else [], colors=list(L.COLORS), **ctx)
 
 
 @bp.post("/b/<slug>/settings")
 def save_board_settings(slug):
-    _kanban_or_404(slug)
+    _configurable_or_404(slug)
     form = request.form.to_dict()
     form["inherit_global_rules"] = request.form.getlist("inherit_global_rules")[-1] \
         if request.form.getlist("inherit_global_rules") else ""
@@ -735,3 +748,37 @@ def restore_rule():
     except (ValueError, TypeError, KeyError):
         abort(400)
     return "", 204
+
+
+# -- labels: a board's own small, named, coloured set -----------------------------------------
+
+
+@bp.post("/b/<slug>/labels")
+def add_label(slug):
+    try:
+        store().add_label(slug, request.form.get("name", ""), request.form.get("color", ""))
+    except KeyError:
+        abort(404)
+    except ValueError as exc:
+        return str(exc), 422
+    return _refresh()
+
+
+@bp.post("/b/<slug>/labels/<label_id>")
+def update_label(slug, label_id):
+    try:
+        store().update_label(slug, label_id, request.form.get("name", ""), request.form.get("color", ""))
+    except KeyError:
+        abort(404)
+    except ValueError as exc:
+        return str(exc), 422
+    return _refresh()
+
+
+@bp.post("/b/<slug>/labels/<label_id>/delete")
+def delete_label(slug, label_id):
+    try:
+        store().delete_label(slug, label_id)
+    except KeyError:
+        abort(404)
+    return _refresh()

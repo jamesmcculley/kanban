@@ -30,5 +30,5 @@
     {% endfor %}
   </div>
 </div>
-<a class="icon-btn" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Board settings and rules" aria-label="Board settings and rules">{{ icon('sliders') }}</a>
 {% endif %}
+<a class="icon-btn" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Board settings" aria-label="Board settings">{{ icon('sliders') }}</a>

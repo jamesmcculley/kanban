@@ -7,7 +7,7 @@
   const form = fab.querySelector('.fab-form');
   const input = form.querySelector('input');
   const boardSelect = form.querySelector('.fab-board');
-  const PLACEHOLDER = { list: 'List name', board: 'Board name',
+  const PLACEHOLDER = { list: 'List name', board: 'Board name', tasks: 'Task list name',
                         area: 'Area name', capture: 'Quick add… (dates and #tags work)' };
   let action = null;
 
@@ -93,7 +93,9 @@
     const r = action === 'list' || action === 'area'
       ? await fetch(action === 'list' ? fab.dataset.listUrl : fab.dataset.areaUrl,
           { method: 'POST', body: new URLSearchParams({ name }) })
-      : await fetch(fab.dataset.boardUrl, { method: 'POST', body: new URLSearchParams({ title: name }) });
+      : await fetch(fab.dataset.boardUrl, {
+          method: 'POST', body: new URLSearchParams({ title: name, kind: action === 'tasks' ? 'tasks' : 'kanban' }),
+        });
     if (!r.ok) {
       input.setCustomValidity('That name is taken or not allowed');
       input.reportValidity();

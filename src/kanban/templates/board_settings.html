@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ board.title }} settings{% endblock %}
 {% block content %}
   <header class="page-head">
@@ -34,12 +35,14 @@
             <option value="">Use global ({{ 'hidden' if resolved.hide_board_title else 'shown' }})</option>
             <option value="0" {% if raw.hide_board_title is defined and not raw.hide_board_title %}selected{% endif %}>Show it</option>
             <option value="1" {% if raw.hide_board_title %}selected{% endif %}>Hide it</option></select></div>
+        {% if board.kind == 'kanban' %}
         <div class="pref-row"><div><label for="b-list-titles">List titles</label><small>The lists themselves still work; just the names are hidden.</small></div>
           <select id="b-list-titles" name="hide_list_titles">
             <option value="">Use global ({{ 'hidden' if resolved.hide_list_titles else 'shown' }})</option>
             <option value="0" {% if raw.hide_list_titles is defined and not raw.hide_list_titles %}selected{% endif %}>Show them</option>
             <option value="1" {% if raw.hide_list_titles %}selected{% endif %}>Hide them</option></select></div>
-        <div class="pref-row"><div><label for="b-counts">Card counts</label><small>The little number next to each list's name.</small></div>
+        {% endif %}
+        <div class="pref-row"><div><label for="b-counts">Card counts</label><small>{{ 'The little number next to each list\'s name.' if board.kind == 'kanban' else 'The little number showing how many tasks are here.' }}</small></div>
           <select id="b-counts" name="hide_card_counts">
             <option value="">Use global ({{ 'hidden' if resolved.hide_card_counts else 'shown' }})</option>
             <option value="0" {% if raw.hide_card_counts is defined and not raw.hide_card_counts %}selected{% endif %}>Show them</option>
@@ -48,6 +51,57 @@
       </form>
     </section>
 
+    <section class="card-section" aria-labelledby="labels-h">
+      <h2 id="labels-h">Labels</h2>
+      <div class="label-list">
+        {% for lbl in board.labels %}
+        <div class="label-manage-row" data-label="{{ lbl.id }}">
+          <form hx-post="{{ url_for('boards.update_label', slug=board.slug, label_id=lbl.id) }}" hx-swap="none"
+                hx-on::after-request="if (event.detail.successful) location.reload()"
+                hx-on::response-error="this.querySelector('.error').textContent = event.detail.xhr.responseText">
+            <span class="label-chip c-{{ lbl.color }}">{{ lbl.name }}</span>
+            <input type="text" name="name" value="{{ lbl.name }}" aria-label="Label name" required>
+            <input type="hidden" name="color" value="{{ lbl.color }}">
+            <div class="label-swatch-row">
+              {% for c in colors %}
+              <button type="button" class="label-swatch c-{{ c }}{% if c == lbl.color %} selected{% endif %}"
+                      title="{{ c }}" aria-label="{{ c }}"
+                      onclick="this.closest('form').color.value=this.dataset.c; this.closest('.label-swatch-row').querySelectorAll('.label-swatch').forEach(s=>s.classList.toggle('selected', s===this)); this.form.requestSubmit()"
+                      data-c="{{ c }}"></button>
+              {% endfor %}
+            </div>
+            <button type="submit" class="link-btn">Save</button>
+            <p class="error" role="alert"></p>
+          </form>
+          <button type="button" class="icon-btn danger" title="Delete label" aria-label="Delete label {{ lbl.name }}"
+                  data-post="{{ url_for('boards.delete_label', slug=board.slug, label_id=lbl.id) }}"
+                  data-confirm="Delete? Click again" data-after="reload">{{ icon('trash') }}</button>
+        </div>
+        {% else %}
+        <p class="empty">No labels yet.</p>
+        {% endfor %}
+      </div>
+      <form class="label-add" hx-post="{{ url_for('boards.add_label', slug=board.slug) }}" hx-swap="none"
+            hx-on::after-request="if (event.detail.successful) { this.reset(); location.reload(); }"
+            hx-on::response-error="this.querySelector('.error').textContent = event.detail.xhr.responseText">
+        <div class="label-manage-row">
+          <input type="text" name="name" placeholder="New label name" required>
+          <input type="hidden" name="color" value="{{ colors[0] }}">
+          <div class="label-swatch-row">
+            {% for c in colors %}
+            <button type="button" class="label-swatch c-{{ c }}{% if loop.first %} selected{% endif %}"
+                    title="{{ c }}" aria-label="{{ c }}"
+                    onclick="this.closest('form').color.value=this.dataset.c; this.closest('.label-swatch-row').querySelectorAll('.label-swatch').forEach(s=>s.classList.toggle('selected', s===this))"
+                    data-c="{{ c }}"></button>
+            {% endfor %}
+          </div>
+          <button type="submit" class="primary-btn">Add label</button>
+        </div>
+        <p class="error" role="alert"></p>
+      </form>
+    </section>
+
+    {% if board.kind == 'kanban' %}
     <section class="card-section" aria-labelledby="rules-h">
       <h2 id="rules-h">Rules for this board</h2>
       {% include "_rules.html" %}
@@ -60,6 +114,7 @@
         {% for row in global_rules %}<li class="rule{% if not row.rule.enabled %} off{% endif %}"><span class="rule-text">{{ row.text }}</span></li>{% endfor %}
       </ul>
     </section>
+    {% endif %}
     {% endif %}
   </main>
 {% endblock %}

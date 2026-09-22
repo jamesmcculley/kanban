@@ -22,6 +22,7 @@
   <script src="{{ url_for('static', filename='keys.js') }}" defer></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
   <script src="{{ url_for('static', filename='fab.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='filter.js') }}" defer></script>
 </head>
 <body>
   {% from "_icons.html" import icon %}
@@ -37,9 +38,10 @@
         <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
       </form>
       {% macro board_row(b, current) %}
-      <div class="board-row" data-slug="{{ b.slug }}"{% if b.kind == 'kanban' %} data-drop-board="{{ b.slug }}"{% endif %}>
+      <div class="board-row" data-slug="{{ b.slug }}"{% if b.kind in ('kanban', 'tasks') %} data-drop-board="{{ b.slug }}"{% endif %}>
         <span class="grip" title="Drag to reorder or move to an area">⋮⋮</span>
-        <a href="{{ url_for('boards.board', slug=b.slug) }}" class="{{ 'active' if current == b.slug }}"><span>{{ b.title }}</span></a>
+        <a href="{{ url_for('boards.board', slug=b.slug) }}" class="{{ 'active' if current == b.slug }}">
+          {% if b.kind == 'tasks' %}{{ icon('check-square', 13) }}{% endif %}<span>{{ b.title }}</span></a>
       </div>
       {% endmacro %}
       <nav>
@@ -97,13 +99,14 @@
     <form class="fab-form" hidden>
       <input name="name" autocomplete="off" required aria-label="Name">
       <select name="board" class="fab-board" hidden aria-label="Add to board">
-        {% for b in kanban_boards %}<option value="{{ b.slug }}">{{ b.title }}</option>{% endfor %}
+        {% for b in card_boards %}<option value="{{ b.slug }}">{{ b.title }}</option>{% endfor %}
       </select>
     </form>
     <div class="fab-menu" hidden>
       <button type="button" data-action="capture">Quick add</button>
       {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}<button type="button" data-action="list">New list</button>{% endif %}
       <button type="button" data-action="board">New board</button>
+      <button type="button" data-action="tasks">New task list</button>
       <button type="button" data-action="area">New area</button>
     </div>
     <button type="button" class="fab-btn" aria-label="Add" title="Add">{{ icon('plus', 24) }}</button>

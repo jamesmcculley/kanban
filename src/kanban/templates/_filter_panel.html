@@ -1,0 +1,32 @@
+{# Per-board filter: text, labels, priority, tags. Purely client-side (filter.js hides non-matching
+   .card elements in place); nothing here ever round-trips to the server. Context: board. #}
+{% from "_icons.html" import icon %}
+<div class="filter-wrap">
+  <button type="button" class="icon-btn" data-filter-toggle aria-label="Filter cards" title="Filter cards">{{ icon('filter') }}</button>
+  <div class="filter-panel" hidden>
+    <input type="text" class="filter-text" placeholder="Search title…" aria-label="Search card titles">
+    {% if board.labels %}
+    <fieldset class="filter-group">
+      <legend>Labels</legend>
+      {% for lbl in board.labels %}
+      <label class="filter-check"><input type="checkbox" class="filter-label" value="{{ lbl.id }}">
+        <span class="label-chip c-{{ lbl.color }}">{{ lbl.name }}</span></label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+    <fieldset class="filter-group">
+      <legend>Priority</legend>
+      {% for p in ('high', 'medium', 'low') %}
+      <label class="filter-check"><input type="checkbox" class="filter-priority" value="{{ p }}">
+        <span class="priority p-{{ p }}">{{ icon('flag', 13) }}</span> {{ p|capitalize }}</label>
+      {% endfor %}
+      <label class="filter-check"><input type="checkbox" class="filter-priority" value="none"> No priority</label>
+    </fieldset>
+    <fieldset class="filter-group filter-tags-group" hidden>
+      <legend>Tags</legend>
+      <div class="filter-tags"></div>
+    </fieldset>
+    <p class="filter-status muted" role="status" aria-live="polite"></p>
+    <button type="button" class="link-btn filter-clear" hidden>Clear filters</button>
+  </div>
+</div>

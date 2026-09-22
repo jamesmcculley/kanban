@@ -1,5 +1,7 @@
 {% from "_icons.html" import icon %}
-<div class="card{% if card.done %} done{% endif %}" data-id="{{ card.id }}">
+<div class="card{% if card.done %} done{% endif %}" data-id="{{ card.id }}"
+     data-priority="{{ card.priority or '' }}" data-labels="{{ card.labels|join(',') }}"
+     data-tags="{{ card.tags|join(',') }}">
   <input type="checkbox" class="check" {% if card.done %}checked{% endif %} aria-label="Complete"
          hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id) }}"
          hx-target="closest .card" hx-swap="outerHTML">
@@ -14,6 +16,8 @@
   {% elif card.last_completed %}<span class="stamp" title="Last completed {{ card.last_completed|stamp }}">✓ {{ card.last_completed|stamp }}</span>{% endif %}
   {% if card.start %}<span class="start" title="Starts {{ card.start }}">▸ {{ card.start }}</span>{% endif %}
   {% if card.due %}<span class="due{% if card.due < today and not card.done %} overdue{% endif %}">{{ card.due }}</span>{% endif %}
+  {% if card.priority %}<span class="priority p-{{ card.priority }}" title="{{ card.priority|capitalize }} priority">{{ icon('flag', 13) }}</span>{% endif %}
+  {% if card.labels %}<div class="card-labels">{% for lbl in board.labels if lbl.id in card.labels %}<span class="label-chip c-{{ lbl.color }}" title="{{ lbl.name }}">{{ lbl.name }}</span>{% endfor %}</div>{% endif %}
   {% if card.tags %}<div class="card-tags">{% for t in card.tags %}<a class="tag" href="{{ url_for('boards.tag_view', tag=t) }}">#{{ t }}</a>{% endfor %}</div>{% endif %}
   <button class="del" hx-delete="{{ url_for('boards.delete_card', slug=board.slug, card_id=card.id) }}"
           hx-target="closest .card" hx-swap="outerHTML" aria-label="Delete card">×</button>

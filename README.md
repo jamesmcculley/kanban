@@ -4,6 +4,9 @@ A local-first kanban board. Cards are plain Markdown files with YAML frontmatter
 directory can also be opened as an Obsidian vault.
 
 - Boards of lists, drag-and-drop cards, tags (`#home`), Markdown notes with live checklists
+- **Tasks boards**: a flat, Things3-style list for small to-dos that don't need a whole board of lists
+- **Labels** (a small named, coloured set per board) and **priorities** (low/medium/high) on any card
+- A **per-board filter** — text, labels, priority, tags — that narrows the board in place, client-side
 - Natural-language start and due dates, and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
 - **Move any card to any list on any board** from its edit dialog, not just by dragging
 - **Rules and settings**, per board and global: e.g. "when a card is completed, move it to Done"; new-card

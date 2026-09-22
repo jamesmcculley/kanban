@@ -1,7 +1,8 @@
 # Trellis (kanban) — start here
 
-A personal, local-first kanban and task manager: list boards, tags, start/due dates and repeats,
-a Scheduled view and a Logbook (both with a date-range filter and saved filters), per-board and
+A personal, local-first kanban and task manager: list boards, a flat Tasks-board kind for small
+Things3-style to-dos, tags, labels, priorities, start/due dates and repeats, a per-board filter, a
+Scheduled view and a Logbook (both with a date-range filter and saved filters), per-board and
 global rules, and twelve colour themes. Flask + htmx, no build step. Cards are Markdown files, so
 the data folder also opens as an Obsidian vault. Runs on the homelab behind Caddy, LAN-only (it has
 no login). Status: in daily use. There is no canvas/freeform board and no Inbox board — both were
@@ -15,8 +16,8 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 ## Boundaries
 
 - **Pure domain modules never touch I/O or Flask:** `rules.py`, `settings.py`, `dates.py`, `notes.py`,
-  `tags.py`. `tests/test_rules.py::test_domain_modules_are_pure` enforces it. `Store` (and its mixins)
-  does the file I/O; `routes.py` is thin HTTP glue.
+  `tags.py`, `labels.py`. `tests/test_rules.py::test_domain_modules_are_pure` enforces it. `Store`
+  (and its mixins) does the file I/O; `routes.py` is thin HTTP glue.
 - **Reading never writes.** Hiding completed cards is a view (`view_columns`), not an archive pass.
 - **Files are the source of truth** (Markdown + YAML frontmatter). Unknown frontmatter must survive a save.
 - Do not add a database, a JS build step, or third-party runtime requests (htmx and Sortable are vendored).
@@ -43,6 +44,15 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
    await them one at a time, not `Promise.all`.** Each one is a read-modify-write of `board.md`; run
    concurrently, the last writer clobbers the others silently. Found via the real-browser "Hide all"
    test, not by reasoning about it in advance — a reminder that e2e tests catch races unit tests can't.
+7. **`window.moveCard` and the sidebar drop handler hardcode `document.querySelector('.board')`** for
+   their move URLs. Any new board-like page (e.g. `tasks.html`) must put the `.board` class (plus
+   `data-move-url`/`data-moveboard-url`) on its own container — a differently-named wrapper silently
+   breaks drag/move with no error.
+8. **Jinja's default `Undefined` raises on `{% for %}` but not `{% if %}`.** `board_settings.html`
+   passes `{}` (no `rules`/`recipes`/`triggers`/...) for a non-kanban board, so the whole "Rules for
+   this board" section is gated behind `{% if board.kind == 'kanban' %}` rather than relying on
+   `_rules.html`'s internal `{% if rules %}` — that guard alone isn't enough, since `_rules.html` also
+   has an unconditional `{% for recipe in recipes %}` that would 500 on an undefined `recipes`.
 
 ## Log
 

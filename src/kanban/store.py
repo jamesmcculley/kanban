@@ -18,6 +18,7 @@ from pathlib import Path
 
 import yaml
 
+from . import labels as L
 from .dates import next_occurrence
 from .logbook import LogbookMixin
 from .mdfile import extra_fields, slugify
@@ -28,7 +29,9 @@ from .settings import DEFAULT_COLUMNS
 from .tags import parse_tags
 from .trash import TrashMixin
 
-BOARD_KINDS = ("kanban",)  # kept as a tuple: the canvas kind existed briefly and was removed
+BOARD_KINDS = ("kanban", "tasks")
+PRIORITIES = ("low", "medium", "high")
+TASKS_COLUMN = "Tasks"  # the one hidden column every tasks-kind board uses internally
 
 
 @dataclass
@@ -45,6 +48,8 @@ class Card:
     completed: str | None = None  # ISO timestamp of when it was checked off
     last_completed: str | None = None  # repeating cards: when it last rolled forward
     tags: list[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)  # board-scoped label ids (Board.labels)
+    priority: str | None = None  # one of PRIORITIES, or None for no priority
     archived: bool = False  # cleared from its list; still in the Logbook and search
     effects: list[str] = field(default_factory=list, compare=False, repr=False)  # what rules just did (not stored)
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
@@ -62,6 +67,7 @@ class Board:
     parent: str | None = None  # unused; kept so a file from when boards could nest still reads back
     settings: dict = field(default_factory=dict)  # this board's overrides of the global settings
     rules: list = field(default_factory=list)  # this board's automation rules
+    labels: list = field(default_factory=list)  # this board's label definitions: [{id, name, color}]
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
 
@@ -75,9 +81,10 @@ def _iso(meta: dict, key: str) -> str | None:
     return str(value)
 
 
-_CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "done",
-              "completed", "last_completed", "archived"}
-_BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules"}
+_CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
+              "priority", "done", "completed", "last_completed", "archived"}
+_BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
+               "labels"}
 
 
 def _card_from(meta: dict, body: str) -> Card:
@@ -86,7 +93,9 @@ def _card_from(meta: dict, body: str) -> Card:
         position=meta.get("position", 0), start=_iso(meta, "start"), due=_iso(meta, "due"), body=body,
         repeat=meta.get("repeat") or None, done=bool(meta.get("done")),
         completed=_iso(meta, "completed"), last_completed=_iso(meta, "last_completed"),
-        tags=parse_tags(meta.get("tags")), archived=bool(meta.get("archived")),
+        tags=parse_tags(meta.get("tags")), labels=list(meta.get("labels") or []),
+        priority=meta.get("priority") if meta.get("priority") in PRIORITIES else None,
+        archived=bool(meta.get("archived")),
     )
 
 
@@ -118,13 +127,14 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             raise KeyError(slug)
         meta, _ = _read(path)
         kind = meta.get("kind", "kanban")
-        columns = meta.get("columns", list(DEFAULT_COLUMNS) if kind == "kanban" else [])
+        default_cols = list(DEFAULT_COLUMNS) if kind == "kanban" else [TASKS_COLUMN] if kind == "tasks" else []
+        columns = meta.get("columns", default_cols)
         hidden = [c for c in meta.get("hidden", []) if c in columns]
         return Board(slug, meta.get("title", slug), columns, hidden,
                      area=meta.get("area") or None, position=int(meta.get("position") or 0),
                      kind=kind, parent=meta.get("parent") or None,
                      settings=meta.get("settings") or {}, rules=meta.get("rules") or [],
-                     extra=extra_fields(meta, _BOARD_KEYS))
+                     labels=meta.get("labels") or [], extra=extra_fields(meta, _BOARD_KEYS))
 
     def _save_board(self, board: Board) -> None:
         meta = {"title": board.title}
@@ -144,18 +154,60 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["settings"] = board.settings
         if board.rules:
             meta["rules"] = board.rules
+        if board.labels:
+            meta["labels"] = board.labels
         _write(self._board_dir(board.slug) / "board.md", {**board.extra, **meta})
 
-    def create_board(self, title: str, columns: list[str] | None = None) -> Board:
+    def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban") -> Board:
+        if kind not in BOARD_KINDS:
+            raise ValueError(f"unknown board kind: {kind}")
         slug, n = slugify(title), 2
         while (self.root / slug).exists():
             slug, n = f"{slugify(title)}-{n}", n + 1
         last = max((b.position for b in self.list_boards()), default=0)
-        chosen = columns or self.global_settings().get("default_columns") or list(DEFAULT_COLUMNS)
-        board = Board(slug, title, chosen, position=last + 1)
+        if kind == "tasks":
+            chosen = [TASKS_COLUMN]
+        else:
+            chosen = columns or self.global_settings().get("default_columns") or list(DEFAULT_COLUMNS)
+        board = Board(slug, title, chosen, position=last + 1, kind=kind)
         (self.root / slug / "cards").mkdir(parents=True)
         self._save_board(board)
         return board
+
+    # -- labels: a board's own small, named, coloured set ------------------
+
+    def list_labels(self, slug: str) -> list[dict]:
+        return self.get_board(slug).labels
+
+    def add_label(self, slug: str, name: str, color: str) -> dict:
+        board = self.get_board(slug)
+        if len(board.labels) >= L.MAX_LABELS:
+            raise ValueError(f"at most {L.MAX_LABELS} labels")
+        label = L.clean_label({"name": name, "color": color}, board.labels)
+        board.labels = [*board.labels, label]
+        self._save_board(board)
+        return label
+
+    def update_label(self, slug: str, label_id: str, name: str, color: str) -> dict:
+        board = self.get_board(slug)
+        others = [x for x in board.labels if x["id"] != label_id]
+        if not any(x["id"] == label_id for x in board.labels):
+            raise KeyError(label_id)
+        label = L.clean_label({"name": name, "color": color}, others, label_id)
+        board.labels = [label if x["id"] == label_id else x for x in board.labels]
+        self._save_board(board)
+        return label
+
+    def delete_label(self, slug: str, label_id: str) -> None:
+        board = self.get_board(slug)
+        if not any(x["id"] == label_id for x in board.labels):
+            raise KeyError(label_id)
+        board.labels = [x for x in board.labels if x["id"] != label_id]
+        self._save_board(board)
+        for card in self.list_cards(slug):          # a deleted label can't linger on a card
+            if label_id in card.labels:
+                card.labels = [x for x in card.labels if x != label_id]
+                self._save(slug, card)
 
     # -- areas: named groups of boards in the sidebar ---------------------
 
@@ -322,6 +374,10 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["repeat"] = card.repeat
         if card.tags:
             meta["tags"] = card.tags
+        if card.labels:
+            meta["labels"] = card.labels
+        if card.priority:
+            meta["priority"] = card.priority
         if card.done:
             meta["done"] = True
             if card.completed:
@@ -364,10 +420,15 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
 
     def update_card(self, slug: str, card_id: str, title: str, body: str, due: str | None,
                     repeat: str | None = None, tags: list[str] | None = None,
-                    start: str | None = None) -> Card:
+                    start: str | None = None, labels: list[str] | None = None,
+                    priority: str | None = None) -> Card:
         card = self.get_card(slug, card_id)
+        board = self.get_board(slug)
+        known = {x["id"] for x in board.labels}
         card.title, card.body, card.due, card.repeat = title, body, due or None, repeat or None
         card.tags, card.start = parse_tags(tags), start or None
+        card.labels = [x for x in (labels or []) if x in known]
+        card.priority = priority if priority in PRIORITIES else None
         self._save(slug, card)
         return card
 
@@ -463,7 +524,7 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         if slug == dest:
             raise ValueError("already on that board")
         target = self.get_board(dest)
-        if target.kind != "kanban" or not target.columns:
+        if target.kind not in ("kanban", "tasks") or not target.columns:
             raise ValueError("that board has no lists")
         card = self.get_card(slug, card_id)
         origin = {"board": slug, "column": card.column, "index": next(
@@ -483,7 +544,7 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         return origin
 
     def all_cards(self) -> list[tuple[Board, Card]]:
-        return [(b, c) for b in self.list_boards() if b.kind == "kanban"
+        return [(b, c) for b in self.list_boards() if b.kind in ("kanban", "tasks")
                 for c in self.list_cards(b.slug)]
 
     def cards_with_tag(self, tag: str) -> list[tuple[Board, Card]]:
@@ -529,13 +590,17 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
 
     def add_card(self, slug: str, title: str, column: str, due: str | None = None,
                  repeat: str | None = None, tags: list[str] | None = None,
-                 top: bool = False, start: str | None = None) -> Card:
+                 top: bool = False, start: str | None = None, labels: list[str] | None = None,
+                 priority: str | None = None) -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
         siblings = self.cards_by_column(slug)[column]
+        known = {x["id"] for x in board.labels}
         card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
-                    repeat=repeat, tags=parse_tags(tags), start=start)
+                    repeat=repeat, tags=parse_tags(tags), start=start,
+                    labels=[x for x in (labels or []) if x in known],
+                    priority=priority if priority in PRIORITIES else None)
         self._save(slug, card)
         if top and siblings:
             self._move(slug, card.id, column, 0)

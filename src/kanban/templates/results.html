@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ heading }}{% endblock %}
 {% block content %}
   <header class="page-head"><h1>{{ heading }}</h1></header>
@@ -8,9 +9,11 @@
         <input type="checkbox" class="check" aria-label="Complete" hx-swap="none" {% if card.done %}checked{% endif %}
                hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id, refresh=1) }}">
         <span class="title">{{ card.title }}
+          {% if card.priority %}<span class="priority p-{{ card.priority }}" title="{{ card.priority|capitalize }} priority">{{ icon('flag', 12) }}</span>{% endif %}
           {% for t in card.tags %}<a class="tag" href="{{ url_for('boards.tag_view', tag=t) }}">#{{ t }}</a>{% endfor %}
           {% if card.done and card.completed %}<span class="stamp">✓ {{ card.completed|stamp }}</span>{% endif %}
           {% if card.due %}<span class="due">{{ card.due }}</span>{% endif %}</span>
+        {% if card.labels %}<div class="card-labels">{% for lbl in board.labels if lbl.id in card.labels %}<span class="label-chip c-{{ lbl.color }}" title="{{ lbl.name }}">{{ lbl.name }}</span>{% endfor %}</div>{% endif %}
         <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }} / {{ card.column }}</a>
       </div>
     {% else %}

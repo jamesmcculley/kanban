@@ -120,7 +120,8 @@ def test_completing_with_a_rule_refreshes_and_undo_restores_the_card(client):
     assert client.post(toast["undo"]["url"]).status_code == 204
     page = client.get("/b/my-board").text
     assert page.index("task") < page.index('data-column="Done"')                      # back in Todo
-    assert "task" not in client.get("/logbook").text.split("<main")[1]                 # completion undone
+    logbook_main = client.get("/logbook").text.split('<main class="agenda logbook"')[1].split("</main>")[0]
+    assert "task" not in logbook_main                                                  # completion undone
 
 
 def test_moving_into_done_with_a_rule_returns_a_refresh(client):

@@ -11,6 +11,21 @@
     </div>
     <input name="repeat" value="{{ card.repeat or '' }}" placeholder="Repeat: every monday, every 2 weeks, daily…">
     <input name="tags" value="{% for t in card.tags %}#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}" placeholder="Tags: #home #errand">
+    <select name="priority" aria-label="Priority">
+      <option value="">No priority</option>
+      <option value="low" {% if card.priority == 'low' %}selected{% endif %}>Low priority</option>
+      <option value="medium" {% if card.priority == 'medium' %}selected{% endif %}>Medium priority</option>
+      <option value="high" {% if card.priority == 'high' %}selected{% endif %}>High priority</option>
+    </select>
+    {% if board.labels %}
+    <fieldset class="label-picker">
+      <legend>Labels</legend>
+      {% for lbl in board.labels %}
+      <label class="label-check"><input type="checkbox" name="labels" value="{{ lbl.id }}" {% if lbl.id in card.labels %}checked{% endif %}>
+        <span class="label-chip c-{{ lbl.color }}">{{ lbl.name }}</span></label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
     <div class="notes">
       {% if card.body.strip() %}
       <div class="notes-view md" data-body-url="{{ url_for('boards.card_body', slug=board.slug, card_id=card.id) }}">{{ render_notes(card, board) }}</div>
@@ -21,7 +36,7 @@
     <div class="move-row">
       <select class="move-to" aria-label="Move to">
         <option value="" selected disabled>Move to…</option>
-        {% for b in kanban_boards %}
+        {% for b in card_boards %}
         <optgroup label="{{ b.title }}">
           {% for col in b.columns %}
           <option value="{{ b.slug }}|{{ col }}" {% if b.slug == board.slug and col == card.column %}disabled{% endif %}>{{ col }}{% if col in b.hidden %} (hidden){% endif %}</option>
