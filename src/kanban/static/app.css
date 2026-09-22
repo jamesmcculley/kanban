@@ -237,9 +237,13 @@ h1 { margin:0; font-size:22px; }
 .board-title:hover { border-color:var(--border); }
 .board-title:focus { border-color:var(--accent); outline:none; background:var(--bg-card); }
 .icon-btn { display:grid; place-items:center; border:0; background:none; color:var(--text-subtle); cursor:pointer;
-            padding:5px; border-radius:6px; align-self:center; }
+            padding:5px; border-radius:6px; align-self:center; position:relative; }
 .icon-btn:hover { background:var(--hover); color:var(--text-primary); }
 .icon-btn.danger:hover, .armed { color:var(--danger) !important; }
+/* a small count overlaid on an icon button, e.g. how many lists the eye icon has hidden */
+.icon-badge { position:absolute; top:-2px; right:-2px; min-width:14px; height:14px; padding:0 3px;
+              border-radius:8px; background:var(--danger-solid); color:#fff; font-size:10px; font-weight:700;
+              line-height:14px; text-align:center; }
 .armed { display:inline-flex; align-items:center; gap:6px; }
 .confirm-label { font-size:12px; font-weight:600; white-space:nowrap; }
 .danger-btn { margin-left:auto; border:1px solid var(--border); background:none; color:var(--text-subtle); border-radius:6px; padding:5px 12px; cursor:pointer; }
@@ -342,7 +346,7 @@ html[data-sidebar=collapsed] .sidebar-rail { display:grid; place-items:center; }
 .filter-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:8; background:var(--bg-card);
                 border:1px solid var(--border); border-radius:10px; padding:14px; width:230px;
                 display:flex; flex-direction:column; gap:12px; box-shadow:0 6px 20px #0003; }
-.date-filter-panel { width:max-content; max-width:280px; }
+.date-filter-panel { width:max-content; max-width:300px; }
 .filter-panel .filter-text { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
                               background:var(--bg); color:var(--text-primary); }
 .filter-group { display:flex; flex-direction:column; gap:5px; max-height:160px; overflow:auto; }

@@ -1,43 +1,42 @@
-{# Shared date-range filter bar for Scheduled and Logbook. The custom range (From/To/Save-as) lives
-   behind a filter button, same pattern as the per-board filter; the preset and saved-filter chips
-   stay visible since those are the one-click common case.
+{# Shared date filter for Scheduled and Logbook: presets, saved filters, and the custom From/To range
+   all live behind a single filter button so the page header stays down to one icon.
    Context: date_from, date_to, presets ([{label, from, to}]), saved ([{id, name, from, to}]),
    filter_url (this page's own URL: the GET form action and the return target for save/delete). #}
 {% from "_icons.html" import icon %}
 {% macro qs(f, t) %}{% if f %}from={{ f }}{% if t %}&{% endif %}{% endif %}{% if t %}to={{ t }}{% endif %}{% endmacro %}
 <div class="filter-bar">
-  <div class="filter-chips">
-    {% for p in presets %}
-    <a class="chip{{ ' active' if date_from == p.from and date_to == p.to }}"
-       href="{{ filter_url }}?{{ qs(p.from, p.to) }}">{{ p.label }}</a>
-    {% endfor %}
-    {% for f in saved %}
-    <span class="chip saved-chip">
-      <a href="{{ filter_url }}?{{ qs(f['from'], f['to']) }}">{{ f.name }}</a>
-      <button type="button" class="chip-x" aria-label="Delete saved filter {{ f.name }}" title="Delete this saved filter"
-              data-post="{{ url_for('boards.delete_filter', filter_id=f.id) }}" data-after="reload">×</button>
-    </span>
-    {% endfor %}
-    <div class="date-filter-wrap">
-      <button type="button" class="icon-btn{{ ' active' if date_from or date_to }}" data-date-filter-toggle
-              aria-label="Custom date range" title="Custom date range">{{ icon('filter', 15) }}</button>
-      <div class="date-filter-panel filter-panel" hidden>
-        <form method="get" action="{{ filter_url }}" class="filter-range">
-          <label>From <input type="date" name="from" value="{{ date_from or '' }}"></label>
-          <label>To <input type="date" name="to" value="{{ date_to or '' }}"></label>
-          <button type="submit">Apply</button>
-          {% if date_from or date_to %}<a href="{{ filter_url }}" class="link-btn">Clear</a>{% endif %}
-        </form>
-        {% if date_from or date_to %}
-        <form method="post" action="{{ url_for('boards.save_filter') }}" class="save-filter">
-          <input type="hidden" name="from" value="{{ date_from or '' }}">
-          <input type="hidden" name="to" value="{{ date_to or '' }}">
-          <input type="hidden" name="return_to" value="{{ filter_url }}?{{ qs(date_from, date_to) }}">
-          <input name="name" placeholder="Save this range as…" autocomplete="off" required>
-          <button type="submit">Save</button>
-        </form>
-        {% endif %}
+  <div class="date-filter-wrap">
+    <button type="button" class="icon-btn{{ ' active' if date_from or date_to }}" data-date-filter-toggle
+            aria-label="Filter by date" title="Filter by date">{{ icon('filter', 15) }}</button>
+    <div class="date-filter-panel filter-panel" hidden>
+      <div class="filter-chips">
+        {% for p in presets %}
+        <a class="chip{{ ' active' if date_from == p.from and date_to == p.to }}"
+           href="{{ filter_url }}?{{ qs(p.from, p.to) }}">{{ p.label }}</a>
+        {% endfor %}
+        {% for f in saved %}
+        <span class="chip saved-chip">
+          <a href="{{ filter_url }}?{{ qs(f['from'], f['to']) }}">{{ f.name }}</a>
+          <button type="button" class="chip-x" aria-label="Delete saved filter {{ f.name }}" title="Delete this saved filter"
+                  data-post="{{ url_for('boards.delete_filter', filter_id=f.id) }}" data-after="reload">×</button>
+        </span>
+        {% endfor %}
       </div>
+      <form method="get" action="{{ filter_url }}" class="filter-range">
+        <label>From <input type="date" name="from" value="{{ date_from or '' }}"></label>
+        <label>To <input type="date" name="to" value="{{ date_to or '' }}"></label>
+        <button type="submit">Apply</button>
+        {% if date_from or date_to %}<a href="{{ filter_url }}" class="link-btn">Clear</a>{% endif %}
+      </form>
+      {% if date_from or date_to %}
+      <form method="post" action="{{ url_for('boards.save_filter') }}" class="save-filter">
+        <input type="hidden" name="from" value="{{ date_from or '' }}">
+        <input type="hidden" name="to" value="{{ date_to or '' }}">
+        <input type="hidden" name="return_to" value="{{ filter_url }}?{{ qs(date_from, date_to) }}">
+        <input name="name" placeholder="Save this range as…" autocomplete="off" required>
+        <button type="submit">Save</button>
+      </form>
+      {% endif %}
     </div>
   </div>
 </div>

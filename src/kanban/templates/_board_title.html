@@ -12,7 +12,12 @@
         data-after="home">{{ icon('trash') }}</button>
 {% if board.kind == 'kanban' %}
 <div class="eye-menu-wrap">
-  <button type="button" class="icon-btn" data-eye-toggle aria-label="Show or hide lists" title="Show or hide lists">{{ icon('eye') }}</button>
+  <button type="button" class="icon-btn" data-eye-toggle
+          aria-label="Show or hide lists{{ ' (%d hidden)'|format(board.hidden|length) if board.hidden }}"
+          title="Show or hide lists{{ ' — %d hidden'|format(board.hidden|length) if board.hidden }}">
+    {{ icon('eye') }}
+    {% if board.hidden %}<span class="icon-badge">{{ board.hidden|length }}</span>{% endif %}
+  </button>
   <div class="eye-menu" hidden>
     <div class="eye-menu-head">
       <span>Lists</span>

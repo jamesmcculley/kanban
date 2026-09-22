@@ -9,9 +9,6 @@
     {% if hidden_done %}
     <a class="chip" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Hidden by this board's settings">{{ hidden_done }} completed hidden</a>
     {% endif %}
-    {% if board.hidden %}
-    <span class="chip" title="{{ board.hidden|join(', ') }} — click the eye icon above to show them">{{ board.hidden|length }} list{{ 's' if board.hidden|length != 1 }} hidden</span>
-    {% endif %}
   </header>
   <main class="board" data-slug="{{ board.slug }}" data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id='ID') }}" data-order-url="{{ url_for('boards.order_columns', slug=board.slug) }}" data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id='ID') }}">
     {% for name, cards in columns.items() if name not in board.hidden %}

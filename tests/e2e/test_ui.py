@@ -76,7 +76,7 @@ def test_add_rename_hide_delete_lists(page):
     col.hover()
     col.get_by_role("button", name="Hide list").click()
     expect(page.locator('.column[data-column="Someday"]')).to_have_count(0)
-    expect(page.locator(".chip", has_text="1 list hidden")).to_be_visible()
+    expect(page.locator('[data-eye-toggle] .icon-badge')).to_have_text("1")
 
     page.get_by_role("button", name="Show or hide lists").click()
     row = page.locator(".eye-row", has_text="Someday")
@@ -793,13 +793,13 @@ def test_hidden_lists_panel_toggle_each_and_all(page):
     page.get_by_role("button", name="Hide all").click()
     page.wait_for_load_state()
     expect(page.locator(".column")).to_have_count(0)
-    expect(page.locator(".chip", has_text="3 lists hidden")).to_be_visible()
+    expect(page.locator('[data-eye-toggle] .icon-badge')).to_have_text("3")
 
     page.get_by_role("button", name="Show or hide lists").click()
     page.get_by_role("button", name="Show all").click()
     page.wait_for_load_state()
     expect(page.locator(".column")).to_have_count(3)
-    expect(page.locator(".chip", has_text="lists hidden")).to_have_count(0)
+    expect(page.locator('[data-eye-toggle] .icon-badge')).to_have_count(0)
 
 
 def test_sidebar_collapses_and_persists(page):
@@ -812,6 +812,11 @@ def test_sidebar_collapses_and_persists(page):
     expect(page.locator(".sidebar")).to_be_hidden()                    # persisted across reload
     rail.click()
     expect(page.locator(".sidebar")).to_be_visible()
+
+
+def open_date_filter(page):
+    page.get_by_role("button", name="Filter by date").click()
+    expect(page.locator(".date-filter-panel")).to_be_visible()
 
 
 def test_scheduled_filters_presets_and_saved_filters(page):
@@ -829,43 +834,51 @@ def test_scheduled_filters_presets_and_saved_filters(page):
     expect(page.locator(".agenda .row", has_text="Today thing")).to_be_visible()
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_be_visible()
 
+    open_date_filter(page)
     page.get_by_role("link", name="Today", exact=True).click()
     page.wait_for_load_state()
     expect(page.locator(".agenda .row", has_text="Today thing")).to_be_visible()
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_have_count(0)
 
-    page.get_by_role("button", name="Custom date range").click()      # the save-as form lives behind it
+    open_date_filter(page)                                          # collapses again after a reload
     page.fill(".save-filter input[name=name]", "My range")
     page.click(".save-filter button")
     page.wait_for_load_state()
+    open_date_filter(page)
     expect(page.locator(".saved-chip", has_text="My range")).to_be_visible()
 
     page.get_by_role("link", name="All", exact=True).click()
     page.wait_for_load_state()
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_be_visible()
+    open_date_filter(page)
     page.locator(".saved-chip", has_text="My range").get_by_role("link").click()
     page.wait_for_load_state()
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_have_count(0)
 
+    open_date_filter(page)
     page.locator(".saved-chip", has_text="My range").locator(".chip-x").click()
     page.wait_for_load_state()
+    open_date_filter(page)
     expect(page.locator(".saved-chip", has_text="My range")).to_have_count(0)
 
 
 def test_logbook_has_its_own_filter_bar(page):
     page.click('.sidebar [data-go="l"]')
     page.wait_for_url("**/logbook")
-    expect(page.locator(".filter-bar")).to_be_visible()
+    expect(page.locator(".date-filter-wrap")).to_be_visible()
+    expect(page.locator(".filter-chips .chip", has_text="This week")).to_be_hidden()  # tucked away
+    open_date_filter(page)
     expect(page.locator(".filter-chips .chip", has_text="This week")).to_be_visible()
 
 
 def test_scheduled_custom_range_hidden_behind_filter_button(page):
     page.click('.sidebar [data-go="s"]')
     page.wait_for_url("**/scheduled")
-    toggle = page.get_by_role("button", name="Custom date range")
+    toggle = page.get_by_role("button", name="Filter by date")
     panel = page.locator(".date-filter-panel")
     expect(panel).to_be_hidden()                                   # collapsed by default: no clutter
     expect(page.locator('.filter-range input[name="from"]')).to_be_hidden()
+    expect(page.locator(".filter-chips .chip", has_text="Today")).to_be_hidden()
 
     toggle.click()
     expect(panel).to_be_visible()

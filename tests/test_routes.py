@@ -60,7 +60,7 @@ def test_column_routes(client):
     assert 'value="Someday"' in page and 'value="Later"' not in page
     client.post("/b/my-board/columns/hide", data={"name": "Someday", "hidden": "1"})
     page = client.get("/b/my-board").text
-    assert "1 list hidden" in page and 'data-column="Someday"' not in page
+    assert 'class="icon-badge">1<' in page and 'data-column="Someday"' not in page
     client.post("/b/my-board/columns/hide", data={"name": "Someday", "hidden": "0"})
     assert 'data-column="Someday"' in client.get("/b/my-board").text
     assert client.post("/b/my-board/columns/delete", data={"name": "Someday"}).status_code == 200
