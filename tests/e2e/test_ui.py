@@ -93,6 +93,46 @@ def test_drag_lists_to_reorder(page):
     assert column_order(page) == ["Doing", "Todo", "Done"]      # persisted on the server
 
 
+def test_column_counts_stay_correct_after_drag_add_delete_and_complete(page):
+    add_card(page, "Todo", "a")                         # a single card first, so the drag geometry
+    todo = page.locator('.column[data-column="Todo"] .count')  # matches the proven single-card drag
+    doing = page.locator('.column[data-column="Doing"] .count')
+    expect(todo).to_have_text("1")
+    expect(doing).to_have_text("0")
+
+    drag(page, page.locator(".card", has_text="a"), page.locator('.column[data-column="Doing"] .cards'))
+    expect(todo).to_have_text("0")                      # updates without a reload
+    expect(doing).to_have_text("1")
+
+    add_card(page, "Todo", "b")
+    expect(todo).to_have_text("1")
+    add_card(page, "Todo", "c")
+    expect(todo).to_have_text("2")
+
+    page.locator(".card", has_text="c").hover()
+    page.locator(".card", has_text="c").locator(".del").click()
+    expect(todo).to_have_text("1")
+
+    page.keyboard.press("Escape")
+    page.locator("body").click(position={"x": 700, "y": 700})
+    page.keyboard.press("j")                            # selects Todo's only card ("b")
+    page.keyboard.press("x")
+    expect(page.locator(".card.done")).to_be_visible()  # completing (not moving) leaves the count as-is
+    expect(todo).to_have_text("1")
+
+    page.reload()                                       # the server's own render agrees
+    expect(todo).to_have_text("1")
+    expect(doing).to_have_text("1")
+
+
+def test_sidebar_footer_never_needs_scrolling(page):
+    for i in range(15):
+        fab_add(page, "New area", f"Area {i}")
+    footer = page.locator(".side-foot")
+    expect(footer).to_be_in_viewport()
+    expect(page.get_by_role("link", name="Trash", exact=True)).to_be_in_viewport()
+
+
 def test_drag_card_between_lists(page):
     add_card(page, "Todo", "mover")
     drag(page, page.locator(".card", has_text="mover"), page.locator('.column[data-column="Doing"] .cards'))
@@ -104,8 +144,7 @@ def test_drag_card_between_lists(page):
 def test_areas_and_board_dragging(page):
     fab_add(page, "New board", "Garden")
     page.wait_for_url("**/b/garden")
-    page.fill(".newarea input", "Home")
-    page.press(".newarea input", "Enter")
+    fab_add(page, "New area", "Home")
     expect(page.locator('.area[data-area="Home"]')).to_be_visible()
 
     row = page.locator('.board-row[data-slug="garden"]')
@@ -425,8 +464,7 @@ def test_rename_and_delete_board_with_two_step_confirm_and_undo(page):
 
 
 def test_area_delete_keeps_boards_and_undo(page):
-    page.fill(".newarea input", "Home")
-    page.press(".newarea input", "Enter")
+    fab_add(page, "New area", "Home")
     expect(page.locator('.area[data-area="Home"]')).to_be_visible()
     drag(page, page.locator('.board-row[data-slug="my-board"] .grip'),
          page.locator('.area[data-area="Home"] .area-head'), dy=8)

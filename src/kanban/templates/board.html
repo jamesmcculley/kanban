@@ -62,6 +62,16 @@
     {% endfor %}
   </main>
   <script>
+    // Keep each list's card count in sync with what's on screen. A drag moves a card's DOM node
+    // directly (no page reload), and adding, deleting or completing a card swaps DOM without
+    // touching the count span either -- so nothing else keeps these numbers honest.
+    document.querySelectorAll('.column').forEach(col => {
+      const count = col.querySelector('.col-head .count');
+      const list = col.querySelector('.cards');
+      if (!count || !list) return;
+      new MutationObserver(() => { count.textContent = list.querySelectorAll(':scope > .card').length; })
+        .observe(list, { childList: true });
+    });
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
       group: 'cards', animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
       onEnd: e => {

@@ -82,11 +82,6 @@
           </div>
           {% endfor %}
         </div>
-        <form hx-post="{{ url_for('boards.add_area') }}" hx-swap="none" class="newarea"
-              hx-on::response-error="this.querySelector('input').setCustomValidity('That name is taken or empty'); this.reportValidity()">
-          <input name="name" placeholder="+ New area" autocomplete="off" required oninput="this.setCustomValidity('')">
-        </form>
-
         <div id="tag-section">{% include "_tags.html" %}</div>
       </nav>
       <div class="side-foot">
@@ -101,6 +96,7 @@
     <div class="content">{% block content %}{% endblock %}</div>
   </div>
   <div class="fab" id="fab" data-board-url="{{ url_for('boards.create_board') }}" data-capture-url="{{ url_for('boards.capture') }}"
+       data-area-url="{{ url_for('boards.add_area') }}"
        {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}data-list-url="{{ url_for('boards.add_column', slug=board.slug) }}"{% endif %}>
     <form class="fab-form" hidden><input name="name" autocomplete="off" required aria-label="Name"></form>
     <div class="fab-menu" hidden>
@@ -108,6 +104,7 @@
       {% if board is defined and board.kind == 'kanban' and request.endpoint == 'boards.board' %}<button type="button" data-action="list">New list</button>{% endif %}
       <button type="button" data-action="board">New board</button>
       <button type="button" data-action="canvas">New canvas</button>
+      <button type="button" data-action="area">New area</button>
     </div>
     <button type="button" class="fab-btn" aria-label="Add list, board or canvas" title="Add">{{ icon('plus', 24) }}</button>
   </div>

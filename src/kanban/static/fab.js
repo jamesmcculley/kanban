@@ -1,4 +1,4 @@
-// Floating "+" button (bottom right): new list, new board, new canvas.
+// Floating "+" button (bottom right): new list, new board, new canvas, new area.
 (() => {
   const fab = document.getElementById('fab');
   if (!fab) return;
@@ -7,7 +7,7 @@
   const form = fab.querySelector('.fab-form');
   const input = form.querySelector('input');
   const PLACEHOLDER = { list: 'List name', board: 'Board name', canvas: 'Canvas name',
-                        capture: 'Quick add… (dates and #tags work)' };
+                        area: 'Area name', capture: 'Quick add… (dates and #tags work)' };
   let action = null;
 
   function close() {
@@ -66,8 +66,9 @@
       }
       return;
     }
-    const r = action === 'list'
-      ? await fetch(fab.dataset.listUrl, { method: 'POST', body: new URLSearchParams({ name }) })
+    const r = action === 'list' || action === 'area'
+      ? await fetch(action === 'list' ? fab.dataset.listUrl : fab.dataset.areaUrl,
+          { method: 'POST', body: new URLSearchParams({ name }) })
       : await fetch(fab.dataset.boardUrl, {
           method: 'POST', body: new URLSearchParams({ title: name, kind: action === 'canvas' ? 'canvas' : 'kanban' }),
         });
@@ -76,7 +77,7 @@
       input.reportValidity();
       return;
     }
-    if (action === 'list') location.reload();
+    if (action === 'list' || action === 'area') location.reload();
     else location.href = r.url;                     // the server redirected to the new board
   });
 })();
