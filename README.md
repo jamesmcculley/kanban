@@ -94,3 +94,7 @@ restore command. Keep a copy off the machine too.
     uv run pytest
     uv run ruff check .
     uv run --with playwright pytest tests/e2e   # real-browser tests; needs Chrome installed
+
+## License
+
+MIT — see [LICENSE](LICENSE).

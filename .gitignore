@@ -5,3 +5,5 @@ __pycache__/
 *.egg-info/
 dist/
 .env
+# Internal working journal, not meant for a public clone -- see AGENTS.md's Log section.
+PROJECT_LOG.md

@@ -69,4 +69,5 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 
 ## Log
 
-Read `PROJECT_LOG.md` before changing anything. Append to it when behaviour changes.
+`PROJECT_LOG.md` is a local, gitignored working journal — it won't be in a fresh clone. If it
+exists in your checkout, read it before changing anything and append to it when behaviour changes.
