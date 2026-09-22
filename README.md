@@ -18,6 +18,9 @@ directory can also be opened as an Obsidian vault.
 - A Logbook of everything you've completed (with the board and list it came from), the same date
   filter, and a way to fix a completion date you forgot to check off on time
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
+- **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its
+  cards, rules and history stay exactly as they were; unarchive it any time from its own page or the
+  Archived boards list
 - Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists,
   and a collapse toggle
 - A "show or hide lists" panel (the eye icon) to see and toggle every list's visibility at once

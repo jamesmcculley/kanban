@@ -180,3 +180,32 @@ def test_card_labels_round_trip_through_update_card(client):
     cid, _ = _add(client, "x")
     r = client.post(f"/b/my-board/cards/{cid}", data={"title": "x", "labels": label_id})
     assert r.status_code == 200 and "label-chip" in r.text and "Urgent" in r.text
+
+
+def test_archive_and_unarchive_board_routes(client):
+    client.post("/boards", data={"title": "Side project"})
+    assert "Side project" in client.get("/b/my-board").text  # in the sidebar before archiving
+
+    r = client.post("/b/side-project/archive")
+    assert r.status_code == 200 and "Archived" in r.text
+
+    page = client.get("/b/my-board").text
+    assert "Side project" not in page                        # gone from the sidebar
+    assert client.get("/search?q=side").text.count("side-project") == 0
+
+    archived = client.get("/archived").text
+    assert "Side project" in archived and "Unarchive" in archived
+
+    still_reachable = client.get("/b/side-project").text
+    assert "Archived" in still_reachable and "Side project" in still_reachable
+
+    r = client.post("/b/side-project/unarchive")
+    assert r.status_code == 200
+    assert "Side project" in client.get("/b/my-board").text   # back in the sidebar
+    archived_main = client.get("/archived").text.split('<main class="agenda trash">')[1].split("</main>")[0]
+    assert "Side project" not in archived_main                # gone from the archived list itself
+
+
+def test_archive_unknown_board_404s(client):
+    assert client.post("/b/nope/archive").status_code == 404
+    assert client.post("/b/nope/unarchive").status_code == 404

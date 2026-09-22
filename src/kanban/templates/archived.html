@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Archived boards{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <h1>Archived boards</h1>
+    <span class="muted">tucked away, not deleted — their cards, rules and history are untouched</span>
+  </header>
+  <main class="agenda trash">
+    {% for b in boards %}
+      <div class="row"><span class="title"><a href="{{ url_for('boards.board', slug=b.slug) }}">{{ b.title }}</a></span>
+        <button type="button" class="link-btn" data-post="{{ url_for('boards.unarchive_board', slug=b.slug) }}" data-after="reload">Unarchive</button></div>
+    {% else %}
+      <p class="empty">No archived boards. Archive one from its own page (next to Delete) to get it out of the sidebar and search without deleting it.</p>
+    {% endfor %}
+  </main>
+{% endblock %}

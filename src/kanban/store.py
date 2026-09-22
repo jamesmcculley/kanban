@@ -68,6 +68,7 @@ class Board:
     settings: dict = field(default_factory=dict)  # this board's overrides of the global settings
     rules: list = field(default_factory=list)  # this board's automation rules
     labels: list = field(default_factory=list)  # this board's label definitions: [{id, name, color}]
+    archived: bool = False  # tucked away: out of the sidebar, search, Scheduled; still fully intact
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
 
@@ -84,7 +85,7 @@ def _iso(meta: dict, key: str) -> str | None:
 _CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
               "priority", "done", "completed", "last_completed", "archived"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
-               "labels"}
+               "labels", "archived"}
 
 
 def _card_from(meta: dict, body: str) -> Card:
@@ -121,6 +122,22 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         boards = [self.get_board(p.parent.name) for p in sorted(self.root.glob("*/board.md"))]
         return sorted(boards, key=lambda b: (b.position, b.slug))
 
+    def list_archived_boards(self) -> list[Board]:
+        return [b for b in self.list_boards() if b.archived]
+
+    def archive_board(self, slug: str) -> None:
+        """Tuck a board away: out of the sidebar, search, Scheduled and move-to/capture pickers,
+        but still fully there -- its area, position, rules and cards are all untouched, and
+        unarchive_board puts it right back where it was."""
+        board = self.get_board(slug)
+        board.archived = True
+        self._save_board(board)
+
+    def unarchive_board(self, slug: str) -> None:
+        board = self.get_board(slug)
+        board.archived = False
+        self._save_board(board)
+
     def get_board(self, slug: str) -> Board:
         path = self._board_dir(slug) / "board.md"
         if not path.exists():
@@ -134,7 +151,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
                      area=meta.get("area") or None, position=int(meta.get("position") or 0),
                      kind=kind, parent=meta.get("parent") or None,
                      settings=meta.get("settings") or {}, rules=meta.get("rules") or [],
-                     labels=meta.get("labels") or [], extra=extra_fields(meta, _BOARD_KEYS))
+                     labels=meta.get("labels") or [], archived=bool(meta.get("archived")),
+                     extra=extra_fields(meta, _BOARD_KEYS))
 
     def _save_board(self, board: Board) -> None:
         meta = {"title": board.title}
@@ -156,6 +174,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["rules"] = board.rules
         if board.labels:
             meta["labels"] = board.labels
+        if board.archived:
+            meta["archived"] = True
         _write(self._board_dir(board.slug) / "board.md", {**board.extra, **meta})
 
     def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban") -> Board:
@@ -232,8 +252,9 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         return names
 
     def sidebar(self) -> dict:
-        """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}."""
-        boards = [b for b in self.list_boards() if b.parent is None]
+        """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}.
+        Archived boards are left out -- see list_archived_boards."""
+        boards = [b for b in self.list_boards() if b.parent is None and not b.archived]
         names = self.areas()
         return {
             "unassigned": [b for b in boards if b.area not in names],
@@ -544,7 +565,9 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         return origin
 
     def all_cards(self) -> list[tuple[Board, Card]]:
-        return [(b, c) for b in self.list_boards() if b.kind in ("kanban", "tasks")
+        """Feeds Scheduled, tag counts and cards-with-tag. Archived boards' cards are left out --
+        an archived board is meant to be out of the way everywhere active, not just the sidebar."""
+        return [(b, c) for b in self.list_boards() if b.kind in ("kanban", "tasks") and not b.archived
                 for c in self.list_cards(b.slug)]
 
     def cards_with_tag(self, tag: str) -> list[tuple[Board, Card]]:
@@ -576,12 +599,15 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         return sorted(found, key=lambda bc: (effective_date(bc[1]), bc[0].slug, bc[1].position))
 
     def search(self, query: str) -> list[tuple[Board, Card]]:
-        """Cards whose title, notes or board name contain every word of the query."""
+        """Cards whose title, notes or board name contain every word of the query. Archived boards
+        are left out, same as everywhere else active -- see all_cards."""
         terms = query.lower().split()
         if not terms:
             return []
         hits = []
         for b in self.list_boards():
+            if b.archived:
+                continue
             for c in self.list_cards(b.slug):
                 hay = f"{c.title}\n{c.body}\n{b.title}\n{' '.join('#' + t for t in c.tags)}".lower()
                 if all(t in hay for t in terms):

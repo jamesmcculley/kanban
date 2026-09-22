@@ -306,3 +306,42 @@ def test_update_card_labels_and_priority(store):
     store.update_card(b.slug, card.id, "x", "", None, labels=[label["id"]], priority="low")
     reloaded = store.get_card(b.slug, card.id)
     assert reloaded.labels == [label["id"]] and reloaded.priority == "low"
+
+
+# ---- archive/unarchive boards -----------------------------------------------------------------
+
+def test_archive_and_unarchive_a_board(store):
+    b = store.create_board("B")
+    assert store.get_board(b.slug).archived is False
+    store.archive_board(b.slug)
+    assert store.get_board(b.slug).archived is True
+    assert [x.slug for x in store.list_archived_boards()] == [b.slug]
+    store.unarchive_board(b.slug)
+    assert store.get_board(b.slug).archived is False
+    assert store.list_archived_boards() == []
+
+
+def test_archiving_leaves_everything_else_alone(store):
+    """Archiving is a visibility toggle, not a lock: position, area, rules and cards survive."""
+    store.add_area("Home")
+    b = store.create_board("B")
+    store.apply_layout(["Home"], {"Home": [b.slug]})
+    card = store.add_card(b.slug, "still here", "Todo")
+    store.archive_board(b.slug)
+    reloaded = store.get_board(b.slug)
+    assert reloaded.area == "Home" and reloaded.columns == b.columns
+    assert store.get_card(b.slug, card.id).title == "still here"
+    assert store.add_card(b.slug, "can still add cards", "Todo")  # not locked
+
+
+def test_archived_boards_are_excluded_from_active_surfaces(store):
+    b = store.create_board("B")
+    store.add_card(b.slug, "hideme", "Todo", due="2026-10-01")
+    store.archive_board(b.slug)
+    assert store.sidebar()["unassigned"] == []
+    assert store.all_cards() == []
+    assert store.search("hideme") == []
+    assert store.scheduled_cards() == []
+    # still fully reachable directly, and list_boards() still sees it (area/layout/trash need to)
+    assert store.get_board(b.slug).title == "B"
+    assert b.slug in {x.slug for x in store.list_boards()}

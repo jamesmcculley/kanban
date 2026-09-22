@@ -65,7 +65,7 @@ def nav():
     due_now = len(store().scheduled_cards(date_to=today))
     current = (request.view_args or {}).get("slug") if request.endpoint == "boards.board" else None
     card_boards = [b for b in store().list_boards()
-                   if b.kind in ("kanban", "tasks") and b.parent is None]
+                   if b.kind in ("kanban", "tasks") and b.parent is None and not b.archived]
     return {"sidebar": store().sidebar(), "tags": store().tag_counts(), "today": today,
             "today_count": due_now, "current_board": current, "card_boards": card_boards,
             "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES,
@@ -525,6 +525,31 @@ def restore_board(trash_id):
     except KeyError:
         abort(404)
     return jsonify(board=board.slug, message=f"Restored board “{_short(board.title)}”")
+
+
+@bp.post("/b/<slug>/archive")
+def archive_board(slug):
+    try:
+        board = store().get_board(slug)
+        store().archive_board(slug)
+    except KeyError:
+        abort(404)
+    return jsonify(_toast(f"Archived “{_short(board.title)}” · out of the sidebar and search"))
+
+
+@bp.post("/b/<slug>/unarchive")
+def unarchive_board(slug):
+    try:
+        board = store().get_board(slug)
+        store().unarchive_board(slug)
+    except KeyError:
+        abort(404)
+    return jsonify(_toast(f"Unarchived “{_short(board.title)}”"))
+
+
+@bp.get("/archived")
+def archived_boards():
+    return render_template("archived.html", boards=store().list_archived_boards())
 
 
 @bp.post("/capture")

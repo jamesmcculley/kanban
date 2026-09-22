@@ -10,6 +10,14 @@
 <button type="button" class="icon-btn danger" title="Delete this board" aria-label="Delete board"
         data-post="{{ url_for('boards.delete_board', slug=board.slug) }}" data-confirm="Delete? Click again"
         data-after="home">{{ icon('trash') }}</button>
+{% if board.archived %}
+<span class="chip" title="Out of the sidebar and search until unarchived">Archived</span>
+<button type="button" class="icon-btn" title="Unarchive this board" aria-label="Unarchive board"
+        data-post="{{ url_for('boards.unarchive_board', slug=board.slug) }}" data-after="reload">{{ icon('archive') }}</button>
+{% else %}
+<button type="button" class="icon-btn" title="Archive this board" aria-label="Archive board"
+        data-post="{{ url_for('boards.archive_board', slug=board.slug) }}" data-after="reload">{{ icon('archive') }}</button>
+{% endif %}
 {% if board.kind == 'kanban' %}
 <div class="eye-menu-wrap">
   <button type="button" class="icon-btn" data-eye-toggle

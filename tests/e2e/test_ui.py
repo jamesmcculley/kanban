@@ -1019,3 +1019,23 @@ def test_label_edit_stays_collapsed_until_asked_for(page):
     row = page.locator(".label-manage-row", has_text="Urgent!")
     expect(row.locator(".label-edit-form")).to_be_hidden()          # collapses again after saving
     expect(row.locator(".label-chip.c-blue")).to_be_visible()
+
+
+def test_archive_and_unarchive_board(page):
+    fab_add(page, "New board", "Side project")
+    page.wait_for_url("**/b/side-project")
+
+    page.get_by_role("button", name="Archive board", exact=True).click()
+    page.wait_for_load_state()
+    expect(page.locator(".chip", has_text="Archived")).to_be_visible()
+    expect(page.get_by_role("link", name="Side project", exact=True)).to_have_count(0)  # sidebar
+
+    page.get_by_role("link", name="Archived boards").click()
+    page.wait_for_url("**/archived")
+    row = page.locator(".row", has_text="Side project")
+    expect(row).to_be_visible()
+
+    row.get_by_role("button", name="Unarchive").click()
+    page.wait_for_load_state()
+    expect(page.locator(".empty")).to_be_visible()
+    expect(page.get_by_role("link", name="Side project", exact=True)).to_be_visible()  # back

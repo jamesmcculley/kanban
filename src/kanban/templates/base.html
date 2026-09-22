@@ -83,6 +83,8 @@
       <div class="side-foot">
         <a href="{{ url_for('boards.trash') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.trash' }}"
            aria-label="Trash" title="Trash">{{ icon('trash') }}</a>
+        <a href="{{ url_for('boards.archived_boards') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.archived_boards' }}"
+           aria-label="Archived boards" title="Archived boards">{{ icon('archive') }}</a>
         <a href="{{ url_for('boards.settings') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.settings' }}"
            aria-label="Settings" title="Settings">{{ icon('settings') }}</a>
         <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
