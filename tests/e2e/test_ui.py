@@ -137,6 +137,23 @@ def test_sidebar_footer_never_needs_scrolling(page):
     expect(page.get_by_role("link", name="Trash", exact=True)).to_be_in_viewport()
 
 
+def test_sidebar_sections_dont_overlap_when_nav_needs_to_scroll(page):
+    """nav's own children (the board list, areas, tags) default to flex-shrink, so when there's
+    enough of them to need nav's internal scroll, they can get squeezed below their real content
+    height instead -- which looks like the next section overlapping the one before it, not like a
+    missing scrollbar. Needs a short viewport and enough content to actually force the squeeze."""
+    page.set_viewport_size({"width": 1280, "height": 600})
+    for i in range(8):
+        fab_add(page, "New board", f"Board {i}")
+    fab_add(page, "New area", "Personal")
+
+    unassigned = page.locator(".boards-unassigned")
+    areas = page.locator(".areas")
+    u_box, a_box = unassigned.bounding_box(), areas.bounding_box()
+    assert a_box["y"] >= u_box["y"] + u_box["height"] - 1, (
+        f"areas ({a_box}) overlaps boards-unassigned ({u_box})")
+
+
 def test_drag_card_between_lists(page):
     add_card(page, "Todo", "mover")
     drag(page, page.locator(".card", has_text="mover"), page.locator('.column[data-column="Doing"] .cards'))

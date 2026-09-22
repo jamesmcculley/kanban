@@ -83,6 +83,24 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     the filter panel opens (cheap, and matches when a stale list would actually be noticed), not
     just once — found by an e2e test that added a card and then opened the filter in the same test,
     which a test that reloads the page in between never would have caught.
+13. **A flex item shrinks by default, `overflow: auto` or not.** `.sidebar nav` is a `flex-direction:
+    column` container relying on its own `overflow-y: auto` to scroll past too much content — but
+    its *children* (the board list, areas, tags) are flex items too, and flex items default to
+    `flex-shrink: 1`. With enough boards/areas/tags to actually overflow, the browser shrank those
+    children to fit instead of letting nav scroll past them, so the next section rendered
+    overlapping the tail of the one before it — not a missing scrollbar, an invisible one. Fixed
+    with `.sidebar nav > * { flex-shrink: 0; }`. Existed since the original collapsible-sidebar
+    work; never showed up in testing because nothing before had `test_sidebar_footer_never_needs_
+    scrolling`'s 15 areas *and* enough total height to overflow a short viewport at the same time —
+    `to_be_in_viewport()` on the footer doesn't catch content overlapping *itself* elsewhere in the
+    sidebar. `test_sidebar_sections_dont_overlap_when_nav_needs_to_scroll` checks bounding boxes
+    directly for exactly that.
+14. **The sidebar footer icons (`.side-foot`) are `position: fixed`, not part of the sidebar's
+    flex/scroll flow** — same idea as the FAB, mirrored bottom-left, so they're reachable no matter
+    how nav's flex math resolves. Left nested inside `.sidebar` in the markup on purpose (hides for
+    free when the sidebar collapses), but because a `position: fixed` element reserves no space in
+    normal flow, `.sidebar nav` needs its own `padding-bottom` or scrolled content renders
+    underneath the floating pill instead of stopping above it.
 
 ## Log
 

@@ -29,12 +29,24 @@ html[data-font-size=large] .app { zoom: 1.15; }
 body { margin:0; font:15px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--text-primary); }
 input, textarea, button { font:inherit; }
 
+/* Scrollbars stay out of the way until a scrollable area is actually hovered or scrolled --
+   applies everywhere (sidebar nav, board, notes, any dropdown list), not just one spot. Firefox
+   has no hover-reveal for scrollbars, so it gets a thin one instead of an invisible one; Chrome/
+   Safari/Edge (::-webkit-scrollbar) get a fully transparent thumb until :hover. */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
+*:hover::-webkit-scrollbar-thumb { background: var(--border); }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
 /* layout: fixed sidebar + scrolling content */
 .app { display:flex; min-height:100vh; }
 .sidebar { width:230px; flex:none; background:var(--bg-surface); border-right:1px solid var(--border);
            display:flex; flex-direction:column;
            padding:16px 12px; display:flex; flex-direction:column; gap:12px;
-           position:sticky; top:0; height:100vh; overflow-y:auto; }
+           position:sticky; top:0; height:100vh; }
 .side-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 4px; }
 .brand { display:grid; place-items:center; color:var(--accent-text); text-decoration:none; padding:4px; border-radius:6px; }
 .brand:hover { background:var(--hover); }
@@ -42,9 +54,16 @@ input, textarea, button { font:inherit; }
              color:var(--text-primary); border-radius:14px; padding:4px 10px 4px 8px; font-size:12px; cursor:pointer; }
 .theme-btn:hover { border-color:var(--accent); }
 .theme-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); flex:none; }
-/* Header and footer stay put; only this middle section scrolls, so Trash/Settings/Shortcuts
-   never need scrolling to reach, no matter how many boards or areas you have. */
-.sidebar nav { display:flex; flex-direction:column; gap:2px; flex:1; min-height:0; overflow-y:auto; }
+/* Header stays put; only this middle section scrolls. padding-bottom keeps its last item from
+   rendering underneath the floating .side-foot pill, which -- being fixed -- reserves no space
+   of its own in this flow. */
+.sidebar nav { display:flex; flex-direction:column; gap:2px; flex:1; min-height:0; overflow-y:auto;
+               padding-bottom:64px; }
+/* Flex items shrink by default -- without this, nav's own children (the board list, areas, tags)
+   get compressed below their real content height instead of nav just scrolling past its box, and
+   the next section renders overlapping the squeezed-but-still-full-height one before it. Found
+   with a sidebar full enough to actually need the scroll this was supposed to trigger. */
+.sidebar nav > * { flex-shrink: 0; }
 .sidebar nav a { display:flex; justify-content:space-between; align-items:center; gap:8px;
                  padding:7px 10px; border-radius:7px; color:var(--text-primary); text-decoration:none; }
 .sidebar nav a:hover { background:var(--hover); }
@@ -227,7 +246,12 @@ h1 { margin:0; font-size:22px; }
 @keyframes toast-in { from { opacity:0; transform:translateY(8px); } }
 @media (max-width: 720px) { #toasts { left:12px; right:12px; bottom:90px; } }
 .badge.quiet { background:var(--hover-strong); color:var(--text-primary); }
-.side-foot { display:flex; justify-content:center; align-items:center; gap:4px; padding:6px; }
+/* Floating, not part of the sidebar's own flex/scroll flow -- always reachable no matter how much
+   nav content there is, same idea as the FAB, mirrored to the bottom-left. Left nested inside
+   .sidebar in the markup on purpose: that hides it for free when the sidebar collapses. */
+.side-foot { position:fixed; left:24px; bottom:24px; z-index:6; display:flex; align-items:center;
+             gap:2px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px;
+             padding:6px; box-shadow:0 4px 14px #0003; }
 .side-foot .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
 .drop-hover { outline:2px dashed var(--accent); outline-offset:-2px; background:var(--accent-dim); border-radius:7px; }
 .meta { display:inline-flex; align-items:center; gap:3px; font-size:12px; color:var(--text-subtle); white-space:nowrap; }
@@ -310,7 +334,6 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .primary-btn { border:0; background:var(--accent); color:var(--on-accent); border-radius:7px; padding:7px 16px; cursor:pointer; font-weight:600; }
 .rule-error { color:var(--danger); font-size:13px; margin:0; min-height:1.2em; }
 .settings a { color:var(--accent-text); }
-.side-foot { flex-wrap:wrap; }
 
 /* collapsible sidebar */
 .sidebar-rail { display:none; position:fixed; top:14px; left:14px; z-index:16; border:1px solid var(--border);
