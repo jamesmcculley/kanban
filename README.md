@@ -22,8 +22,9 @@ directory can also be opened as an Obsidian vault.
 - A Logbook of everything you've completed (with the board and list it came from), the same date
   filter, and an edit (pencil) button on each entry to fix anything about it — not just when it
   was completed
-- **Metrics**: totals for a date range, plus busiest board and busiest day of the week, as simple
-  bar charts; **export activity to CSV**, all of it or just a date range, from Metrics or the Logbook
+- **Metrics** (toolbar icon): totals for a date range, plus busiest board and busiest day of the
+  week, as simple bar charts; **export activity to CSV**, all of it or just a date range, from
+  Metrics or the Logbook
 - An edit button right on a Scheduled card, so you don't have to go find it on its board
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
 - **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its
@@ -34,12 +35,12 @@ directory can also be opened as an Obsidian vault.
   resizable width (drag its edge, or type a number in Settings)
 - **Sort boards** alphabetically, most recently updated or most recently created, or drag them
   manually (Settings) — and **show or hide any sidebar section** (logo, search, Today, Scheduled,
-  Logbook, Metrics, boards, tags, the theme toggle) except the toolbar at the bottom, so there's
+  Logbook, boards, tags, the theme toggle) except the toolbar at the bottom, so there's
   always a way back in; **show or hide the page heading** on Today, Scheduled and the Logbook, too
 - **Pin a board** to keep it at the top of its list no matter which sort order is active
-- **Show or hide individual boards** in the sidebar (the eye icon next to "Boards"), separately from
-  a "show or hide lists" panel (the eye icon on a board itself) to see and toggle every list's
-  visibility at once
+- **Hide a board from the sidebar** — hover a row for a one-click hide button, or use the eye icon
+  next to "Boards" to review and restore everything you've hidden — separately from a "show or hide
+  lists" panel (the eye icon on a board itself) to see and toggle every list's visibility at once
 - Installable to a phone's home screen; keyboard shortcuts (press `?`)
 - A login for LAN mode (one shared password; not needed, and not offered, in localhost mode)
 

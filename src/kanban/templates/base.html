@@ -49,19 +49,21 @@
                 data-post="{{ url_for('boards.toggle_pin', slug=b.slug) }}" data-after="reload"
                 title="{{ 'Unpin' if b.pinned else 'Pin to top' }}"
                 aria-label="{{ 'Unpin' if b.pinned else 'Pin' }} {{ b.title }}">{{ icon('pin', 12) }}</button>
+        <button type="button" class="hide-btn" data-hide-board="{{ b.slug }}"
+                title="Hide from the sidebar" aria-label="Hide {{ b.title }} from the sidebar">{{ icon('eye-off', 12) }}</button>
       </div>
       {% endmacro %}
       <nav>
         <a href="{{ url_for('boards.today_view') }}" data-go="t" title="Today" class="side-today
-           {{ 'active' if request.endpoint == 'boards.today_view' }}"><span>Today</span></a>
+           {{ 'active' if request.endpoint == 'boards.today_view' }}">
+          <span>Today</span><span id="today-view-badge">{% include "_badge.html" %}</span>
+        </a>
         <a href="{{ url_for('boards.scheduled') }}" data-go="s" title="Scheduled" class="side-scheduled
            {{ 'active' if request.endpoint == 'boards.scheduled' }}">
           <span>Scheduled</span><span id="today-badge">{% include "_badge.html" %}</span>
         </a>
         <a href="{{ url_for('boards.logbook') }}" data-go="l" title="Logbook" class="side-logbook
            {{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
-        <a href="{{ url_for('boards.metrics') }}" data-go="m" title="Metrics" class="side-metrics
-           {{ 'active' if request.endpoint == 'boards.metrics' }}"><span>Metrics</span></a>
 
         <div class="side-boards">
           <div class="side-boards-head">
@@ -115,6 +117,8 @@
            aria-label="Trash" title="Trash">{{ icon('trash') }}</a>
         <a href="{{ url_for('boards.archived_boards') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.archived_boards' }}"
            aria-label="Archived boards" title="Archived boards">{{ icon('archive') }}</a>
+        <a href="{{ url_for('boards.metrics') }}" data-go="m" class="icon-btn{{ ' active' if request.endpoint == 'boards.metrics' }}"
+           aria-label="Metrics" title="Metrics">{{ icon('bar-chart') }}</a>
         <a href="{{ url_for('boards.settings') }}" class="icon-btn{{ ' active' if request.endpoint == 'boards.settings' }}"
            aria-label="Settings" title="Settings">{{ icon('settings') }}</a>
         <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"

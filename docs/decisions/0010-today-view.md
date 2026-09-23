@@ -58,3 +58,10 @@ about a card's due/start date at all.
 - `tests/test_store.py`'s new `created_on` test simulates a pre-upgrade card (no `created` key) by
   editing its saved frontmatter directly, same pattern already used for the Logbook's own backfill
   test -- confirms old cards are silently excluded rather than mis-sorted into "today."
+
+**Amendment (same day, after real use):** the owner asked why Today didn't get a count badge the
+way Scheduled has. It should have from the start -- Today's due-or-overdue count is the exact same
+query Scheduled's badge already uses (`nav()`'s `today_count`, `scheduled_cards(date_to=today)`),
+so the Today link just needed its own copy of the same badge markup (`#today-view-badge`, alongside
+Scheduled's `#today-badge`) reading the same variable. `_stats.html` (the fragment `sidebar.js`
+re-fetches after every card change) renders both from the one value, so they never drift apart.

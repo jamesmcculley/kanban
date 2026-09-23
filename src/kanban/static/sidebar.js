@@ -156,6 +156,18 @@ window.HiddenBoards = (() => {
   return { get, set };
 })();
 
+// Hiding a board directly from its own row (hover-revealed, same pattern as the pin button) --
+// the quicker, more discoverable path for the common case of "hide the one I'm looking at."
+// The eye-menu checklist next to "Boards" stays as the way to review or restore whatever's hidden.
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-hide-board]');
+  if (!btn) return;
+  const slug = btn.dataset.hideBoard;
+  window.HiddenBoards.set(slug, true);
+  const cb = document.querySelector(`.board-eye-check[data-slug="${slug}"]`);
+  if (cb) cb.checked = false;
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const hidden = window.HiddenBoards.get();
   document.querySelectorAll('.board-eye-check').forEach(cb => {

@@ -74,3 +74,19 @@ view of what's been completed over a period, plus a CSV export of that activity,
 - `tests/test_features.py`'s new 510-entry Logbook-limit test writes the `.trellis-log.jsonl` file
   directly rather than calling `add_card`/`complete_card` 510 times — the same behaviour, ~100x
   faster, since the test only cares what `logbook()` does with an already-full log file.
+
+**Amendment (same day, after real use):** Metrics moved from a sidebar nav link to a toolbar icon
+in `.side-foot`, next to Trash/Archived/Settings — the owner's feedback was that it read as a
+"page in the list of pages" when it's really an app-level view, same category as Settings, not a
+Today/Scheduled/Logbook peer. It keeps its `g m` shortcut (the `data-go` lookup matches any element
+in `.sidebar`, not just `nav a`) and, since the toolbar always stays put, it's no longer one of the
+"show/hide in the sidebar" choices either — same as Trash/Archived/Settings already weren't.
+
+Also from that feedback: the checkbox-only "hide boards" panel was hard to read at a glance (a
+plain, unlabelled checkbox doesn't say "this is currently hidden" the way a strikethrough does) and
+required opening a panel even to hide the one board you're already looking at. Fixed two ways: (1)
+`.eye-row:has(input:not(:checked))` dims and strikes through a hidden row's label — cheap, and
+fixes the same legibility gap in the older per-board "hide lists" panel for free, since both share
+the `.eye-row` class. (2) Each board row gained its own hover-revealed hide button (`.hide-btn`,
+same reveal-on-hover pattern as the pin button, same row). The panel is still there for reviewing
+everything that's hidden and restoring it — just no longer the only way in.

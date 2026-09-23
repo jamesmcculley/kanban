@@ -1185,6 +1185,31 @@ def test_hide_one_board_from_the_sidebar_and_it_persists(page):
     expect(page.locator('[data-hidden-boards-badge]')).to_be_hidden()
 
 
+def test_hide_a_board_directly_from_its_row_and_the_panel_reflects_it(page):
+    fab_add(page, "New board", "Zebra")
+    page.wait_for_url("**/b/zebra")
+    row = page.locator('.board-row[data-slug="zebra"]')
+    row.hover()
+    row.get_by_role("button", name="Hide Zebra from the sidebar").click()
+    expect(row).to_be_hidden()                                     # one click, no panel needed
+
+    page.get_by_role("button", name="Show or hide boards in the sidebar").click()
+    checkbox = page.locator('.board-eye-check[data-slug="zebra"]')
+    expect(checkbox).not_to_be_checked()                            # panel agrees it's hidden
+    expect(checkbox.locator("xpath=..")).to_have_css("opacity", "0.55")  # and looks visibly dimmed
+
+
+def test_today_badge_matches_scheduled_badge(page):
+    add_card(page, "Todo", "needs doing")
+    page.locator(".card", has_text="needs doing").locator(".title").click()
+    page.fill(".dialog input[name=due]", "today")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    expect(page.locator("#today-view-badge .badge")).to_have_text("1")
+    expect(page.locator("#today-badge .badge")).to_have_text("1")
+
+
 def test_edit_button_on_a_scheduled_card_opens_the_full_edit_dialog(page):
     add_card(page, "Todo", "renew passport")
     page.locator(".card", has_text="renew passport").locator(".title").click()

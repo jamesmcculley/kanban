@@ -92,3 +92,8 @@ regular and fully hidden), and a way to resize the sidebar by dragging or typing
   titles rendered nothing at all (not even a truncated letter), making a board look like it had
   disappeared from the sidebar. Fixed with `display: none` and the width bumped to 72px; see AGENTS.md
   trap 16.
+
+**Amendment (a later round, after real use):** the "show sidebar" rail (the button that appears at
+Hidden) was fixed top-left, but the same toggle at Regular/Skinny lives bottom-left in `.side-foot`
+— collapsing the sidebar made the button visually jump across the screen instead of staying roughly
+where it was. Moved the rail to the same bottom-left corner.
