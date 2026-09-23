@@ -15,10 +15,16 @@ directory can also be opened as an Obsidian vault.
   position; hide completed cards; default lists for new boards; hide list/board titles or card counts
 - Twelve colour themes plus a Default that follows your device, and three text sizes (Settings)
 - Quick capture (`c` from anywhere) to a board of your choice, remembered per device
+- **Today**: what's due or overdue, what you completed today and what you created today, in one
+  place — each of the three sections can be hidden from the page itself
 - **Scheduled**: every card with a start or due date, across all boards, with a date-range filter,
   quick presets and filters you can save and reuse
 - A Logbook of everything you've completed (with the board and list it came from), the same date
-  filter, and a way to fix a completion date you forgot to check off on time
+  filter, and an edit (pencil) button on each entry to fix anything about it — not just when it
+  was completed
+- **Metrics**: totals for a date range, plus busiest board and busiest day of the week, as simple
+  bar charts; **export activity to CSV**, all of it or just a date range, from Metrics or the Logbook
+- An edit button right on a Scheduled card, so you don't have to go find it on its board
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
 - **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its
   cards, rules and history stay exactly as they were; unarchive it any time from its own page or the
@@ -27,10 +33,13 @@ directory can also be opened as an Obsidian vault.
   and three sizes — regular, a narrow icon rail, or fully hidden — cycled from one button, plus a
   resizable width (drag its edge, or type a number in Settings)
 - **Sort boards** alphabetically, most recently updated or most recently created, or drag them
-  manually (Settings) — and **show or hide any sidebar section** (logo, search, Scheduled, Logbook,
-  boards, tags, the theme toggle) except the toolbar at the bottom, so there's always a way back in
+  manually (Settings) — and **show or hide any sidebar section** (logo, search, Today, Scheduled,
+  Logbook, Metrics, boards, tags, the theme toggle) except the toolbar at the bottom, so there's
+  always a way back in; **show or hide the page heading** on Today, Scheduled and the Logbook, too
 - **Pin a board** to keep it at the top of its list no matter which sort order is active
-- A "show or hide lists" panel (the eye icon) to see and toggle every list's visibility at once
+- **Show or hide individual boards** in the sidebar (the eye icon next to "Boards"), separately from
+  a "show or hide lists" panel (the eye icon on a board itself) to see and toggle every list's
+  visibility at once
 - Installable to a phone's home screen; keyboard shortcuts (press `?`)
 - A login for LAN mode (one shared password; not needed, and not offered, in localhost mode)
 

@@ -65,11 +65,13 @@ class LogbookMixin:
         self._log_path().write_text(
             "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events), encoding="utf-8")
 
-    def logbook(self, limit: int = 500, date_from: str | None = None,
+    def logbook(self, limit: int | None = 500, date_from: str | None = None,
                date_to: str | None = None) -> list[dict]:
         """Newest first. Cards completed before the log existed are folded in from their files.
         `date_from`/`date_to` (inclusive ISO dates) filter by completion day, applied before the
-        limit so a date-range query is never truncated by an unrelated recency cap."""
+        limit so a date-range query is never truncated by an unrelated recency cap. `limit=None`
+        returns everything in range, unbounded -- Metrics and the CSV export need real totals, not
+        just the newest 500 the Logbook page itself is happy to show."""
         events = self._read_log()
         seen = {(e["card"], e["at"]) for e in events}
         for board, card in self.all_cards():
@@ -80,4 +82,4 @@ class LogbookMixin:
         if date_to:
             events = [e for e in events if e["at"][:10] <= date_to]
         events.sort(key=lambda e: e["at"], reverse=True)
-        return events[:limit]
+        return events[:limit] if limit else events

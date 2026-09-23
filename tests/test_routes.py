@@ -70,6 +70,27 @@ def test_column_routes(client):
     assert client.post("/b/nope/columns", data={"name": "x"}).status_code == 404
 
 
+def test_today_view_shows_due_completed_and_created(client):
+    # titles avoid embedded date words ("today"/"tomorrow"/...) -- quick-add would strip them into
+    # a due date instead of keeping them in the title, same as "Buy paint tomorrow" -> due tomorrow.
+    due_id, _ = _add(client, "needs doing")
+    r = client.post(f"/b/my-board/cards/{due_id}", data={"title": "needs doing", "body": "", "due": "today"})
+    assert r.status_code == 200
+    done_id, _ = _add(client, "already finished")
+    client.post(f"/b/my-board/cards/{done_id}/complete")
+
+    page = client.get("/today").text
+    assert 'data-page="today"' in page
+    due_section = page.split('data-today-section="due"')[1].split('data-today-section="completed"')[0]
+    completed_section = page.split('data-today-section="completed"')[1].split('data-today-section="created"')[0]
+    created_section = page.split('data-today-section="created"')[1]
+    assert "needs doing" in due_section
+    assert "already finished" not in due_section                    # completed cards leave the due list
+    assert "already finished" in completed_section
+    assert "needs doing" in created_section and "already finished" in created_section  # both made today
+    assert page.count('aria-label="Edit this card"') >= 4          # every row gets one
+
+
 def test_completion_stamp_shown_and_sidebar_layout(client):
     cid, _ = _add(client, "x")
     html = client.post(f"/b/my-board/cards/{cid}/complete").text
@@ -79,6 +100,8 @@ def test_completion_stamp_shown_and_sidebar_layout(client):
     assert 'id="fab"' in page and 'data-list-url="/b/my-board/columns"' in page
     assert 'class="add-column"' not in page and 'class="newboard"' not in page      # moved into the +
     assert 'aria-label="Hide list"' in page and 'aria-label="Add card"' in page
+    # the sidebar's own "show/hide boards" checklist -- one checkbox per board
+    assert 'class="board-eye-check" data-slug="my-board"' in page
 
 
 def test_quick_add_tags_and_tag_page(client):
@@ -96,7 +119,10 @@ def test_layout_and_order_routes(client):
     r = client.post("/layout", json={"areas": ["Home"], "boards": {"": ["second"], "Home": ["my-board"]}})
     assert r.status_code == 204
     page = client.get("/b/second").text
-    assert page.index('data-slug="second"') < page.index('data-area="Home"') < page.index('data-slug="my-board"')
+    # class="board-row", not just data-slug: the sidebar's "show/hide boards" checklist also
+    # carries a data-slug for each board, earlier in the page than the rows themselves.
+    assert (page.index('class="board-row" data-slug="second"') < page.index('data-area="Home"')
+            < page.index('class="board-row" data-slug="my-board"'))
     assert client.post("/layout", json={"areas": ["Nope"], "boards": {}}).status_code == 400
     assert client.post("/layout", data="junk").status_code == 400
     client.post("/b/my-board/columns", data={"name": "Extra"})

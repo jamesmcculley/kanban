@@ -1,6 +1,7 @@
 """Logbook, trash/undo, clear-completed, inbox, moving cards between boards, notes."""
 
 import base64
+import json
 from datetime import datetime
 
 import pytest
@@ -79,6 +80,17 @@ def test_logbook_survives_a_corrupt_line(store, tmp_path):
     with (tmp_path / ".trellis-log.jsonl").open("a") as f:
         f.write("{not json\n")
     assert len(store.logbook()) == 1
+
+
+def test_logbook_limit_none_returns_everything_the_page_would_truncate(store, tmp_path):
+    """Metrics and the CSV export need real totals, not the Logbook page's newest-500 cap. Writes
+    the log file directly -- 510 real add_card/complete_card round trips would work too, just far
+    more slowly, and this test only cares what logbook() does with an already-full log file."""
+    lines = [json.dumps({"at": f"2026-01-{(i % 28) + 1:02d}T09:00", "card": f"c{i}", "title": "x",
+                         "board": "b", "board_title": "B", "list": "Todo"}) for i in range(510)]
+    (tmp_path / ".trellis-log.jsonl").write_text("\n".join(lines) + "\n")
+    assert len(store.logbook()) == 500          # the page's own default is still capped
+    assert len(store.logbook(limit=None)) == 510
 
 
 # ---- trash / undo ---------------------------------------------------------------------------
@@ -219,6 +231,35 @@ def test_complete_toast_undo_and_logbook_page(client):
     assert "Zebra paint" not in client.get("/logbook").text
     client.post(f"/b/my-board/cards/{cid}/complete")
     assert "HX-Trigger" not in client.post(f"/b/my-board/cards/{cid}/complete").headers   # an un-check: no toast
+
+
+def test_metrics_page_and_csv_export(client):
+    a = _add(client, "Paint fence")
+    b = _add(client, "Mow lawn")
+    client.post(f"/b/my-board/cards/{a}/complete")
+    client.post(f"/b/my-board/cards/{b}/complete")
+    page = client.get("/metrics").text
+    assert ">2<" in page.split('class="metric-num"')[1][:10]   # total shown
+    assert "My Board" in page                                  # by-board breakdown
+    r = client.get("/export/activity.csv")
+    assert r.status_code == 200
+    assert r.headers["Content-Type"].startswith("text/csv")
+    assert 'filename="activity.csv"' in r.headers["Content-Disposition"]
+    body = r.text
+    assert body.startswith("completed_at,title,board,list,repeating\r\n")
+    assert "Paint fence" in body and "Mow lawn" in body
+    # a date range both filters the page and carries into the export link
+    ranged = client.get("/export/activity.csv?from=2099-01-01&to=2099-01-02")
+    assert ranged.text == "completed_at,title,board,list,repeating\r\n"
+    assert 'filename="activity_2099-01-01_2099-01-02.csv"' in ranged.headers["Content-Disposition"]
+
+
+def test_edit_card_dialog_standalone_reloads_instead_of_swapping_the_card(client):
+    cid = _add(client, "x")
+    normal = client.get(f"/b/my-board/cards/{cid}").text
+    standalone = client.get(f"/b/my-board/cards/{cid}?standalone=1").text
+    assert "hx-target=\"[data-id=" in normal and "hx-swap=\"outerHTML\"" in normal
+    assert "hx-swap=\"none\"" in standalone and "location.reload()" in standalone
 
 
 def test_complete_from_agenda_toast_survives_reload(client):

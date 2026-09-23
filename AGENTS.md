@@ -17,8 +17,8 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 ## Boundaries
 
 - **Pure domain modules never touch I/O or Flask:** `rules.py`, `settings.py`, `dates.py`, `notes.py`,
-  `tags.py`, `labels.py`, `csvimport.py`. `tests/test_rules.py::test_domain_modules_are_pure` enforces
-  it. `Store` (and its mixins) does the file I/O; `routes.py` is thin HTTP glue.
+  `tags.py`, `labels.py`, `csvimport.py`, `metrics.py`. `tests/test_rules.py::test_domain_modules_are_pure`
+  enforces it. `Store` (and its mixins) does the file I/O; `routes.py` is thin HTTP glue.
 - **Reading never writes.** Hiding completed cards is a view (`view_columns`), not an archive pass.
 - **Files are the source of truth** (Markdown + YAML frontmatter). Unknown frontmatter must survive a save.
 - Do not add a database, a JS build step, or third-party runtime requests (htmx and Sortable are vendored).
@@ -115,7 +115,25 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     (the active one, with a background colour) still looked like *something* was there; a second,
     inactive row looked like the board had vanished from the sidebar entirely. Fixed with
     `display: none` on `.pin-btn` specifically in skinny mode, freeing the space for real.
-17. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+17. **A board page and the sidebar can each show a "reveal a checklist panel" popover at once, and
+    reusing the same generic classes for both (`.eye-menu-wrap`, `[data-eye-toggle]`, `.eye-menu`,
+    `.eye-row`, `.icon-badge`) is exactly right for the shared open/close JS -- ui.js's handler
+    doesn't care which panel it's toggling -- but wrong for anything that queries by class alone.**
+    Adding the sidebar's "show/hide boards" panel (same look as the per-board "show/hide lists"
+    one) made `.eye-menu`, `.eye-row` and `[data-eye-toggle] .icon-badge` match two elements on any
+    kanban board page, and existing Playwright locators using those classes unscoped hit strict-mode
+    violations. Same shape as trap 9's `.filter-wrap` collision. Fixed by scoping each test's
+    locator to its own panel's container (`.page-head .eye-menu` vs `.side-boards-head .eye-menu`)
+    and giving the sidebar's badge its own class (`.board-hidden-badge`, same CSS rule as
+    `.icon-badge`, just not the same selector) rather than trying to make one class disambiguate.
+18. **A Playwright `get_by_role(name=...)` match is by accessible name, not by page section** --
+    adding the sidebar's "Today" nav link gave the page a second thing named "Today" (the
+    Scheduled/Logbook date filter already had a "Today" preset chip), and an existing test's
+    `get_by_role("link", name="Today", exact=True)` started matching both. `exact=True` only
+    stops substring matches; it does nothing about two unrelated elements sharing the exact same
+    name. Fixed by scoping the locator to its actual container (`.date-filter-panel`). Same root
+    cause as trap 17, one level up (accessible name vs. CSS class).
+19. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
     — a concurrent read landing between the truncate and the new content finishing could see a
     half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
     run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.

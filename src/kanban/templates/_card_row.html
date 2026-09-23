@@ -1,0 +1,20 @@
+{# A scheduled-card row: checkbox, title, due/start, board+list, edit button. Shared by Scheduled
+   and Today's "Due & overdue"/"Created today" sections -- was duplicated markup in agenda.html
+   until Today needed the same row shape twice more. #}
+{% from "_icons.html" import icon %}
+{% macro card_row(board, card, today=none) %}
+<div class="row" data-id="{{ card.id }}">
+  <input type="checkbox" class="check" {% if card.done %}checked{% endif %} aria-label="Complete" hx-swap="none"
+         hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id, refresh=1) }}">
+  <span class="title">{{ card.title }}{% if card.repeat %} <span class="repeat" title="{{ card.repeat }}">↻</span>{% endif %}
+    {% if card.priority %}<span class="priority p-{{ card.priority }}" title="{{ card.priority|capitalize }} priority">{{ icon('flag', 12) }}</span>{% endif %}
+    {% if card.start and card.due and card.start != card.due %}<span class="start" title="Starts {{ card.start }}">▸ {{ card.start }}</span>{% endif %}
+    {# today: only passed where there's no date-group header doing this job already (Today's page, not Scheduled's) #}
+    {% if today and card.due %}<span class="due{% if card.due < today and not card.done %} overdue{% endif %}">{{ card.due }}</span>{% endif %}</span>
+  {% if card.labels %}<div class="card-labels">{% for lbl in board.labels if lbl.id in card.labels %}<span class="label-chip c-{{ lbl.color }}" title="{{ lbl.name }}">{{ lbl.name }}</span>{% endfor %}</div>{% endif %}
+  <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }} / {{ card.column }}</a>
+  <button type="button" class="icon-btn" title="Edit this card" aria-label="Edit this card"
+          hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id, standalone=1) }}"
+          hx-target="#modal" hx-swap="innerHTML">{{ icon('edit', 14) }}</button>
+</div>
+{% endmacro %}

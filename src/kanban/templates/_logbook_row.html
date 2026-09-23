@@ -1,0 +1,19 @@
+{# A completed-card row: checkmark, title, time, board+list, edit button. Shared by the Logbook
+   and Today's "Completed today" section. #}
+{% from "_icons.html" import icon %}
+{% macro logbook_row(e, live) %}
+<div class="row">
+  <span class="done-mark">{{ icon('check', 15) }}</span>
+  <span class="title">{{ e.title }}{% if e.repeat %} <span class="repeat" title="Repeating">↻</span>{% endif %}</span>
+  <span class="when">{{ e.at|clock }}</span>
+  <span class="ref" title="Board and list it was on">
+    {% if e.board in live %}<a href="{{ url_for('boards.board', slug=e.board) }}">{{ e.board_title }}</a>{% else %}{{ e.board_title }}{% endif %}
+    <span class="sep">›</span> {{ e.list }}
+  </span>
+  {% if e.board in live %}
+  <button type="button" class="icon-btn" title="Edit this card" aria-label="Edit this card"
+          hx-get="{{ url_for('boards.edit_card', slug=e.board, card_id=e.card, standalone=1) }}"
+          hx-target="#modal" hx-swap="innerHTML">{{ icon('edit', 14) }}</button>
+  {% endif %}
+</div>
+{% endmacro %}

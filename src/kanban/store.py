@@ -51,6 +51,7 @@ class Card:
     labels: list[str] = field(default_factory=list)  # board-scoped label ids (Board.labels)
     priority: str | None = None  # one of PRIORITIES, or None for no priority
     archived: bool = False  # cleared from its list; still in the Logbook and search
+    created: str | None = None  # ISO timestamp, set once by add_card and never touched again
     effects: list[str] = field(default_factory=list, compare=False, repr=False)  # what rules just did (not stored)
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
@@ -87,7 +88,7 @@ def _iso(meta: dict, key: str) -> str | None:
 
 
 _CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
-              "priority", "done", "completed", "last_completed", "archived"}
+              "priority", "done", "completed", "last_completed", "archived", "created"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
                "labels", "archived", "pinned", "created"}
 
@@ -101,6 +102,7 @@ def _card_from(meta: dict, body: str) -> Card:
         tags=parse_tags(meta.get("tags")), labels=list(meta.get("labels") or []),
         priority=meta.get("priority") if meta.get("priority") in PRIORITIES else None,
         archived=bool(meta.get("archived")),
+        created=_iso(meta, "created"),
     )
 
 
@@ -429,6 +431,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["last_completed"] = card.last_completed
         if card.archived:
             meta["archived"] = True
+        if card.created:
+            meta["created"] = card.created
         _write(self._card_path(slug, card.id), {**card.extra, **meta}, card.body)
         self._touch_board(slug)  # so "most recently updated" board sort notices card activity too
 
@@ -630,6 +634,13 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             found = [(b, c) for b, c in found if effective_date(c) <= date_to]
         return sorted(found, key=lambda bc: (effective_date(bc[1]), bc[0].slug, bc[1].position))
 
+    def created_on(self, day: str) -> list[tuple[Board, Card]]:
+        """Every card first created on this ISO date, across all boards, newest first. Cards from
+        before `created` existed (frontmatter has no `created` key) never match any date -- there's
+        no way to know when they were made, and it's certainly not "today" for a card that old."""
+        found = [(b, c) for b, c in self.all_cards() if c.created and c.created[:10] == day]
+        return sorted(found, key=lambda bc: bc[1].created, reverse=True)
+
     def search(self, query: str) -> list[tuple[Board, Card]]:
         """Cards whose title, notes or board name contain every word of the query. Archived boards
         are left out, same as everywhere else active -- see all_cards."""
@@ -649,7 +660,7 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
     def add_card(self, slug: str, title: str, column: str, due: str | None = None,
                  repeat: str | None = None, tags: list[str] | None = None,
                  top: bool = False, start: str | None = None, labels: list[str] | None = None,
-                 priority: str | None = None, body: str = "") -> Card:
+                 priority: str | None = None, body: str = "", now: datetime | None = None) -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
@@ -658,7 +669,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
                     repeat=repeat, tags=parse_tags(tags), start=start, body=body,
                     labels=[x for x in (labels or []) if x in known],
-                    priority=priority if priority in PRIORITIES else None)
+                    priority=priority if priority in PRIORITIES else None,
+                    created=(now or datetime.now()).isoformat(timespec="minutes"))
         self._save(slug, card)
         if top and siblings:
             self._move(slug, card.id, column, 0)

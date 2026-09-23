@@ -180,8 +180,9 @@
   });
 
   // -- editing when a completed card was actually completed (forgot to check it off yesterday?) --
-  // Used from the card edit dialog and, inline, from the Logbook -- the two show different markup
-  // on success (the card dialog wants the fresh card face; the Logbook just reloads).
+  // Only markup in the shared card-edit dialog (_edit.html) now -- opened either on a board (a
+  // `.card[data-id]` exists to patch in place) or standalone from Scheduled/Logbook (it doesn't,
+  // so this falls through to a plain reload, same as the rest of that dialog in standalone mode).
   document.addEventListener('click', async e => {
     const btn = e.target.closest('[data-completed-at-save]');
     if (!btn) return;
@@ -197,13 +198,5 @@
       window.toast.later('Completion date updated');
       location.reload();
     }
-  });
-
-  // -- Logbook: reveal the inline date editor for one entry ------------------------------------
-  document.addEventListener('click', e => {
-    const btn = e.target.closest('[data-toggle-edit-at]');
-    if (!btn) return;
-    const editor = btn.closest('.row').nextElementSibling;
-    if (editor?.classList.contains('logbook-inline-edit')) editor.hidden = !editor.hidden;
   });
 })();

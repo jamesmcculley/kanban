@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Metrics{% endblock %}
+{% block content %}
+  <header class="page-head"><h1>Metrics</h1>
+    <a class="link-btn export-link" href="{{ export_url }}">{{ icon('download', 14) }} Export CSV</a>
+  </header>
+  {% include "_date_filter.html" %}
+  <main class="metrics">
+    <p class="metric-total"><span class="metric-num">{{ total }}</span> completed{% if date_from or date_to %} in this range{% endif %}</p>
+    {% if total %}
+    <section class="metric-block">
+      <h2>By board</h2>
+      <div class="bar-list">
+        {% for name, count in by_board %}
+        <div class="bar-row">
+          <span class="bar-label">{{ name }}</span>
+          <span class="bar-track"><span class="bar-fill" style="width:{{ (100 * count / by_board[0][1])|round(1) }}%"></span></span>
+          <span class="bar-count">{{ count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    <section class="metric-block">
+      <h2>By day of week</h2>
+      {% set busiest = by_weekday|map(attribute=1)|max %}
+      <div class="bar-list">
+        {% for name, count in by_weekday %}
+        <div class="bar-row">
+          <span class="bar-label">{{ name }}</span>
+          <span class="bar-track"><span class="bar-fill" style="width:{{ (100 * count / busiest)|round(1) if busiest else 0 }}%"></span></span>
+          <span class="bar-count">{{ count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% else %}
+    <p class="empty">{% if date_from or date_to %}Nothing completed in this range.{% else %}Nothing completed yet. Check a card off and it will show up here.{% endif %}</p>
+    {% endif %}
+  </main>
+{% endblock %}

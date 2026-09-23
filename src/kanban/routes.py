@@ -1,5 +1,6 @@
 import json
 from datetime import date, datetime
+from urllib.parse import urlencode
 
 from flask import (
     Blueprint,
@@ -16,6 +17,7 @@ from flask import (
 
 from . import csvimport, notes
 from . import labels as L
+from . import metrics as M
 from . import rules as R
 from . import settings as S
 from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
@@ -180,9 +182,15 @@ def add_card(slug):
 
 @bp.get("/b/<slug>/cards/<card_id>")
 def edit_card(slug, card_id):
+    # `standalone`: opened from a page that isn't the card's own board (Scheduled, Logbook) --
+    # there's no `.card[data-id]` there for the save to swap in place (Scheduled's row markup
+    # looks nothing like a board card, and Logbook has no live card markup at all), and an edited
+    # due date can move a Scheduled card to a different day-group entirely. _edit.html reloads the
+    # whole page on save in that case instead of trying to patch the DOM. See _edit.html's comment.
     try:
         return render_template("_edit.html", board=store().get_board(slug),
-                               card=store().get_card(slug, card_id))
+                               card=store().get_card(slug, card_id),
+                               standalone=bool(request.args.get("standalone")))
     except KeyError:
         abort(404)
 
@@ -413,6 +421,20 @@ def scheduled():
                            saved=store().list_filters(), filter_url=url_for("boards.scheduled"))
 
 
+@bp.get("/today")
+def today_view():
+    """Due-or-overdue, completed today and created today, in one glance -- not a date-range view
+    (there's no filter form), just today. Each of the three sections can be hidden from the page
+    itself (a personal, per-device preference -- see today-hide in sidebar.js), not here."""
+    today = date.today().isoformat()
+    due = store().scheduled_cards(date_to=today)
+    completed = store().logbook(date_from=today, date_to=today)
+    created = store().created_on(today)
+    live = {b.slug for b in store().list_boards()}
+    return render_template("today.html", due=due, completed=completed, created=created,
+                           today=today, live=live)
+
+
 @bp.post("/filters")
 def save_filter():
     try:
@@ -641,7 +663,34 @@ def logbook():
     live = {b.slug for b in store().list_boards()}
     return render_template("logbook.html", days=days, live=live, date_from=date_from,
                            date_to=date_to, presets=_presets(date.today(), overdue=False),
-                           saved=store().list_filters(), filter_url=url_for("boards.logbook"))
+                           saved=store().list_filters(), filter_url=url_for("boards.logbook"),
+                           export_url=_export_url(date_from, date_to))
+
+
+def _export_url(date_from, date_to):
+    qs = urlencode({k: v for k, v in (("from", date_from), ("to", date_to)) if v})
+    return url_for("boards.export_activity") + (f"?{qs}" if qs else "")
+
+
+@bp.get("/metrics")
+def metrics():
+    date_from, date_to = _filter_from_query()
+    events = store().logbook(limit=None, date_from=date_from, date_to=date_to)
+    return render_template("metrics.html", total=len(events), by_board=M.by_board(events),
+                           by_weekday=M.by_weekday(events), date_from=date_from, date_to=date_to,
+                           presets=_presets(date.today(), overdue=False), saved=store().list_filters(),
+                           filter_url=url_for("boards.metrics"), export_url=_export_url(date_from, date_to))
+
+
+@bp.get("/export/activity.csv")
+def export_activity():
+    date_from, date_to = _filter_from_query()
+    events = store().logbook(limit=None, date_from=date_from, date_to=date_to)
+    name = "activity.csv" if not (date_from or date_to) else f"activity_{date_from or 'start'}_{date_to or 'end'}.csv"
+    resp = make_response(M.to_csv(events))
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{name}"'
+    return resp
 
 
 @bp.post("/b/<slug>/cards/<card_id>/completed-at")

@@ -52,15 +52,36 @@
       </div>
       {% endmacro %}
       <nav>
+        <a href="{{ url_for('boards.today_view') }}" data-go="t" title="Today" class="side-today
+           {{ 'active' if request.endpoint == 'boards.today_view' }}"><span>Today</span></a>
         <a href="{{ url_for('boards.scheduled') }}" data-go="s" title="Scheduled" class="side-scheduled
            {{ 'active' if request.endpoint == 'boards.scheduled' }}">
           <span>Scheduled</span><span id="today-badge">{% include "_badge.html" %}</span>
         </a>
         <a href="{{ url_for('boards.logbook') }}" data-go="l" title="Logbook" class="side-logbook
            {{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
+        <a href="{{ url_for('boards.metrics') }}" data-go="m" title="Metrics" class="side-metrics
+           {{ 'active' if request.endpoint == 'boards.metrics' }}"><span>Metrics</span></a>
 
         <div class="side-boards">
-          <h3>Boards</h3>
+          <div class="side-boards-head">
+            <h3>Boards</h3>
+            {% set all_boards = sidebar.unassigned + sidebar.areas|map(attribute=1)|sum(start=[]) %}
+            {% if all_boards %}
+            <div class="eye-menu-wrap">
+              <button type="button" class="icon-btn" data-eye-toggle
+                      aria-label="Show or hide boards in the sidebar" title="Show or hide boards in the sidebar">
+                {{ icon('eye', 15) }}<span class="board-hidden-badge" data-hidden-boards-badge hidden></span>
+              </button>
+              <div class="eye-menu" hidden>
+                <div class="eye-menu-head"><span>Boards</span></div>
+                {% for b in all_boards %}
+                <label class="eye-row"><input type="checkbox" class="board-eye-check" data-slug="{{ b.slug }}" checked><span>{{ b.title }}</span></label>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
           <div class="boards-unassigned">
             {% for b in sidebar.unassigned %}{{ board_row(b, current_board) }}{% endfor %}
           </div>
@@ -146,7 +167,7 @@
         <dt>/</dt><dd>search</dd>
         <dt>#tag</dt><dd>add tags when typing a card: “Buy paint #home”</dd>
         <dt>c</dt><dd>quick-add a card to a board of your choice, from anywhere</dd>
-        <dt>g s / g l</dt><dd>go to Scheduled / Logbook</dd>
+        <dt>g t / g s / g l / g m</dt><dd>go to Today / Scheduled / Logbook / Metrics</dd>
         <dt>drag a card</dt><dd>onto a board in the sidebar to move it there</dd>
         <dt>Esc</dt><dd>close dialog</dd>
       </dl>

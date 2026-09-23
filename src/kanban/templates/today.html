@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_card_row.html" import card_row %}
+{% from "_logbook_row.html" import logbook_row %}
+{% block title %}Today{% endblock %}
+{% block content %}
+  <header class="page-head"><h1 data-page="today">Today</h1>
+    <div class="today-filter-wrap">
+      <button type="button" class="icon-btn" data-today-filter-toggle
+              aria-label="Show or hide sections" title="Show or hide sections">{{ icon('filter', 15) }}</button>
+      <div class="today-filter-panel filter-panel" hidden>
+        <label><input type="checkbox" class="today-section-check" data-section="due" checked> Due &amp; overdue</label>
+        <label><input type="checkbox" class="today-section-check" data-section="completed" checked> Completed today</label>
+        <label><input type="checkbox" class="today-section-check" data-section="created" checked> Created today</label>
+      </div>
+    </div>
+  </header>
+  <main class="agenda today-view">
+    <section data-today-section="due">
+      <h2>Due &amp; overdue</h2>
+      {% for board, card in due %}{{ card_row(board, card, today) }}
+      {% else %}<p class="empty">Nothing due or overdue.</p>{% endfor %}
+    </section>
+    <section data-today-section="completed">
+      <h2>Completed today</h2>
+      {% for e in completed %}{{ logbook_row(e, live) }}
+      {% else %}<p class="empty">Nothing completed yet today.</p>{% endfor %}
+    </section>
+    <section data-today-section="created">
+      <h2>Created today</h2>
+      {% for board, card in created %}{{ card_row(board, card, today) }}
+      {% else %}<p class="empty">Nothing added today.</p>{% endfor %}
+    </section>
+  </main>
+{% endblock %}

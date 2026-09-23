@@ -1,8 +1,17 @@
 {% from "_icons.html" import icon %}
 <div class="backdrop" onclick="if (event.target === this) this.remove()">
+  {# `standalone`: opened from Scheduled or the Logbook, not the card's own board -- there's no
+     `.card[data-id]` there to patch in place (a `.row` looks nothing like a board card, and an
+     edited due date can move the card to a whole different day-group), so a successful save just
+     reloads the page instead of swapping DOM. The board-page dialog keeps the in-place swap. #}
   <form class="dialog" hx-post="{{ url_for('boards.update_card', slug=board.slug, card_id=card.id) }}"
+        {% if standalone %}
+        hx-swap="none"
+        hx-on::after-request="if (event.target === this && event.detail.successful) location.reload()"
+        {% else %}
         hx-target="[data-id='{{ card.id }}']" hx-swap="outerHTML"
         hx-on::after-request="if (event.target === this && event.detail.successful) this.closest('.backdrop').remove()"
+        {% endif %}
         hx-on::response-error="this.querySelector('.error').textContent = 'Could not parse a date or the repeat rule.'">
     <button type="button" class="dialog-close" aria-label="Close" title="Close"
             onclick="this.closest('.backdrop').remove()">{{ icon('x', 18) }}</button>

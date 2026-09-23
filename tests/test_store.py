@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 
 import pytest
 
@@ -206,6 +207,31 @@ def test_add_card_at_top(store):
     assert [c.position for c in store.cards_by_column(b.slug)["Todo"]] == [0, 1, 2]
     other = store.add_card(b.slug, "elsewhere", "Doing", top=True)          # empty list: no shuffling
     assert store.get_card(b.slug, other.id).position == 0
+
+
+def test_card_created_timestamp_round_trips_and_survives_an_edit(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "x", "Todo", now=datetime(2026, 9, 1, 8, 30))
+    assert card.created == "2026-09-01T08:30"
+    assert store.get_card(b.slug, card.id).created == "2026-09-01T08:30"   # round-trips through disk
+    updated = store.update_card(b.slug, card.id, "renamed", "", None)
+    assert updated.created == "2026-09-01T08:30"                            # unrelated edits don't touch it
+
+
+def test_created_on_filters_by_day_across_boards_and_ignores_cards_without_one(store, tmp_path):
+    a = store.create_board("A")
+    b = store.create_board("B")
+    store.add_card(a.slug, "today a", "Todo", now=datetime(2026, 9, 14, 9, 0))
+    store.add_card(a.slug, "today a, later", "Todo", now=datetime(2026, 9, 14, 17, 0))
+    store.add_card(b.slug, "today b", "Todo", now=datetime(2026, 9, 14, 12, 0))
+    store.add_card(b.slug, "yesterday", "Todo", now=datetime(2026, 9, 13, 9, 0))
+    old = store.add_card(a.slug, "no created field at all", "Todo")   # simulate a pre-upgrade card
+    path = tmp_path / a.slug / "cards" / f"{old.id}.md"
+    path.write_text(path.read_text().replace("created: '2026-09-14T", "was: '2026-09-14T"))
+
+    todays = store.created_on("2026-09-14")
+    assert [c.title for _, c in todays] == ["today a, later", "today b", "today a"]  # newest first
+    assert store.created_on("2026-09-15") == []
 
 
 # ---- tasks board kind ------------------------------------------------------------------------

@@ -71,6 +71,8 @@ input, textarea, button { font:inherit; }
 .sidebar nav a.active { background:var(--accent); color:var(--on-accent); }
 .sidebar h3 { margin:16px 10px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
               color:var(--text-subtle); }
+.side-boards-head { display:flex; align-items:center; justify-content:space-between; padding-right:4px; }
+.side-boards-head h3 { margin-bottom:0; }
 
 /* Sidebar customization (Settings > Sidebar): which sections show, applied before first paint
    (see _theme_boot.html) so there's no flash of a section that's about to disappear. Everything
@@ -80,10 +82,17 @@ input, textarea, button { font:inherit; }
 html[data-sidebar-hide~="logo"] .brand { display:none; }
 html[data-sidebar-hide~="search"] .sidebar .search { display:none; }
 html[data-sidebar-hide~="scheduled"] .side-scheduled { display:none; }
+html[data-sidebar-hide~="today"] .side-today { display:none; }
 html[data-sidebar-hide~="logbook"] .side-logbook { display:none; }
+html[data-sidebar-hide~="metrics"] .side-metrics { display:none; }
 html[data-sidebar-hide~="boards"] .side-boards { display:none; }
 html[data-sidebar-hide~="tags"] #tag-section { display:none; }
 html[data-sidebar-hide~="theme"] .theme-btn { display:none; }
+/* Per-page heading hide (Settings > Page titles): same idea, a fixed small set of keys, but this
+   one's about main-page content, not the sidebar -- h1[data-page] names which page it belongs to. */
+html[data-page-title-hide~="today"] h1[data-page="today"],
+html[data-page-title-hide~="scheduled"] h1[data-page="scheduled"],
+html[data-page-title-hide~="logbook"] h1[data-page="logbook"] { display:none; }
 .badge { background:var(--danger-solid); color:#fff; border-radius:10px; font-size:11px; padding:1px 7px; }
 .sidebar input { width:100%; padding:7px 9px; border-radius:7px; border:1px solid var(--border);
                  background:var(--bg-card); color:var(--text-primary); }
@@ -295,8 +304,11 @@ h1 { margin:0; font-size:22px; }
             padding:5px; border-radius:6px; align-self:center; position:relative; }
 .icon-btn:hover { background:var(--hover); color:var(--text-primary); }
 .icon-btn.danger:hover, .armed { color:var(--danger) !important; }
-/* a small count overlaid on an icon button, e.g. how many lists the eye icon has hidden */
-.icon-badge { position:absolute; top:-2px; right:-2px; min-width:14px; height:14px; padding:0 3px;
+/* a small count overlaid on an icon button, e.g. how many lists the eye icon has hidden.
+   .board-hidden-badge (sidebar: how many boards are hidden) is the identical look under its own
+   class, not .icon-badge -- a board page renders both eye buttons at once, and e2e locators for
+   one used to catch the other too. */
+.icon-badge, .board-hidden-badge { position:absolute; top:-2px; right:-2px; min-width:14px; height:14px; padding:0 3px;
               border-radius:8px; background:var(--danger-solid); color:#fff; font-size:10px; font-weight:700;
               line-height:14px; text-align:center; }
 .armed { display:inline-flex; align-items:center; gap:6px; }
@@ -323,6 +335,21 @@ h1 { margin:0; font-size:22px; }
 /* checklist boxes in rendered notes: undo the dialog's "inputs fill the row" rule */
 .dialog .md input.task { width:auto; padding:0; margin:0 7px 0 0; vertical-align:-1px; }
 .md li:has(> input.task) { list-style:none; margin-left:-1.3em; }
+.export-link { margin-left:auto; align-self:flex-start; display:inline-flex; align-items:center; gap:5px; }
+
+/* Metrics: totals plus simple CSS bar charts -- no charting library, per the "no third-party
+   runtime requests" boundary; a <div> whose width is a percentage does the whole job. */
+.metrics { padding:0 24px 40px; max-width:720px; }
+.metric-total { font-size:15px; color:var(--text-secondary); margin:4px 0 26px; }
+.metric-num { font-size:28px; font-weight:700; color:var(--text-primary); margin-right:6px; }
+.metric-block { margin-bottom:28px; }
+.metric-block h2 { font-size:13px; text-transform:uppercase; color:var(--text-subtle); margin:0 0 12px; }
+.bar-list { display:flex; flex-direction:column; gap:9px; }
+.bar-row { display:grid; grid-template-columns:120px 1fr 32px; align-items:center; gap:10px; font-size:13px; }
+.bar-label { color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bar-track { height:10px; border-radius:5px; background:var(--bg-well); overflow:hidden; }
+.bar-fill { display:block; height:100%; background:var(--accent); border-radius:5px; min-width:2px; }
+.bar-count { text-align:right; color:var(--text-subtle); }
 
 /* settings + theme picker */
 .settings { padding:0 24px 40px; max-width:920px; display:flex; flex-direction:column; gap:20px; }
@@ -382,7 +409,7 @@ html[data-sidebar=hidden] .sidebar-rail { display:grid; place-items:center; }
    titles ellipsis-truncate to a letter or two; the link's native title="" tooltip has the rest. */
 html[data-sidebar=skinny] .sidebar { width:72px; padding-left:6px; padding-right:6px; }
 html[data-sidebar=skinny] .search,
-html[data-sidebar=skinny] .side-boards h3,
+html[data-sidebar=skinny] .side-boards-head,
 html[data-sidebar=skinny] .area-head,
 html[data-sidebar=skinny] #tag-section,
 html[data-sidebar=skinny] .grip,
@@ -436,6 +463,18 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .filter-status { margin:0; font-size:12px; min-height:1em; }
 .card.filter-hidden { display:none; }
 .filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
+
+/* Today: its own "show/hide these three sections" popover (own class, not .filter-wrap/
+   .date-filter-wrap -- see the comment above trap 9 in AGENTS.md) and the section-hide itself,
+   a personal per-device preference like everything else in Settings > Sidebar. */
+.today-filter-wrap { position:relative; }
+.today-filter-panel { width:200px; }
+.today-filter-panel label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
+.today-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
+html[data-today-hide~="due"] [data-today-section="due"],
+html[data-today-hide~="completed"] [data-today-section="completed"],
+html[data-today-hide~="created"] [data-today-section="created"] { display:none; }
+.today-view section { margin-bottom:26px; }
 
 /* Scheduled/Logbook date-range filter bar */
 .filter-bar { display:flex; flex-direction:column; gap:10px; padding:0 24px 16px; max-width:680px; }

@@ -1,25 +1,16 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
+{% from "_card_row.html" import card_row %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-  <header class="page-head"><h1>{{ title }}</h1></header>
+  <header class="page-head"><h1 data-page="scheduled">{{ title }}</h1></header>
   {% include "_date_filter.html" %}
   <main class="agenda">
     {% for due, items in groups.items() %}
       <h2 class="{% if due < today %}overdue{% endif %}">
         {% if due < today %}Overdue · {% elif due == today %}Today · {% endif %}{{ due }}
       </h2>
-      {% for board, card in items %}
-        <div class="row" data-id="{{ card.id }}">
-          <input type="checkbox" class="check" aria-label="Complete" hx-swap="none"
-                 hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id, refresh=1) }}">
-          <span class="title">{{ card.title }}{% if card.repeat %} <span class="repeat" title="{{ card.repeat }}">↻</span>{% endif %}
-            {% if card.priority %}<span class="priority p-{{ card.priority }}" title="{{ card.priority|capitalize }} priority">{{ icon('flag', 12) }}</span>{% endif %}
-            {% if card.start and card.due and card.start != card.due %}<span class="start" title="Starts {{ card.start }}">▸ {{ card.start }}</span>{% endif %}</span>
-          {% if card.labels %}<div class="card-labels">{% for lbl in board.labels if lbl.id in card.labels %}<span class="label-chip c-{{ lbl.color }}" title="{{ lbl.name }}">{{ lbl.name }}</span>{% endfor %}</div>{% endif %}
-          <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }} / {{ card.column }}</a>
-        </div>
-      {% endfor %}
+      {% for board, card in items %}{{ card_row(board, card) }}{% endfor %}
     {% else %}
       <p class="empty">{% if date_from or date_to %}Nothing scheduled in this range.{% else %}Nothing scheduled. Add a due or start date to a card and it shows up here.{% endif %}</p>
     {% endfor %}

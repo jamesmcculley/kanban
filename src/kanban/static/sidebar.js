@@ -128,6 +128,42 @@ window.BoardSort = (() => {
   return { get, set };
 })();
 
+// Hiding individual boards from the sidebar (decluttering, not deleting or archiving): a personal
+// per-device preference like sort order and section visibility, so it's localStorage, not a board
+// property -- two people sharing this instance can keep a different sidebar. Applied via a
+// <style> tag (#hidden-boards-css, created pre-paint by _theme_boot.html) with one rule per
+// hidden slug: unlike section visibility's fixed small set of keys, there's no way to write a
+// static CSS rule ahead of time for an arbitrary board slug, so the rule text itself is generated.
+window.HiddenBoards = (() => {
+  const get = () => { try { return JSON.parse(localStorage.getItem('hidden-boards') || '[]'); } catch { return []; } };
+  function render(slugs) {
+    let style = document.getElementById('hidden-boards-css');
+    if (!style) { style = document.createElement('style'); style.id = 'hidden-boards-css'; document.head.appendChild(style); }
+    style.textContent = slugs.filter(s => /^[a-z0-9-]+$/.test(s))
+      .map(s => `.board-row[data-slug="${s}"]{display:none}`).join('');
+    const badge = document.querySelector('[data-hidden-boards-badge]');
+    if (badge) { badge.textContent = String(slugs.length); badge.hidden = !slugs.length; }
+  }
+  function set(slug, hide) {
+    const list = get();
+    const i = list.indexOf(slug);
+    if (hide && i === -1) list.push(slug);
+    else if (!hide && i !== -1) list.splice(i, 1);
+    try { localStorage.setItem('hidden-boards', JSON.stringify(list)); } catch { /* ignore */ }
+    render(list);
+  }
+  document.addEventListener('DOMContentLoaded', () => render(get()));
+  return { get, set };
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+  const hidden = window.HiddenBoards.get();
+  document.querySelectorAll('.board-eye-check').forEach(cb => {
+    cb.checked = !hidden.includes(cb.dataset.slug);
+    cb.addEventListener('change', () => window.HiddenBoards.set(cb.dataset.slug, !cb.checked));
+  });
+});
+
 // Sidebar drag-and-drop: reorder boards, move them between areas, reorder areas.
 (() => {
   const side = document.querySelector('.sidebar');
@@ -190,8 +226,46 @@ window.SidebarSections = (() => {
   return { get, set };
 })();
 
-// Settings page: the sort <select> and "show in sidebar" checkboxes mirror current state and
-// apply on change, same pattern as the Appearance section's theme/text-size radios (theme.js).
+// Whether each page's own big <h1> shows (Settings > Page titles): same mechanism as
+// SidebarSections just above, a different fixed small key set (today/scheduled/logbook) and a
+// different attribute, since it's about main-page content rather than the sidebar itself.
+window.PageTitles = (() => {
+  const get = () => { try { return JSON.parse(localStorage.getItem('page-title-hide') || '{}'); } catch { return {}; } };
+  function set(key, hidden) {
+    const hide = get();
+    if (hidden) hide[key] = true; else delete hide[key];
+    try { localStorage.setItem('page-title-hide', JSON.stringify(hide)); } catch { /* ignore */ }
+    document.documentElement.setAttribute('data-page-title-hide', Object.keys(hide).join(' '));
+  }
+  return { get, set };
+})();
+
+// Today's three sections (due/overdue, completed today, created today): same idea again, but a
+// per-page popover on Today itself rather than a Settings checkbox list, since it's about what
+// you want to see on Today right now, not a standing device preference you'd set once and forget.
+window.TodaySections = (() => {
+  const get = () => { try { return JSON.parse(localStorage.getItem('today-hide') || '{}'); } catch { return {}; } };
+  function set(key, hidden) {
+    const hide = get();
+    if (hidden) hide[key] = true; else delete hide[key];
+    try { localStorage.setItem('today-hide', JSON.stringify(hide)); } catch { /* ignore */ }
+    document.documentElement.setAttribute('data-today-hide', Object.keys(hide).join(' '));
+  }
+  return { get, set };
+})();
+
+// Today's filter icon: reveal/hide its section-checklist panel, and close on an outside click --
+// its own class (.today-filter-wrap), not .filter-wrap or .date-filter-wrap, so it can never be
+// picked up by filter.js's or the date-filter's own lookups (see AGENTS.md trap 9).
+document.addEventListener('click', e => {
+  const toggle = e.target.closest('[data-today-filter-toggle]');
+  if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
+  if (!e.target.closest('.today-filter-wrap')) document.querySelectorAll('.today-filter-panel').forEach(m => (m.hidden = true));
+});
+
+// Settings page: the sort <select>, "show in sidebar" and "page titles" checkboxes mirror current
+// state and apply on change, same pattern as the Appearance section's theme/text-size radios
+// (theme.js). Today's own section checkboxes mirror/apply the same way, just on Today itself.
 document.addEventListener('DOMContentLoaded', () => {
   const sortSelect = document.getElementById('board-sort');
   if (sortSelect) {
@@ -202,5 +276,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('input[name="sidebar-show"]').forEach(cb => {
     cb.checked = !hidden[cb.value];
     cb.addEventListener('change', () => window.SidebarSections.set(cb.value, !cb.checked));
+  });
+  const hiddenTitles = window.PageTitles.get();
+  document.querySelectorAll('input[name="page-title-show"]').forEach(cb => {
+    cb.checked = !hiddenTitles[cb.value];
+    cb.addEventListener('change', () => window.PageTitles.set(cb.value, !cb.checked));
+  });
+  const hiddenToday = window.TodaySections.get();
+  document.querySelectorAll('.today-section-check').forEach(cb => {
+    cb.checked = !hiddenToday[cb.dataset.section];
+    cb.addEventListener('change', () => window.TodaySections.set(cb.dataset.section, !cb.checked));
   });
 });

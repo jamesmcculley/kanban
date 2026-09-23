@@ -789,18 +789,18 @@ def test_editable_completion_date_from_card_and_logbook(page):
     page.click('.sidebar [data-go="l"]')
     page.wait_for_url("**/logbook")
     expect(page.locator(".logbook .row", has_text="backdate me")).to_contain_text("9:00 AM")
-    page.get_by_role("button", name="Edit date").click()
-    editor = page.locator(".logbook-inline-edit")
-    expect(editor).to_be_visible()
-    editor.locator(".completed-at-input").fill("2026-08-15T14:30")
-    editor.locator("[data-completed-at-save]").click()
-    page.wait_for_load_state()
+    page.locator(".logbook .row", has_text="backdate me").get_by_role("button", name="Edit this card").click()
+    dialog = page.locator("#modal .dialog")
+    expect(dialog).to_be_visible()
+    dialog.locator(".completed-at-input").fill("2026-08-15T14:30")
+    with page.expect_navigation():                            # standalone: saves, then reloads the page
+        dialog.locator("[data-completed-at-save]").click()
     expect(page.locator(".logbook .row", has_text="backdate me")).to_contain_text("2:30 PM")
 
 
 def test_hidden_lists_panel_toggle_each_and_all(page):
     page.get_by_role("button", name="Show or hide lists").click()
-    menu = page.locator(".eye-menu")
+    menu = page.locator(".page-head .eye-menu")   # not just .eye-menu: the sidebar has its own too
     expect(menu).to_be_visible()
     expect(menu.locator(".eye-row")).to_have_count(3)                  # Todo, Doing, Done
     page.locator("body").click(position={"x": 700, "y": 700})          # outside click closes it
@@ -865,7 +865,8 @@ def test_scheduled_filters_presets_and_saved_filters(page):
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_be_visible()
 
     open_date_filter(page)
-    page.get_by_role("link", name="Today", exact=True).click()
+    # scoped to the filter panel: the sidebar also has its own "Today" link now (the Today view)
+    page.locator(".date-filter-panel").get_by_role("link", name="Today", exact=True).click()
     page.wait_for_load_state()
     expect(page.locator(".agenda .row", has_text="Today thing")).to_be_visible()
     expect(page.locator(".agenda .row", has_text="Next month thing")).to_have_count(0)
@@ -1156,6 +1157,129 @@ def test_pin_a_board_stays_on_top_in_every_sort_mode(page):
     with page.expect_navigation():
         page.get_by_role("button", name="Pin Zebra").click()
     assert board_titles(page) == ["Zebra", "Apple", "My Board"]        # pinned beats alphabetical order
+
+
+def test_hide_one_board_from_the_sidebar_and_it_persists(page):
+    fab_add(page, "New board", "Zebra")
+    page.wait_for_url("**/b/zebra")
+    assert board_titles(page) == ["My Board", "Zebra"]
+
+    page.get_by_role("button", name="Show or hide boards in the sidebar").click()
+    menu = page.locator(".side-boards-head .eye-menu")   # not just .eye-menu: a kanban board has its own too
+    expect(menu).to_be_visible()
+    expect(menu.locator(".board-eye-check")).to_have_count(2)
+    menu.locator('.board-eye-check[data-slug="zebra"]').uncheck()
+    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_hidden()   # live, no reload
+    expect(page.locator('[data-hidden-boards-badge]')).to_have_text("1")
+    # the visible board and the toolbar stay put -- there's still a way to everything
+    expect(page.locator('.board-row[data-slug="my-board"]')).to_be_visible()
+    expect(page.locator(".side-foot")).to_be_visible()
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_hidden()   # persisted, pre-paint
+
+    page.get_by_role("button", name="Show or hide boards in the sidebar").click()
+    page.locator('.board-eye-check[data-slug="zebra"]').check()
+    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_visible()  # reversible
+    expect(page.locator('[data-hidden-boards-badge]')).to_be_hidden()
+
+
+def test_edit_button_on_a_scheduled_card_opens_the_full_edit_dialog(page):
+    add_card(page, "Todo", "renew passport")
+    page.locator(".card", has_text="renew passport").locator(".title").click()
+    page.fill(".dialog input[name=due]", "2026-09-25")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    page.click('.sidebar [data-go="s"]')
+    page.wait_for_url("**/scheduled")
+    row = page.locator(".agenda .row", has_text="renew passport")
+    row.get_by_role("button", name="Edit this card").click()
+    dialog = page.locator("#modal .dialog")
+    expect(dialog).to_be_visible()
+    page.fill("#modal input[name=title]", "renew passport ASAP")
+    with page.expect_navigation():                            # standalone: due date could change the group
+        page.click("#modal button[type=submit]")
+    expect(page.locator(".agenda .row", has_text="renew passport ASAP")).to_be_visible()
+
+
+def test_metrics_page_shows_totals_and_export_link(page):
+    add_card(page, "Todo", "ship it")
+    page.locator(".card", has_text="ship it").locator(".check").click()
+    expect(page.locator(".card.done")).to_be_visible()
+
+    page.click('.sidebar [data-go="m"]')
+    page.wait_for_url("**/metrics")
+    expect(page.locator(".metric-num")).to_have_text("1")
+    expect(page.locator(".metric-block", has_text="By board")).to_contain_text("My Board")
+    export = page.get_by_role("link", name="Export CSV")
+    expect(export).to_be_visible()
+    resp = page.request.get(page.base + export.get_attribute("href"))
+    assert resp.ok
+    assert "ship it" in resp.text()
+    assert resp.headers["content-type"].startswith("text/csv")
+
+
+def test_today_view_shows_due_completed_created_and_lets_you_hide_each(page):
+    add_card(page, "Todo", "needs doing")
+    page.locator(".card", has_text="needs doing").locator(".title").click()
+    page.fill(".dialog input[name=due]", "today")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    add_card(page, "Todo", "already finished")
+    page.locator(".card", has_text="already finished").locator(".check").click()
+    expect(page.locator(".card.done")).to_be_visible()
+
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    due = page.locator('[data-today-section="due"]')
+    completed = page.locator('[data-today-section="completed"]')
+    created = page.locator('[data-today-section="created"]')
+    expect(due).to_contain_text("needs doing")
+    expect(completed).to_contain_text("already finished")
+    expect(created).to_contain_text("needs doing")
+    expect(created).to_contain_text("already finished")             # both cards were made just now
+    expect(page.locator('[data-today-section] button[aria-label="Edit this card"]').first).to_be_visible()
+
+    page.get_by_role("button", name="Show or hide sections").click()
+    panel = page.locator(".today-filter-panel")
+    expect(panel).to_be_visible()
+    panel.locator('.today-section-check[data-section="completed"]').uncheck()
+    expect(completed).to_be_hidden()                                # live, no reload
+    expect(due).to_be_visible()
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(completed).to_be_hidden()                                # persisted
+
+
+def test_edit_pencil_on_a_today_row_opens_the_dialog(page):
+    add_card(page, "Todo", "edit me from here")  # not "...today": quick-add would strip it as a due date
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    row = page.locator('[data-today-section="created"] .row', has_text="edit me from here")
+    row.get_by_role("button", name="Edit this card").click()
+    expect(page.locator("#modal .dialog")).to_be_visible()
+    expect(page.locator("#modal input[name=title]")).to_have_value("edit me from here")
+
+
+def test_hide_page_titles_from_settings(page):
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    page.uncheck('input[name="page-title-show"][value="logbook"]')
+
+    page.goto(page.base + "/logbook")
+    expect(page.locator('h1[data-page="logbook"]')).to_be_hidden()
+    expect(page.locator(".export-link")).to_be_visible()             # only the heading is gone
+
+    page.goto(page.base + "/scheduled")
+    expect(page.locator('h1[data-page="scheduled"]')).to_be_visible()  # untouched: only Logbook was hidden
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator('h1[data-page="scheduled"]')).to_be_visible()
 
 
 def test_resize_sidebar_by_dragging_the_handle_and_it_persists(page):

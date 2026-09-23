@@ -52,14 +52,27 @@
         <legend>Show in the sidebar</legend>
         <label><input type="checkbox" name="sidebar-show" value="logo"> Logo</label>
         <label><input type="checkbox" name="sidebar-show" value="search"> Search</label>
+        <label><input type="checkbox" name="sidebar-show" value="today"> Today</label>
         <label><input type="checkbox" name="sidebar-show" value="scheduled"> Scheduled</label>
         <label><input type="checkbox" name="sidebar-show" value="logbook"> Logbook</label>
+        <label><input type="checkbox" name="sidebar-show" value="metrics"> Metrics</label>
         <label><input type="checkbox" name="sidebar-show" value="boards"> Boards</label>
         <label><input type="checkbox" name="sidebar-show" value="tags"> Tags</label>
         <label><input type="checkbox" name="sidebar-show" value="theme"> Theme toggle</label>
       </fieldset>
       <p class="muted">Trash, Archived boards, Settings and the other icons at the bottom stay put
         no matter what's hidden above, so there's always a way back here.</p>
+    </section>
+
+    <section class="card-section" aria-labelledby="titles-h">
+      <h2 id="titles-h">Page titles <span class="muted">this device only</span></h2>
+      <fieldset class="sidebar-show">
+        <legend>Show the big heading on each page</legend>
+        <label><input type="checkbox" name="page-title-show" value="today"> Today</label>
+        <label><input type="checkbox" name="page-title-show" value="scheduled"> Scheduled</label>
+        <label><input type="checkbox" name="page-title-show" value="logbook"> Logbook</label>
+      </fieldset>
+      <p class="muted">Just the "Today"/"Scheduled"/"Logbook" heading itself -- everything below it stays.</p>
     </section>
 
     <section class="card-section" aria-labelledby="defaults-h">
