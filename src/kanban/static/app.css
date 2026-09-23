@@ -374,6 +374,15 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .sidebar-show legend { width:100%; margin-bottom:8px; font-weight:600; font-size:13px; }
 .sidebar-show label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px; }
 
+/* Boards in the sidebar (Settings): a real page section, not a cramped popover -- a board list
+   long enough to need this (found via feedback: 15 boards in a small fixed-width menu with no
+   grouping and no room was "terrible UI/UX") gets space to breathe and multi-column reflow. */
+.board-hide-group { margin-top:16px; }
+.board-hide-group:first-child { margin-top:0; }
+.board-hide-area { font-size:13px; font-weight:600; color:var(--text-secondary); margin:0 0 6px; }
+.board-hide-rows { columns:220px; column-gap:24px; }
+.board-hide-rows .eye-row { break-inside:avoid; padding:5px 2px; }
+
 /* settings rows and rules */
 .pref-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 0; border-top:1px solid var(--border); }
 .pref-row:first-of-type { border-top:0; } .pref-row label { font-weight:600; display:block; } .pref-row small { color:var(--text-subtle); display:block; }

@@ -90,3 +90,15 @@ fixes the same legibility gap in the older per-board "hide lists" panel for free
 the `.eye-row` class. (2) Each board row gained its own hover-revealed hide button (`.hide-btn`,
 same reveal-on-hover pattern as the pin button, same row). The panel is still there for reviewing
 everything that's hidden and restoring it — just no longer the only way in.
+
+**Second amendment (same day, more feedback):** the popover itself was the real problem, not just
+its checkbox styling — with 15 real boards, a fixed-width dropdown holding 15 unlabelled-looking
+checkboxes in a single column was, in the owner's words, "terrible UI/UX." A small floating panel
+is the wrong shape for a list that can legitimately be long. Moved the whole checklist into
+Settings as its own section ("Boards in the sidebar", `#boards-h`), grouped by area exactly like
+the sidebar itself, with a CSS multi-column layout (`columns: 220px`) so a long list reflows
+instead of running down the page. The sidebar's eye icon is now a plain link to that section (still
+carrying the hidden-count badge), not a popover — the hover-per-row hide button from the first
+amendment is still there and is now the *only* in-sidebar way to hide a board, which is fine, since
+it was always meant to be the quick path; Settings is the place to see and manage everything at
+once.

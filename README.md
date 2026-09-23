@@ -38,9 +38,9 @@ directory can also be opened as an Obsidian vault.
   Logbook, boards, tags, the theme toggle) except the toolbar at the bottom, so there's
   always a way back in; **show or hide the page heading** on Today, Scheduled and the Logbook, too
 - **Pin a board** to keep it at the top of its list no matter which sort order is active
-- **Hide a board from the sidebar** — hover a row for a one-click hide button, or use the eye icon
-  next to "Boards" to review and restore everything you've hidden — separately from a "show or hide
-  lists" panel (the eye icon on a board itself) to see and toggle every list's visibility at once
+- **Hide a board from the sidebar** — hover a row for a one-click hide button, or manage the whole
+  list at once from Settings ("Boards in the sidebar," grouped by area) — separately from a "show
+  or hide lists" panel (the eye icon on a board itself) to see and toggle every list's visibility
 - Installable to a phone's home screen; keyboard shortcuts (press `?`)
 - A login for LAN mode (one shared password; not needed, and not offered, in localhost mode)
 

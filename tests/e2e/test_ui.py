@@ -1159,18 +1159,21 @@ def test_pin_a_board_stays_on_top_in_every_sort_mode(page):
     assert board_titles(page) == ["Zebra", "Apple", "My Board"]        # pinned beats alphabetical order
 
 
-def test_hide_one_board_from_the_sidebar_and_it_persists(page):
+def test_hide_one_board_from_settings_and_it_persists(page):
     fab_add(page, "New board", "Zebra")
     page.wait_for_url("**/b/zebra")
     assert board_titles(page) == ["My Board", "Zebra"]
 
-    page.get_by_role("button", name="Show or hide boards in the sidebar").click()
-    menu = page.locator(".side-boards-head .eye-menu")   # not just .eye-menu: a kanban board has its own too
-    expect(menu).to_be_visible()
-    expect(menu.locator(".board-eye-check")).to_have_count(2)
-    menu.locator('.board-eye-check[data-slug="zebra"]').uncheck()
-    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_hidden()   # live, no reload
+    page.get_by_role("link", name="Manage which boards show in the sidebar").click()
+    page.wait_for_url("**/settings*")
+    expect(page.locator("#boards-h")).to_be_visible()
+    checkboxes = page.locator(".board-hide-list .board-eye-check")
+    expect(checkboxes).to_have_count(2)
+    page.locator('.board-eye-check[data-slug="zebra"]').uncheck()
     expect(page.locator('[data-hidden-boards-badge]')).to_have_text("1")
+
+    page.goto(page.base + "/b/my-board")
+    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_hidden()   # applied, not just on Settings
     # the visible board and the toolbar stay put -- there's still a way to everything
     expect(page.locator('.board-row[data-slug="my-board"]')).to_be_visible()
     expect(page.locator(".side-foot")).to_be_visible()
@@ -1179,24 +1182,42 @@ def test_hide_one_board_from_the_sidebar_and_it_persists(page):
     page.wait_for_load_state()
     expect(page.locator('.board-row[data-slug="zebra"]')).to_be_hidden()   # persisted, pre-paint
 
-    page.get_by_role("button", name="Show or hide boards in the sidebar").click()
+    page.goto(page.base + "/settings")
     page.locator('.board-eye-check[data-slug="zebra"]').check()
-    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_visible()  # reversible
     expect(page.locator('[data-hidden-boards-badge]')).to_be_hidden()
+    page.goto(page.base + "/b/my-board")
+    expect(page.locator('.board-row[data-slug="zebra"]')).to_be_visible()  # reversible
 
 
-def test_hide_a_board_directly_from_its_row_and_the_panel_reflects_it(page):
+def test_hide_a_board_directly_from_its_row_and_settings_reflects_it(page):
     fab_add(page, "New board", "Zebra")
     page.wait_for_url("**/b/zebra")
     row = page.locator('.board-row[data-slug="zebra"]')
     row.hover()
     row.get_by_role("button", name="Hide Zebra from the sidebar").click()
-    expect(row).to_be_hidden()                                     # one click, no panel needed
+    expect(row).to_be_hidden()                                     # one click, no menu needed
 
-    page.get_by_role("button", name="Show or hide boards in the sidebar").click()
+    page.goto(page.base + "/settings")
     checkbox = page.locator('.board-eye-check[data-slug="zebra"]')
-    expect(checkbox).not_to_be_checked()                            # panel agrees it's hidden
+    expect(checkbox).not_to_be_checked()                            # Settings agrees it's hidden
     expect(checkbox.locator("xpath=..")).to_have_css("opacity", "0.55")  # and looks visibly dimmed
+
+
+def test_settings_boards_list_groups_by_area(page):
+    fab_add(page, "New board", "Garden")
+    page.wait_for_url("**/b/garden")
+    fab_add(page, "New area", "Home")
+    row = page.locator('.board-row[data-slug="garden"]')
+    row.hover()
+    drag(page, row.locator(".grip"), page.locator('.area[data-area="Home"] .area-head'), dy=8)
+    expect(page.locator('.area[data-area="Home"] [data-slug="garden"]')).to_be_visible()
+
+    page.goto(page.base + "/settings")
+    group = page.locator(".board-hide-group", has_text="Home")
+    expect(group.locator(".board-hide-area")).to_have_text("Home")
+    expect(group.locator('.board-eye-check[data-slug="garden"]')).to_have_count(1)
+    # "My Board" (never moved into an area) has no area heading above it
+    expect(page.locator('.board-eye-check[data-slug="my-board"]')).to_have_count(1)
 
 
 def test_today_badge_matches_scheduled_badge(page):

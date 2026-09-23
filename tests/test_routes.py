@@ -100,8 +100,12 @@ def test_completion_stamp_shown_and_sidebar_layout(client):
     assert 'id="fab"' in page and 'data-list-url="/b/my-board/columns"' in page
     assert 'class="add-column"' not in page and 'class="newboard"' not in page      # moved into the +
     assert 'aria-label="Hide list"' in page and 'aria-label="Add card"' in page
-    # the sidebar's own "show/hide boards" checklist -- one checkbox per board
-    assert 'class="board-eye-check" data-slug="my-board"' in page
+    # the eye icon next to "Boards" links to Settings' own "Boards in the sidebar" management --
+    # not a popover here, so nothing to assert on this page beyond the link existing
+    assert 'href="/settings#boards-h"' in page
+
+    settings_page = client.get("/settings").text
+    assert 'class="board-eye-check" data-slug="my-board"' in settings_page
 
 
 def test_quick_add_tags_and_tag_page(client):

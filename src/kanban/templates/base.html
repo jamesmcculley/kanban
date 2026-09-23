@@ -68,20 +68,11 @@
         <div class="side-boards">
           <div class="side-boards-head">
             <h3>Boards</h3>
-            {% set all_boards = sidebar.unassigned + sidebar.areas|map(attribute=1)|sum(start=[]) %}
-            {% if all_boards %}
-            <div class="eye-menu-wrap">
-              <button type="button" class="icon-btn" data-eye-toggle
-                      aria-label="Show or hide boards in the sidebar" title="Show or hide boards in the sidebar">
-                {{ icon('eye', 15) }}<span class="board-hidden-badge" data-hidden-boards-badge hidden></span>
-              </button>
-              <div class="eye-menu" hidden>
-                <div class="eye-menu-head"><span>Boards</span></div>
-                {% for b in all_boards %}
-                <label class="eye-row"><input type="checkbox" class="board-eye-check" data-slug="{{ b.slug }}" checked><span>{{ b.title }}</span></label>
-                {% endfor %}
-              </div>
-            </div>
+            {% if sidebar.unassigned or sidebar.areas %}
+            <a href="{{ url_for('boards.settings') }}#boards-h" class="icon-btn"
+               aria-label="Manage which boards show in the sidebar" title="Manage which boards show in the sidebar">
+              {{ icon('eye', 15) }}<span class="board-hidden-badge" data-hidden-boards-badge hidden></span>
+            </a>
             {% endif %}
           </div>
           <div class="boards-unassigned">

@@ -63,6 +63,38 @@
         no matter what's hidden above, so there's always a way back here.</p>
     </section>
 
+    <section class="card-section" aria-labelledby="boards-h">
+      <h2 id="boards-h">Boards in the sidebar <span class="muted">this device only</span></h2>
+      {% if sidebar.unassigned or sidebar.areas %}
+      <div class="board-hide-list">
+        {% if sidebar.unassigned %}
+        <div class="board-hide-group">
+          <div class="board-hide-rows">
+            {% for b in sidebar.unassigned %}
+            <label class="eye-row"><input type="checkbox" class="board-eye-check" data-slug="{{ b.slug }}" checked><span>{{ b.title }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% for name, boards in sidebar.areas %}
+        <div class="board-hide-group">
+          <h3 class="board-hide-area">{{ name }}</h3>
+          <div class="board-hide-rows">
+            {% for b in boards %}
+            <label class="eye-row"><input type="checkbox" class="board-eye-check" data-slug="{{ b.slug }}" checked><span>{{ b.title }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="muted">Unchecking a board only hides it from the sidebar — it's still everywhere
+        else (search, Scheduled, move-to). Each board's own row in the sidebar has a quicker hide
+        button too, revealed on hover.</p>
+      {% else %}
+      <p class="muted">No boards yet.</p>
+      {% endif %}
+    </section>
+
     <section class="card-section" aria-labelledby="titles-h">
       <h2 id="titles-h">Page titles <span class="muted">this device only</span></h2>
       <fieldset class="sidebar-show">
