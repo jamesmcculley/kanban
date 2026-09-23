@@ -1,7 +1,11 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Settings{% endblock %}
 {% block content %}
-  <header class="page-head"><h1>Settings</h1><span class="muted">for all boards, unless a board overrides them</span></header>
+  <header class="page-head"><h1>Settings</h1><span class="muted">for all boards, unless a board overrides them</span>
+    <a href="{{ url_for('boards.index') }}" class="page-close" aria-label="Close settings" title="Close"
+       onclick="if (window.history.length > 1) { history.back(); return false; }">{{ icon('x', 20) }}</a>
+  </header>
   <main class="settings">
     <section class="card-section" aria-labelledby="appearance-h">
       <h2 id="appearance-h">Appearance <span class="muted">this device only</span></h2>
@@ -37,8 +41,16 @@
           <option value="created">Recently created</option>
         </select>
       </fieldset>
+      <fieldset class="pref-row">
+        <div><label for="sidebar-width">Width</label><small>Or drag the sidebar's right edge. Only applies at regular size, not Skinny.</small></div>
+        <span class="width-field">
+          <input type="number" id="sidebar-width" min="180" max="420" step="1"> px
+          <button type="button" class="link-btn" id="sidebar-width-reset">Restore default</button>
+        </span>
+      </fieldset>
       <fieldset class="sidebar-show">
         <legend>Show in the sidebar</legend>
+        <label><input type="checkbox" name="sidebar-show" value="logo"> Logo</label>
         <label><input type="checkbox" name="sidebar-show" value="search"> Search</label>
         <label><input type="checkbox" name="sidebar-show" value="scheduled"> Scheduled</label>
         <label><input type="checkbox" name="sidebar-show" value="logbook"> Logbook</label>

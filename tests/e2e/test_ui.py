@@ -819,16 +819,29 @@ def test_hidden_lists_panel_toggle_each_and_all(page):
     expect(page.locator('[data-eye-toggle] .icon-badge')).to_have_count(0)
 
 
-def test_sidebar_collapses_and_persists(page):
-    expect(page.locator(".sidebar")).to_be_visible()
-    page.get_by_role("button", name="Collapse sidebar").click()
-    expect(page.locator(".sidebar")).to_be_hidden()
+def test_sidebar_cycles_regular_skinny_hidden_and_persists(page):
+    toggle = page.get_by_role("button", name="Resize sidebar")
+    sidebar = page.locator(".sidebar")
+    expect(sidebar).to_be_visible()
+    regular_width = sidebar.bounding_box()["width"]
+
+    toggle.click()                                                     # -> skinny
+    expect(sidebar).to_be_visible()
+    expect(page.locator("html")).to_have_attribute("data-sidebar", "skinny")
+    assert sidebar.bounding_box()["width"] < regular_width
+
+    toggle.click()                                                     # -> hidden
+    expect(sidebar).to_be_hidden()
     rail = page.get_by_role("button", name="Show sidebar")
     expect(rail).to_be_visible()
+
     page.reload()
-    expect(page.locator(".sidebar")).to_be_hidden()                    # persisted across reload
-    rail.click()
-    expect(page.locator(".sidebar")).to_be_visible()
+    expect(sidebar).to_be_hidden()                                     # persisted across reload
+
+    rail.click()                                                       # wraps straight to regular
+    expect(sidebar).to_be_visible()
+    expect(page.locator("html")).not_to_have_attribute("data-sidebar", "skinny")
+    expect(page.locator("html")).not_to_have_attribute("data-sidebar", "hidden")
 
 
 def open_date_filter(page):
@@ -1143,3 +1156,85 @@ def test_pin_a_board_stays_on_top_in_every_sort_mode(page):
     with page.expect_navigation():
         page.get_by_role("button", name="Pin Zebra").click()
     assert board_titles(page) == ["Zebra", "Apple", "My Board"]        # pinned beats alphabetical order
+
+
+def test_resize_sidebar_by_dragging_the_handle_and_it_persists(page):
+    handle = page.locator("[data-sidebar-resize]")
+    box = handle.bounding_box()
+    start_width = page.locator(".sidebar").bounding_box()["width"]
+
+    page.mouse.move(box["x"] + 2, box["y"] + box["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 62, box["y"] + box["height"] / 2, steps=5)  # drag ~60px wider
+    page.mouse.up()
+
+    new_width = page.locator(".sidebar").bounding_box()["width"]
+    assert new_width > start_width + 40
+
+    page.reload()
+    page.wait_for_load_state()
+    assert abs(page.locator(".sidebar").bounding_box()["width"] - new_width) < 2  # persisted
+
+
+def test_resize_sidebar_from_settings_number_field_and_restore_default(page):
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    width_input = page.locator("#sidebar-width")
+    expect(width_input).to_have_value("230")
+
+    width_input.fill("320")
+    page.wait_for_timeout(150)
+    assert page.locator(".sidebar").bounding_box()["width"] == 320
+
+    page.get_by_role("button", name="Restore default").click()
+    expect(width_input).to_have_value("230")
+    assert page.locator(".sidebar").bounding_box()["width"] == 230
+
+
+def test_dragging_the_handle_updates_the_settings_field(page):
+    handle = page.locator("[data-sidebar-resize]")
+    box = handle.bounding_box()
+    page.mouse.move(box["x"] + 2, box["y"] + box["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 42, box["y"] + box["height"] / 2, steps=5)
+    page.mouse.up()
+    new_width = round(page.locator(".sidebar").bounding_box()["width"])
+
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    expect(page.locator("#sidebar-width")).to_have_value(str(new_width))
+
+
+def test_hide_the_logo(page):
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    expect(page.locator(".brand")).to_be_visible()
+    page.uncheck('input[name="sidebar-show"][value="logo"]')
+    expect(page.locator(".brand")).to_be_hidden()
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator(".brand")).to_be_hidden()                     # persisted
+
+
+def test_x_button_closes_the_keyboard_shortcuts_dialog(page):
+    page.keyboard.press("?")
+    expect(page.locator("#help")).to_be_visible()
+    page.locator("#help .dialog-close").click()
+    expect(page.locator("#help")).to_be_hidden()
+
+
+def test_x_button_closes_the_card_edit_dialog(page):
+    add_card(page, "Todo", "close me")
+    page.locator(".card", has_text="close me").locator(".title").click()
+    expect(page.locator("#modal .backdrop")).to_be_visible()
+    page.locator("#modal .dialog-close").click()
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+
+def test_x_button_closes_settings_back_to_where_you_were(page):
+    add_card(page, "Todo", "marker card")
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    with page.expect_navigation():
+        page.locator(".page-close").click()
+    expect(page.locator(".card", has_text="marker card")).to_be_visible()  # back on the board

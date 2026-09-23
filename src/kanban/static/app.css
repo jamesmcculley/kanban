@@ -43,7 +43,8 @@ input, textarea, button { font:inherit; }
 
 /* layout: fixed sidebar + scrolling content */
 .app { display:flex; min-height:100vh; }
-.sidebar { width:230px; flex:none; background:var(--bg-surface); border-right:1px solid var(--border);
+:root { --sidebar-width: 230px; }
+.sidebar { width:var(--sidebar-width); flex:none; background:var(--bg-surface); border-right:1px solid var(--border);
            display:flex; flex-direction:column;
            padding:16px 12px; display:flex; flex-direction:column; gap:12px;
            position:sticky; top:0; height:100vh; }
@@ -76,6 +77,7 @@ input, textarea, button { font:inherit; }
    here is a per-device preference (localStorage), same as theme -- and deliberately never touches
    the floating .side-foot toolbar, which stays put no matter what so there's always a way back
    into Settings to undo an over-aggressive hide. */
+html[data-sidebar-hide~="logo"] .brand { display:none; }
 html[data-sidebar-hide~="search"] .sidebar .search { display:none; }
 html[data-sidebar-hide~="scheduled"] .side-scheduled { display:none; }
 html[data-sidebar-hide~="logbook"] .side-logbook { display:none; }
@@ -89,6 +91,9 @@ html[data-sidebar-hide~="theme"] .theme-btn { display:none; }
 .content { flex:1; min-width:0; }
 .page-head { padding:18px 24px 12px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
 h1 { margin:0; font-size:22px; }
+.page-close { margin-left:auto; align-self:flex-start; display:grid; place-items:center; color:var(--text-subtle);
+              padding:6px; border-radius:6px; }
+.page-close:hover { background:var(--hover); color:var(--text-primary); }
 
 /* board */
 .board { display:flex; gap:16px; padding:0 24px 24px; align-items:flex-start; overflow-x:auto; }
@@ -134,8 +139,11 @@ h1 { margin:0; font-size:22px; }
 
 /* dialogs */
 .backdrop { position:fixed; inset:0; background:#0006; display:grid; place-items:center; z-index:10; }
-.dialog { background:var(--bg-card); padding:20px; border-radius:12px; width:min(480px, 92vw);
-          display:flex; flex-direction:column; gap:10px; margin:0; }
+.dialog { background:var(--bg-card); padding:36px 20px 20px; border-radius:12px; width:min(480px, 92vw);
+          display:flex; flex-direction:column; gap:10px; margin:0; position:relative; }
+.dialog-close { position:absolute; top:10px; right:10px; display:grid; place-items:center; border:0;
+                background:none; color:var(--text-subtle); cursor:pointer; padding:5px; border-radius:6px; }
+.dialog-close:hover { background:var(--hover); color:var(--text-primary); }
 .dialog input, textarea { width:100%; padding:8px; border-radius:6px; border:1px solid var(--border);
                           background:var(--bg); color:var(--text-primary); }
 .actions { display:flex; justify-content:flex-end; gap:8px; }
@@ -360,12 +368,36 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .rule-error { color:var(--danger); font-size:13px; margin:0; min-height:1.2em; }
 .settings a { color:var(--accent-text); }
 
-/* collapsible sidebar */
+/* Sidebar toggle cycles Regular -> Skinny -> Hidden -> Regular (the same button both places; the
+   rail only shows in Hidden, and clicking it wraps straight back to Regular, skipping Skinny). */
 .sidebar-rail { display:none; position:fixed; top:14px; left:14px; z-index:16; border:1px solid var(--border);
                 background:var(--bg-card); color:var(--text-subtle); border-radius:8px; padding:7px; cursor:pointer; }
 .sidebar-rail:hover { color:var(--text-primary); border-color:var(--accent); }
-html[data-sidebar=collapsed] .sidebar { display:none; }
-html[data-sidebar=collapsed] .sidebar-rail { display:grid; place-items:center; }
+html[data-sidebar=hidden] .sidebar { display:none; }
+html[data-sidebar=hidden] .sidebar-rail { display:grid; place-items:center; }
+
+/* Skinny: a fixed narrow rail. Search, area labels, drag handles and anything text-heavy (tags)
+   don't fit and are hidden outright, regardless of the "show in sidebar" choices -- those choices
+   are about what's in the (regular-width) sidebar, not a promise everything fits in 64px too. Board
+   titles ellipsis-truncate to a letter or two; the link's native title="" tooltip has the rest. */
+html[data-sidebar=skinny] .sidebar { width:72px; padding-left:6px; padding-right:6px; }
+html[data-sidebar=skinny] .search,
+html[data-sidebar=skinny] .side-boards h3,
+html[data-sidebar=skinny] .area-head,
+html[data-sidebar=skinny] #tag-section,
+html[data-sidebar=skinny] .grip,
+html[data-sidebar=skinny] .pin-btn,
+html[data-sidebar=skinny] #theme-label,
+html[data-sidebar=skinny] .resize-handle { display:none; }
+html[data-sidebar=skinny] .board-row a span,
+html[data-sidebar=skinny] .sidebar nav a span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html[data-sidebar=skinny] .side-head { justify-content:center; }
+
+/* Drag the sidebar's own right edge to resize it (Regular mode only -- Skinny is a fixed width). */
+.resize-handle { position:absolute; top:0; right:-3px; width:6px; height:100%; cursor:col-resize;
+                 z-index:2; background:transparent; }
+.resize-handle:hover, .resize-handle.active { background:var(--accent); opacity:.5; }
+html[data-sidebar=hidden] .resize-handle { display:none; }
 
 /* per-board display settings: hidden lists panel, move-to control, start date, completed-at edit */
 .eye-menu-wrap { position:relative; }

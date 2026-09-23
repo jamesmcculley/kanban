@@ -9,7 +9,10 @@
     if (THEMES.indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
     var s = localStorage.getItem('font-size');
     if (SIZES.indexOf(s) > -1) document.documentElement.setAttribute('data-font-size', s);
-    if (localStorage.getItem('sidebar-collapsed') === '1') document.documentElement.setAttribute('data-sidebar', 'collapsed');
+    var mode = localStorage.getItem('sidebar-mode');
+    if (mode === 'skinny' || mode === 'hidden') document.documentElement.setAttribute('data-sidebar', mode);
+    var width = parseInt(localStorage.getItem('sidebar-width'), 10);
+    if (width >= 180 && width <= 420) document.documentElement.style.setProperty('--sidebar-width', width + 'px');
     var hide = JSON.parse(localStorage.getItem('sidebar-hide') || '{}');
     var hidden = Object.keys(hide).filter(function (k) { return hide[k]; });
     if (hidden.length) document.documentElement.setAttribute('data-sidebar-hide', hidden.join(' '));

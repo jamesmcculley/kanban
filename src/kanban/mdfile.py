@@ -21,8 +21,15 @@ def read_md(path: Path) -> tuple[dict, str]:
 
 
 def write_md(path: Path, meta: dict, body: str = "") -> None:
+    """Write via a temp file + atomic rename, not path.write_text() directly -- a plain write
+    truncates the file before the new content lands, so a concurrent read (the sidebar's stats
+    fetch races card writes constantly) can see a half-written file and crash on missing keys.
+    os.replace() (what Path.replace() uses) is atomic on POSIX and Windows: a reader always sees
+    either the whole old file or the whole new one, never a partial one."""
     front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
-    path.write_text(f"---\n{front}---\n\n{body}", encoding="utf-8")
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(f"---\n{front}---\n\n{body}", encoding="utf-8")
+    tmp.replace(path)
 
 
 def extra_fields(meta: dict, known: set[str] | tuple[str, ...]) -> dict:

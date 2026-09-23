@@ -10,7 +10,9 @@ Manual drag-to-reorder for boards already existed. The owner asked for alphabeti
 and recently-created sort as alternatives, and — starting from "let me hide the tags section" —
 generalized to wanting every sidebar section individually show/hideable, explicitly excepting the
 floating toolbar ("that would break everything if that got hidden"). Mid-turn, also asked for a way
-to pin a board so it stays on top regardless of whatever sort mode is active.
+to pin a board so it stays on top regardless of whatever sort mode is active; a follow-up round added
+the logo to the hideable list (missed the first time), a third sidebar size ("skinny", between
+regular and fully hidden), and a way to resize the sidebar by dragging or typing a number.
 
 ## Decision
 
@@ -52,12 +54,41 @@ to pin a board so it stays on top regardless of whatever sort mode is active.
   indicator — once pinned), not from the board's own settings page: pinning is fundamentally about
   the sidebar, so that's where the control lives.
 
+- **The sidebar has three sizes, cycled by one button: Regular → Skinny → Hidden → Regular.** Same
+  button both places (the in-sidebar toggle and the "show sidebar" rail that only appears at
+  Hidden) — the rail lands on Regular directly not because it's special-cased, but because Hidden is
+  the last step before the cycle wraps, so clicking it from Hidden always goes to Regular. Skinny is
+  a fixed 72px rail: search, area labels, drag handles, the pin button and anything tag/text-heavy
+  are hidden outright regardless of the "show in sidebar" choices (those are about what fits at
+  Regular width, not a promise everything fits in 72px), and board/nav titles ellipsis-truncate to a
+  letter or two with the native `title=""` tooltip carrying the rest.
+- **Sidebar width is `localStorage`, like sort mode and section visibility** — a `--sidebar-width`
+  CSS custom property, set by a drag handle on the sidebar's own right edge or a number field in
+  Settings (`sidebar.js`'s `SidebarWidth`), read by the same pre-paint script that already applies
+  theme/width/hide state before first paint. Both controls write the same key, so dragging on any
+  page is what the Settings field shows next time it's opened — not live cross-tab sync, just
+  "read fresh each time you open Settings," which is enough for a single-user personal app. Only
+  applies at Regular; Skinny's 72px is fixed and the handle is hidden there and at Hidden.
+- **A visible X (top-right) on every backdrop dialog** (Keyboard shortcuts, the card edit dialog) —
+  both already closed via outside-click and Escape, but neither had a discoverable on-screen affordance.
+  Settings gets one too, even though it's a real page with its own URL, not a modal: the owner named
+  it in the same breath as "keyboard shortcuts," and a small `history.back()` link (falling back to
+  home if there's no history to go back to) costs nothing and matches the same "always an obvious way
+  out" expectation. Not applied to Trash, Archived boards, Search or other pages that weren't named —
+  those already have sidebar links back, and adding it everywhere unasked would be exactly the kind
+  of scope creep this session has otherwise been trying to remove, not add.
+
 ## Consequences
 
 - Sort mode and section visibility never touch `.trellis.yml` or any board file — nothing here shows
   up in `git diff`-style change tracking of the data directory, and two people sharing the same LAN
   instance can have completely different sidebars without stepping on each other.
 - A pre-existing, unrelated flaky e2e test (`test_drag_card_onto_sidebar_board_moves_it_with_undo`)
-  surfaced twice during this work's test runs, always passing in isolation — a real but separate
-  issue (a timing race between two drag-handling code paths), not something this change caused or
-  fixed. Left as a known flake, not chased down here.
+  surfaced repeatedly during this work's test runs, always passing in isolation — a real but
+  separate issue (a timing race between two drag-handling code paths), not something this change
+  caused or fixed. Left as a known flake, not chased down here.
+- Skinny mode's first pass hid the pin button with the same hover-only `opacity` used everywhere
+  else, which still reserves its layout space — at 64px that space was most of the row, and board
+  titles rendered nothing at all (not even a truncated letter), making a board look like it had
+  disappeared from the sidebar. Fixed with `display: none` and the width bumped to 72px; see AGENTS.md
+  trap 16.

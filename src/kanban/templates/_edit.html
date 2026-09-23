@@ -4,6 +4,8 @@
         hx-target="[data-id='{{ card.id }}']" hx-swap="outerHTML"
         hx-on::after-request="if (event.target === this && event.detail.successful) this.closest('.backdrop').remove()"
         hx-on::response-error="this.querySelector('.error').textContent = 'Could not parse a date or the repeat rule.'">
+    <button type="button" class="dialog-close" aria-label="Close" title="Close"
+            onclick="this.closest('.backdrop').remove()">{{ icon('x', 18) }}</button>
     <input name="title" value="{{ card.title }}" required autofocus>
     <div class="start-field">
       <input name="start" value="{{ card.start or '' }}" placeholder="Start: tomorrow, fri, jun 5…">

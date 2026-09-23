@@ -43,7 +43,7 @@
            data-pinned="{{ '1' if b.pinned else '' }}"
            {% if b.kind in ('kanban', 'tasks') %}data-drop-board="{{ b.slug }}"{% endif %}>
         <span class="grip" title="Drag to reorder or move to an area">⋮⋮</span>
-        <a href="{{ url_for('boards.board', slug=b.slug) }}" class="{{ 'active' if current == b.slug }}">
+        <a href="{{ url_for('boards.board', slug=b.slug) }}" title="{{ b.title }}" class="{{ 'active' if current == b.slug }}">
           {% if b.kind == 'tasks' %}{{ icon('check-square', 13) }}{% endif %}<span>{{ b.title }}</span></a>
         <button type="button" class="pin-btn{{ ' pinned' if b.pinned }}"
                 data-post="{{ url_for('boards.toggle_pin', slug=b.slug) }}" data-after="reload"
@@ -52,11 +52,11 @@
       </div>
       {% endmacro %}
       <nav>
-        <a href="{{ url_for('boards.scheduled') }}" data-go="s" class="side-scheduled
+        <a href="{{ url_for('boards.scheduled') }}" data-go="s" title="Scheduled" class="side-scheduled
            {{ 'active' if request.endpoint == 'boards.scheduled' }}">
           <span>Scheduled</span><span id="today-badge">{% include "_badge.html" %}</span>
         </a>
-        <a href="{{ url_for('boards.logbook') }}" data-go="l" class="side-logbook
+        <a href="{{ url_for('boards.logbook') }}" data-go="l" title="Logbook" class="side-logbook
            {{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
 
         <div class="side-boards">
@@ -98,13 +98,14 @@
            aria-label="Settings" title="Settings">{{ icon('settings') }}</a>
         <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
                 onclick="document.getElementById('help').hidden = false">{{ icon('help-circle') }}</button>
-        <button type="button" class="icon-btn" data-sidebar-toggle aria-label="Collapse sidebar" title="Collapse sidebar">{{ icon('panel-left') }}</button>
+        <button type="button" class="icon-btn" data-sidebar-toggle aria-label="Resize sidebar: regular, skinny, or hidden" title="Cycles: regular → skinny → hidden">{{ icon('panel-left') }}</button>
         {% if auth_enabled %}
         <form method="post" action="{{ url_for('auth.logout') }}" class="logout-form">
           <button type="submit" class="icon-btn" aria-label="Log out" title="Log out">{{ icon('log-out') }}</button>
         </form>
         {% endif %}
       </div>
+      <div class="resize-handle" data-sidebar-resize title="Drag to resize"></div>
     </aside>
     <button type="button" class="sidebar-rail" data-sidebar-toggle aria-label="Show sidebar" title="Show sidebar">{{ icon('panel-left') }}</button>
     <div class="content">{% block content %}{% endblock %}</div>
@@ -132,6 +133,8 @@
   <div id="modal"></div>
   <div id="help" class="backdrop" hidden onclick="if (event.target === this) this.hidden = true">
     <div class="dialog">
+      <button type="button" class="dialog-close" aria-label="Close" title="Close"
+              onclick="document.getElementById('help').hidden = true">{{ icon('x', 18) }}</button>
       <h3>Keyboard shortcuts</h3>
       <dl>
         <dt>j / k</dt><dd>next / previous card</dd>

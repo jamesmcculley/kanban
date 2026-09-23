@@ -487,3 +487,46 @@ def test_unpinning_returns_a_board_to_its_position_order(store):
     assert [x.slug for x in store.sidebar()["unassigned"]] == [b.slug, a.slug]
     store.set_pinned(b.slug, False)
     assert [x.slug for x in store.sidebar()["unassigned"]] == [a.slug, b.slug]
+
+
+# ---- concurrent read/write safety (the sidebar's stats fetch races card writes constantly) -----
+
+def test_reading_cards_while_writing_never_sees_a_half_written_file(store):
+    """Regression: write_md() used to write straight to the target path, so a read landing between
+    the truncate and the new content finishing could see an empty/partial file and crash with a
+    KeyError on a required field (id/title/column). Hit for real by an e2e run where /sidebar/stats
+    raced a card save. write_md is now write-to-temp + atomic rename; this drives the same race
+    directly, many times, to prove a reader never sees anything but a fully-formed file."""
+    import threading
+
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "x", "Todo")
+    stop = threading.Event()
+    errors = []
+
+    def writer():
+        i = 0
+        while not stop.is_set():
+            try:
+                store.update_card(b.slug, card.id, f"x{i}", "", None)
+            except Exception as exc:  # noqa: BLE001 - anything here is the bug under test
+                errors.append(exc)
+                return
+            i += 1
+
+    def reader():
+        while not stop.is_set():
+            try:
+                store.list_cards(b.slug)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+                return
+
+    threads = [threading.Thread(target=writer), *(threading.Thread(target=reader) for _ in range(3))]
+    for t in threads:
+        t.start()
+    stop.wait(0.5)
+    stop.set()
+    for t in threads:
+        t.join()
+    assert errors == []

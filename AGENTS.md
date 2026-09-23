@@ -102,12 +102,28 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     show/hide toggle was one-way. It wasn't; the div was just genuinely empty. Any test asserting
     visibility of a section that can legitimately have no content needs real content in it first —
     `test_hide_a_sidebar_section_live_and_persisted` adds a tagged card before touching the toggle.
-14. **The sidebar footer icons (`.side-foot`) are `position: fixed`, not part of the sidebar's
+15. **The sidebar footer icons (`.side-foot`) are `position: fixed`, not part of the sidebar's
     flex/scroll flow** — same idea as the FAB, mirrored bottom-left, so they're reachable no matter
     how nav's flex math resolves. Left nested inside `.sidebar` in the markup on purpose (hides for
     free when the sidebar collapses), but because a `position: fixed` element reserves no space in
     normal flow, `.sidebar nav` needs its own `padding-bottom` or scrolled content renders
     underneath the floating pill instead of stopping above it.
+16. **A flex item at `opacity: 0` still occupies its layout space** — it's invisible, not gone.
+    Skinny mode's board rows (72px wide, ~40px after padding) hid `.pin-btn` with hover-only
+    `opacity`, same as everywhere else it appears, but at that width its ~16px was most of the row:
+    the title span was left with ~1px and rendered nothing, not even a truncated letter. One row
+    (the active one, with a background colour) still looked like *something* was there; a second,
+    inactive row looked like the board had vanished from the sidebar entirely. Fixed with
+    `display: none` on `.pin-btn` specifically in skinny mode, freeing the space for real.
+17. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+    — a concurrent read landing between the truncate and the new content finishing could see a
+    half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
+    run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.
+    Now writes to a `.tmp` sibling and `Path.replace()`s it into place, which is atomic on POSIX and
+    Windows — a reader always sees either the whole old file or the whole new one. Confirmed the
+    fix actually matters (not just theoretical) by reverting it and watching
+    `test_reading_cards_while_writing_never_sees_a_half_written_file` fail with the exact same
+    `KeyError('id')` from the real crash, then reapplying it and watching that test pass.
 
 ## Log
 

@@ -1,14 +1,101 @@
-// Collapse/expand the sidebar. Two buttons drive the same state: one inside the sidebar (visible
-// expanded), one a slim rail fixed at the edge (visible collapsed, since the sidebar itself is
-// hidden then and can't hold its own re-expand control).
-(() => {
+// Sidebar size: Regular -> Skinny -> Hidden -> Regular. Two buttons drive the same cycle: one
+// inside the sidebar (visible at Regular/Skinny), one a slim rail fixed at the edge (visible only
+// at Hidden, since the sidebar itself is gone then) -- clicking the rail lands on Regular directly
+// because Hidden -> Regular is the wrap-around step, not a detour through Skinny.
+window.SidebarMode = (() => {
   const root = document.documentElement;
+  const MODES = ['regular', 'skinny', 'hidden'];
+  const get = () => { try { return localStorage.getItem('sidebar-mode') || 'regular'; } catch { return 'regular'; } };
+  function set(mode) {
+    if (mode === 'regular') root.removeAttribute('data-sidebar'); else root.setAttribute('data-sidebar', mode);
+    try { localStorage.setItem('sidebar-mode', mode); } catch { /* ignore */ }
+  }
   document.querySelectorAll('[data-sidebar-toggle]').forEach(btn => btn.addEventListener('click', () => {
-    const collapsed = root.getAttribute('data-sidebar') !== 'collapsed';
-    root.setAttribute('data-sidebar', collapsed ? 'collapsed' : 'expanded');
-    try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch { /* ignore */ }
+    set(MODES[(MODES.indexOf(get()) + 1) % MODES.length]);
   }));
+  return { get, set };
 })();
+
+// Sidebar width: drag the handle on its right edge, or type a number in Settings -- either way
+// writes the same 'sidebar-width' localStorage key (read pre-paint by _theme_boot.html), so
+// dragging on any page is what Settings' number field shows next time it's opened.
+window.SidebarWidth = (() => {
+  const root = document.documentElement;
+  const DEFAULT = 230, MIN = 180, MAX = 420;
+  const clamp = n => Math.min(MAX, Math.max(MIN, n));
+  const get = () => {
+    try {
+      const saved = parseInt(localStorage.getItem('sidebar-width'), 10);
+      return saved >= MIN && saved <= MAX ? saved : DEFAULT;
+    } catch { return DEFAULT; }
+  };
+  function set(px) {
+    px = clamp(Math.round(px));
+    root.style.setProperty('--sidebar-width', px + 'px');
+    try { localStorage.setItem('sidebar-width', String(px)); } catch { /* ignore */ }
+    return px;
+  }
+  function reset() {
+    root.style.removeProperty('--sidebar-width');
+    try { localStorage.removeItem('sidebar-width'); } catch { /* ignore */ }
+    return DEFAULT;
+  }
+  return { get, set, reset, DEFAULT, MIN, MAX };
+})();
+
+(() => {
+  const handle = document.querySelector('[data-sidebar-resize]');
+  const sidebar = document.querySelector('.sidebar');
+  if (!handle || !sidebar) return;
+  let startX = 0, startWidth = 0;
+  const onMove = e => {
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    window.SidebarWidth.set(startWidth + (x - startX));
+  };
+  const onUp = () => {
+    handle.classList.remove('active');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+  };
+  const onDown = e => {
+    if (window.SidebarMode.get() !== 'regular') return;  // only Regular has a variable width
+    startX = e.touches ? e.touches[0].clientX : e.clientX;
+    startWidth = sidebar.getBoundingClientRect().width;
+    handle.classList.add('active');
+    e.preventDefault();
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove);
+    document.addEventListener('touchend', onUp);
+  };
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown);
+})();
+
+// Settings page: the width number field mirrors the current width and applies live as you type --
+// but the field's own displayed value is only snapped to the clamped result on blur, not on every
+// keystroke, or typing "200" would get clamped mid-entry (e.g. "1" -> 180) and never reach it.
+// Dragging the handle (above) keeps this field in sync the other direction, next time it loads.
+document.addEventListener('DOMContentLoaded', () => {
+  const widthInput = document.getElementById('sidebar-width');
+  const widthReset = document.getElementById('sidebar-width-reset');
+  if (widthInput) {
+    widthInput.value = window.SidebarWidth.get();
+    widthInput.addEventListener('input', () => {
+      const n = parseInt(widthInput.value, 10);
+      if (!Number.isNaN(n)) window.SidebarWidth.set(n);
+    });
+    widthInput.addEventListener('blur', () => { widthInput.value = window.SidebarWidth.get(); });
+  }
+  if (widthReset) {
+    widthReset.addEventListener('click', () => {
+      const px = window.SidebarWidth.reset();
+      if (widthInput) widthInput.value = px;
+    });
+  }
+});
 
 // Board sort order: manual (drag, the default) or a client-side re-sort by title/created/updated.
 // A personal per-device preference (localStorage), same as theme -- the server's own order (what
