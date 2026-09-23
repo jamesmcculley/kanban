@@ -38,45 +38,54 @@
         <input name="q" type="search" placeholder="Search  ( / )" autocomplete="off" value="{{ q or '' }}">
       </form>
       {% macro board_row(b, current) %}
-      <div class="board-row" data-slug="{{ b.slug }}"{% if b.kind in ('kanban', 'tasks') %} data-drop-board="{{ b.slug }}"{% endif %}>
+      <div class="board-row" data-slug="{{ b.slug }}" data-title="{{ b.title }}"
+           data-created="{{ b.created or '' }}" data-updated="{{ b.updated or '' }}"
+           data-pinned="{{ '1' if b.pinned else '' }}"
+           {% if b.kind in ('kanban', 'tasks') %}data-drop-board="{{ b.slug }}"{% endif %}>
         <span class="grip" title="Drag to reorder or move to an area">⋮⋮</span>
         <a href="{{ url_for('boards.board', slug=b.slug) }}" class="{{ 'active' if current == b.slug }}">
           {% if b.kind == 'tasks' %}{{ icon('check-square', 13) }}{% endif %}<span>{{ b.title }}</span></a>
+        <button type="button" class="pin-btn{{ ' pinned' if b.pinned }}"
+                data-post="{{ url_for('boards.toggle_pin', slug=b.slug) }}" data-after="reload"
+                title="{{ 'Unpin' if b.pinned else 'Pin to top' }}"
+                aria-label="{{ 'Unpin' if b.pinned else 'Pin' }} {{ b.title }}">{{ icon('pin', 12) }}</button>
       </div>
       {% endmacro %}
       <nav>
-        <a href="{{ url_for('boards.scheduled') }}" data-go="s"
-           class="{{ 'active' if request.endpoint == 'boards.scheduled' }}">
+        <a href="{{ url_for('boards.scheduled') }}" data-go="s" class="side-scheduled
+           {{ 'active' if request.endpoint == 'boards.scheduled' }}">
           <span>Scheduled</span><span id="today-badge">{% include "_badge.html" %}</span>
         </a>
-        <a href="{{ url_for('boards.logbook') }}" data-go="l"
-           class="{{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
+        <a href="{{ url_for('boards.logbook') }}" data-go="l" class="side-logbook
+           {{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
 
-        <h3>Boards</h3>
-        <div class="boards-unassigned">
-          {% for b in sidebar.unassigned %}{{ board_row(b, current_board) }}{% endfor %}
-        </div>
-
-        <div class="areas">
-          {% for name, boards in sidebar.areas %}
-          <div class="area" data-area="{{ name }}">
-            <div class="area-head">
-              <span class="grip area-grip" title="Drag to reorder areas">⋮⋮</span>
-              <form hx-post="{{ url_for('boards.rename_area') }}" hx-swap="none"
-                    hx-on::response-error="location.reload()">
-                <input type="hidden" name="old" value="{{ name }}">
-                <input class="area-title" name="new" value="{{ name }}" aria-label="Area name" autocomplete="off"
-                       onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
-              </form>
-              <button type="button" class="mini" title="Delete this area (its boards are kept)" aria-label="Delete area"
-                      data-post="{{ url_for('boards.delete_area') }}" data-vals='{{ {"name": name}|tojson }}'
-                      data-after="reload">×</button>
-            </div>
-            <div class="area-boards">
-              {% for b in boards %}{{ board_row(b, current_board) }}{% endfor %}
-            </div>
+        <div class="side-boards">
+          <h3>Boards</h3>
+          <div class="boards-unassigned">
+            {% for b in sidebar.unassigned %}{{ board_row(b, current_board) }}{% endfor %}
           </div>
-          {% endfor %}
+
+          <div class="areas">
+            {% for name, boards in sidebar.areas %}
+            <div class="area" data-area="{{ name }}">
+              <div class="area-head">
+                <span class="grip area-grip" title="Drag to reorder areas">⋮⋮</span>
+                <form hx-post="{{ url_for('boards.rename_area') }}" hx-swap="none"
+                      hx-on::response-error="location.reload()">
+                  <input type="hidden" name="old" value="{{ name }}">
+                  <input class="area-title" name="new" value="{{ name }}" aria-label="Area name" autocomplete="off"
+                         onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
+                </form>
+                <button type="button" class="mini" title="Delete this area (its boards are kept)" aria-label="Delete area"
+                        data-post="{{ url_for('boards.delete_area') }}" data-vals='{{ {"name": name}|tojson }}'
+                        data-after="reload">×</button>
+              </div>
+              <div class="area-boards">
+                {% for b in boards %}{{ board_row(b, current_board) }}{% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
         <div id="tag-section">{% include "_tags.html" %}</div>
       </nav>

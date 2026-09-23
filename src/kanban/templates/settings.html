@@ -26,6 +26,30 @@
       </fieldset>
     </section>
 
+    <section class="card-section" aria-labelledby="sidebar-h">
+      <h2 id="sidebar-h">Sidebar <span class="muted">this device only</span></h2>
+      <fieldset class="pref-row">
+        <div><label for="board-sort">Sort boards by</label><small>Manual order is what dragging sets; the others are just how they're shown here, and don't touch it.</small></div>
+        <select id="board-sort">
+          <option value="manual">Manual (drag to reorder)</option>
+          <option value="alpha">Alphabetical</option>
+          <option value="updated">Recently updated</option>
+          <option value="created">Recently created</option>
+        </select>
+      </fieldset>
+      <fieldset class="sidebar-show">
+        <legend>Show in the sidebar</legend>
+        <label><input type="checkbox" name="sidebar-show" value="search"> Search</label>
+        <label><input type="checkbox" name="sidebar-show" value="scheduled"> Scheduled</label>
+        <label><input type="checkbox" name="sidebar-show" value="logbook"> Logbook</label>
+        <label><input type="checkbox" name="sidebar-show" value="boards"> Boards</label>
+        <label><input type="checkbox" name="sidebar-show" value="tags"> Tags</label>
+        <label><input type="checkbox" name="sidebar-show" value="theme"> Theme toggle</label>
+      </fieldset>
+      <p class="muted">Trash, Archived boards, Settings and the other icons at the bottom stay put
+        no matter what's hidden above, so there's always a way back here.</p>
+    </section>
+
     <section class="card-section" aria-labelledby="defaults-h">
       <h2 id="defaults-h">Defaults <span class="muted">every board, unless it sets its own</span></h2>
       <form class="prefs" hx-post="{{ url_for('boards.save_settings') }}" hx-trigger="change" hx-target="#save-status" hx-swap="innerHTML"

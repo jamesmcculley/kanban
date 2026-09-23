@@ -601,6 +601,17 @@ def archived_boards():
     return render_template("archived.html", boards=store().list_archived_boards())
 
 
+@bp.post("/b/<slug>/pin")
+def toggle_pin(slug):
+    try:
+        board = store().get_board(slug)
+        store().set_pinned(slug, not board.pinned)
+    except KeyError:
+        abort(404)
+    pinned = not board.pinned
+    return jsonify(_toast(f"{'Pinned' if pinned else 'Unpinned'} “{_short(board.title)}”"))
+
+
 @bp.post("/capture")
 def capture():
     """Quick-add from anywhere: lands at the top of whichever board the client asked for."""

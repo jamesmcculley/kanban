@@ -1059,3 +1059,87 @@ def test_import_csv_creates_a_new_board(page):
     expect(page.locator(".card", has_text="Buy paint")).to_be_visible()
     expect(page.locator(".card", has_text="Fix the sink")).to_be_visible()
     expect(page.locator('.column[data-column="Doing"] .card', has_text="Fix the sink")).to_be_visible()
+
+
+def board_titles(page):
+    return page.eval_on_selector_all(
+        ".boards-unassigned .board-row a span:last-child", "els => els.map(e => e.textContent)")
+
+
+def test_sort_boards_alphabetically_and_it_persists(page):
+    fab_add(page, "New board", "Zebra")
+    page.wait_for_url("**/b/zebra")
+    fab_add(page, "New board", "Apple")
+    page.wait_for_url("**/b/apple")
+
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    assert board_titles(page) == ["My Board", "Zebra", "Apple"]  # creation order (manual default)
+
+    with page.expect_navigation():
+        page.select_option("#board-sort", "alpha")
+    assert board_titles(page) == ["Apple", "My Board", "Zebra"]
+
+    page.reload()
+    page.wait_for_load_state()
+    assert board_titles(page) == ["Apple", "My Board", "Zebra"]  # survives a reload
+
+    with page.expect_navigation():
+        page.select_option("#board-sort", "manual")
+    assert board_titles(page) == ["My Board", "Zebra", "Apple"]  # back to the real (drag) order
+
+
+def test_hide_a_sidebar_section_live_and_persisted(page):
+    add_card(page, "Todo", "tagged #sometag")  # #tag-section is empty (zero height) with no tags
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    expect(page.locator("#tag-section")).to_be_visible()
+
+    page.uncheck('input[name="sidebar-show"][value="tags"]')
+    expect(page.locator("#tag-section")).to_be_hidden()          # live, no reload needed
+    # the floating toolbar is never one of the choices -- always there regardless
+    expect(page.locator(".side-foot")).to_be_visible()
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator("#tag-section")).to_be_hidden()          # persisted
+    expect(page.locator('input[name="sidebar-show"][value="tags"]')).not_to_be_checked()
+
+    page.check('input[name="sidebar-show"][value="tags"]')
+    expect(page.locator("#tag-section")).to_be_visible()          # reversible
+
+
+def test_hiding_the_whole_boards_section_still_leaves_the_toolbar(page):
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    page.uncheck('input[name="sidebar-show"][value="boards"]')
+    expect(page.locator(".side-boards")).to_be_hidden()
+    expect(page.locator(".side-foot")).to_be_visible()
+    expect(page.get_by_role("link", name="Settings", exact=True)).to_be_visible()  # still reachable
+
+
+def test_pin_a_board_stays_on_top_in_every_sort_mode(page):
+    fab_add(page, "New board", "Zebra")
+    page.wait_for_url("**/b/zebra")
+    fab_add(page, "New board", "Apple")
+    page.wait_for_url("**/b/apple")
+    assert board_titles(page) == ["My Board", "Zebra", "Apple"]
+
+    row = page.locator('.board-row[data-slug="apple"]')
+    row.hover()
+    with page.expect_navigation():
+        row.get_by_role("button", name="Pin Apple").click()
+    assert board_titles(page) == ["Apple", "My Board", "Zebra"]        # pinned floats to the top
+
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    with page.expect_navigation():
+        page.select_option("#board-sort", "alpha")
+    # alphabetically "Apple" would sort first anyway -- prove the pin, not the alphabet, by pinning Zebra
+    page.locator('.board-row[data-slug="apple"]').hover()
+    with page.expect_navigation():
+        page.get_by_role("button", name="Unpin Apple").click()
+    page.locator('.board-row[data-slug="zebra"]').hover()
+    with page.expect_navigation():
+        page.get_by_role("button", name="Pin Zebra").click()
+    assert board_titles(page) == ["Zebra", "Apple", "My Board"]        # pinned beats alphabetical order

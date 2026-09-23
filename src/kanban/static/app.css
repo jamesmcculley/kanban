@@ -70,6 +70,18 @@ input, textarea, button { font:inherit; }
 .sidebar nav a.active { background:var(--accent); color:var(--on-accent); }
 .sidebar h3 { margin:16px 10px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
               color:var(--text-subtle); }
+
+/* Sidebar customization (Settings > Sidebar): which sections show, applied before first paint
+   (see _theme_boot.html) so there's no flash of a section that's about to disappear. Everything
+   here is a per-device preference (localStorage), same as theme -- and deliberately never touches
+   the floating .side-foot toolbar, which stays put no matter what so there's always a way back
+   into Settings to undo an over-aggressive hide. */
+html[data-sidebar-hide~="search"] .sidebar .search { display:none; }
+html[data-sidebar-hide~="scheduled"] .side-scheduled { display:none; }
+html[data-sidebar-hide~="logbook"] .side-logbook { display:none; }
+html[data-sidebar-hide~="boards"] .side-boards { display:none; }
+html[data-sidebar-hide~="tags"] #tag-section { display:none; }
+html[data-sidebar-hide~="theme"] .theme-btn { display:none; }
 .badge { background:var(--danger-solid); color:#fff; border-radius:10px; font-size:11px; padding:1px 7px; }
 .sidebar input { width:100%; padding:7px 9px; border-radius:7px; border:1px solid var(--border);
                  background:var(--bg-card); color:var(--text-primary); }
@@ -161,6 +173,15 @@ h1 { margin:0; font-size:22px; }
 @media (hover: none) { .grip { opacity:1; } }
 .board-row { display:flex; align-items:center; gap:2px; }
 .board-row a { flex:1; min-width:0; }
+/* Hidden until hover, like the grip -- except once a board is pinned, its pin stays visible as a
+   status indicator (so it's obvious *why* it's floated to the top of its group) as well as the way
+   to undo it. */
+.pin-btn { display:grid; place-items:center; border:0; background:none; color:var(--text-subtle);
+           cursor:pointer; padding:2px; border-radius:5px; flex:none; opacity:0; transition:opacity .15s; }
+.board-row:hover .pin-btn, .pin-btn.pinned { opacity:1; }
+.pin-btn:hover { background:var(--hover); color:var(--text-primary); }
+.pin-btn.pinned { color:var(--accent-text); }
+@media (hover: none) { .pin-btn { opacity:1; } }
 .boards-unassigned, .area-boards { min-height:6px; }
 .area { margin-top:10px; }
 .area-head { display:flex; align-items:center; gap:2px; }
@@ -315,6 +336,9 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .tc-name { font-weight:600; font-size:14px; } .tc-blurb { font-size:12px; color:var(--text-subtle); }
 .size-row { margin-top:18px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; } .size-row legend { margin:0 12px 0 0; float:left; }
 .size-row label { cursor:pointer; }
+.sidebar-show { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); display:flex; gap:16px; flex-wrap:wrap; }
+.sidebar-show legend { width:100%; margin-bottom:8px; font-weight:600; font-size:13px; }
+.sidebar-show label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px; }
 
 /* settings rows and rules */
 .pref-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 0; border-top:1px solid var(--border); }

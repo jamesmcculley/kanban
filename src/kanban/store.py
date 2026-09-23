@@ -69,6 +69,10 @@ class Board:
     rules: list = field(default_factory=list)  # this board's automation rules
     labels: list = field(default_factory=list)  # this board's label definitions: [{id, name, color}]
     archived: bool = False  # tucked away: out of the sidebar, search, Scheduled; still fully intact
+    pinned: bool = False  # always first in its group (unassigned, or its area) in the sidebar
+    created: str | None = None  # ISO timestamp, set once by create_board and never touched again
+    updated: str | None = field(default=None, compare=False, repr=False)  # board.md's mtime -- see
+    # Store._touch_board; a derived value, not written to the file, so it's excluded like extra/effects
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
 
@@ -85,7 +89,7 @@ def _iso(meta: dict, key: str) -> str | None:
 _CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
               "priority", "done", "completed", "last_completed", "archived"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
-               "labels", "archived"}
+               "labels", "archived", "pinned", "created"}
 
 
 def _card_from(meta: dict, body: str) -> Card:
@@ -138,6 +142,13 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         board.archived = False
         self._save_board(board)
 
+    def set_pinned(self, slug: str, pinned: bool) -> None:
+        """Pinned boards sort first within their own group (unassigned, or their area) in the
+        sidebar, regardless of the sort mode -- see sidebar() and sidebar.js's BoardSort."""
+        board = self.get_board(slug)
+        board.pinned = pinned
+        self._save_board(board)
+
     def get_board(self, slug: str) -> Board:
         path = self._board_dir(slug) / "board.md"
         if not path.exists():
@@ -147,11 +158,13 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         default_cols = list(DEFAULT_COLUMNS) if kind == "kanban" else [TASKS_COLUMN] if kind == "tasks" else []
         columns = meta.get("columns", default_cols)
         hidden = [c for c in meta.get("hidden", []) if c in columns]
+        updated = datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="minutes")
         return Board(slug, meta.get("title", slug), columns, hidden,
                      area=meta.get("area") or None, position=int(meta.get("position") or 0),
                      kind=kind, parent=meta.get("parent") or None,
                      settings=meta.get("settings") or {}, rules=meta.get("rules") or [],
                      labels=meta.get("labels") or [], archived=bool(meta.get("archived")),
+                     pinned=bool(meta.get("pinned")), created=_iso(meta, "created"), updated=updated,
                      extra=extra_fields(meta, _BOARD_KEYS))
 
     def _save_board(self, board: Board) -> None:
@@ -176,6 +189,10 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["labels"] = board.labels
         if board.archived:
             meta["archived"] = True
+        if board.pinned:
+            meta["pinned"] = True
+        if board.created:
+            meta["created"] = board.created
         _write(self._board_dir(board.slug) / "board.md", {**board.extra, **meta})
 
     def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban") -> Board:
@@ -189,7 +206,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             chosen = [TASKS_COLUMN]
         else:
             chosen = columns or self.global_settings().get("default_columns") or list(DEFAULT_COLUMNS)
-        board = Board(slug, title, chosen, position=last + 1, kind=kind)
+        created = datetime.now().isoformat(timespec="minutes")
+        board = Board(slug, title, chosen, position=last + 1, kind=kind, created=created)
         (self.root / slug / "cards").mkdir(parents=True)
         self._save_board(board)
         return board
@@ -253,8 +271,12 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
 
     def sidebar(self) -> dict:
         """Boards grouped for the sidebar: {'unassigned': [...], 'areas': [(name, [...])]}.
-        Archived boards are left out -- see list_archived_boards."""
-        boards = [b for b in self.list_boards() if b.parent is None and not b.archived]
+        Archived boards are left out -- see list_archived_boards. Within each group, pinned boards
+        sort first -- a stable sort, so position order (drag order) still holds within each of
+        "pinned" and "not pinned"; sidebar.js's BoardSort re-applies the same pinned-first rule
+        after its own client-side alphabetical/updated/created re-sort."""
+        boards = sorted((b for b in self.list_boards() if b.parent is None and not b.archived),
+                        key=lambda b: not b.pinned)
         names = self.areas()
         return {
             "unassigned": [b for b in boards if b.area not in names],
@@ -408,6 +430,16 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         if card.archived:
             meta["archived"] = True
         _write(self._card_path(slug, card.id), {**card.extra, **meta}, card.body)
+        self._touch_board(slug)  # so "most recently updated" board sort notices card activity too
+
+    def _touch_board(self, slug: str) -> None:
+        """Bump board.md's mtime without rewriting it -- cheap, and Board.updated (see get_board)
+        reads straight from that mtime, so card activity counts as the board being "updated" too,
+        not just board-level changes (rename, settings, rules...)."""
+        try:
+            (self._board_dir(slug) / "board.md").touch()
+        except OSError:
+            pass
 
     def _load_card(self, path: Path) -> Card:
         return _card_from(*_read(path))

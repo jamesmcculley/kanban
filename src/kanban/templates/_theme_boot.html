@@ -10,6 +10,9 @@
     var s = localStorage.getItem('font-size');
     if (SIZES.indexOf(s) > -1) document.documentElement.setAttribute('data-font-size', s);
     if (localStorage.getItem('sidebar-collapsed') === '1') document.documentElement.setAttribute('data-sidebar', 'collapsed');
+    var hide = JSON.parse(localStorage.getItem('sidebar-hide') || '{}');
+    var hidden = Object.keys(hide).filter(function (k) { return hide[k]; });
+    if (hidden.length) document.documentElement.setAttribute('data-sidebar-hide', hidden.join(' '));
   } catch (e) { /* storage blocked: keep the default */ }
 })();
 </script>

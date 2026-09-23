@@ -28,4 +28,4 @@ line-length = 100
 
 [tool.ruff.lint]
 # a personal tool: "today" means the local calendar date, not UTC
-ignore = ["DTZ001", "DTZ005", "DTZ011"]
+ignore = ["DTZ001", "DTZ005", "DTZ006", "DTZ011"]

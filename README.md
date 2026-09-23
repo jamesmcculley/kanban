@@ -25,6 +25,10 @@ directory can also be opened as an Obsidian vault.
   Archived boards list
 - Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists,
   and a collapse toggle
+- **Sort boards** alphabetically, most recently updated or most recently created, or drag them
+  manually (Settings) — and **show or hide any sidebar section** (search, Scheduled, Logbook,
+  boards, tags, the theme toggle) except the toolbar at the bottom, so there's always a way back in
+- **Pin a board** to keep it at the top of its list no matter which sort order is active
 - A "show or hide lists" panel (the eye icon) to see and toggle every list's visibility at once
 - Installable to a phone's home screen; keyboard shortcuts (press `?`)
 - A login for LAN mode (one shared password; not needed, and not offered, in localhost mode)

@@ -1,3 +1,6 @@
+import os
+import time
+
 import pytest
 
 from kanban.store import Store
@@ -414,3 +417,73 @@ def test_import_one_bad_row_does_not_abort_the_rest(store):
     created, errors = store.import_cards(b.slug, rows)
     assert created == 0
     assert len(errors) == 2 and all("no lists" in e for e in errors)
+
+
+# ---- board created/updated timestamps (sidebar sort) -----------------------------------------
+
+def test_created_is_set_once_and_never_changes(store):
+    b = store.create_board("B")
+    assert b.created is not None
+    original = store.get_board(b.slug).created
+    store.rename_board(b.slug, "New name")
+    assert store.get_board(b.slug).created == original
+
+
+def test_updated_reflects_board_md_mtime(store, tmp_path):
+    b = store.create_board("B")
+    path = tmp_path / b.slug / "board.md"
+    old = time.time() - 120  # back-date first, so a real (not flaky, sub-second) gap shows up
+    os.utime(path, (old, old))
+    first = store.get_board(b.slug).updated
+    assert first is not None
+    store.rename_board(b.slug, "New name")  # re-saves board.md -> mtime jumps back to "now"
+    assert store.get_board(b.slug).updated > first
+
+
+def test_adding_a_card_touches_the_board_as_updated(store, tmp_path):
+    b = store.create_board("B")
+    path = tmp_path / b.slug / "board.md"
+    old = time.time() - 120
+    os.utime(path, (old, old))
+    before = store.get_board(b.slug).updated
+    store.add_card(b.slug, "x", "Todo")
+    assert store.get_board(b.slug).updated > before
+
+
+# ---- pinning boards ----------------------------------------------------------------------------
+
+def test_set_pinned_toggles_and_persists(store):
+    b = store.create_board("B")
+    assert b.pinned is False
+    store.set_pinned(b.slug, True)
+    assert store.get_board(b.slug).pinned is True
+    store.set_pinned(b.slug, False)
+    assert store.get_board(b.slug).pinned is False
+
+
+def test_pinned_boards_sort_first_in_the_sidebar(store):
+    a = store.create_board("Alpha")
+    z = store.create_board("Zulu")
+    m = store.create_board("Mid")
+    store.set_pinned(m.slug, True)
+    order = [b.slug for b in store.sidebar()["unassigned"]]
+    assert order == [m.slug, a.slug, z.slug]  # pinned first, then creation/position order
+
+
+def test_pinned_boards_sort_first_within_their_own_area(store):
+    store.add_area("Home")
+    a = store.create_board("A")
+    b = store.create_board("B")
+    store.apply_layout(["Home"], {"Home": [a.slug, b.slug]})
+    store.set_pinned(b.slug, True)
+    order = [x.slug for x in dict(store.sidebar()["areas"])["Home"]]
+    assert order == [b.slug, a.slug]
+
+
+def test_unpinning_returns_a_board_to_its_position_order(store):
+    a = store.create_board("A")
+    b = store.create_board("B")
+    store.set_pinned(b.slug, True)
+    assert [x.slug for x in store.sidebar()["unassigned"]] == [b.slug, a.slug]
+    store.set_pinned(b.slug, False)
+    assert [x.slug for x in store.sidebar()["unassigned"]] == [a.slug, b.slug]

@@ -273,3 +273,22 @@ def test_import_unknown_existing_board_400s(client):
     r = client.post("/import", data={"file": _csv_file("title\nx\n"), "target": "existing", "existing_slug": "nope"},
                     content_type="multipart/form-data")
     assert r.status_code == 400
+
+
+# ---- pinning ------------------------------------------------------------------------------------
+
+def test_toggle_pin_route(client):
+    client.post("/boards", data={"title": "Side project"})
+    r = client.post("/b/side-project/pin")
+    assert r.status_code == 200 and "Pinned" in r.text
+    page = client.get("/b/my-board").text
+    assert page.index('data-slug="side-project"') < page.index('data-slug="my-board"')  # pinned first
+
+    r = client.post("/b/side-project/pin")
+    assert r.status_code == 200 and "Unpinned" in r.text
+    page = client.get("/b/my-board").text
+    assert page.index('data-slug="my-board"') < page.index('data-slug="side-project"')  # back to normal
+
+
+def test_pin_unknown_board_404s(client):
+    assert client.post("/b/nope/pin").status_code == 404

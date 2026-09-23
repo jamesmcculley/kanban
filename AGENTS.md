@@ -95,6 +95,13 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     `to_be_in_viewport()` on the footer doesn't catch content overlapping *itself* elsewhere in the
     sidebar. `test_sidebar_sections_dont_overlap_when_nav_needs_to_scroll` checks bounding boxes
     directly for exactly that.
+14. **An empty container has no bounding box, so Playwright's `to_be_visible()`/`is_visible()` calls
+    it invisible even when nothing is actually hiding it.** `#tag-section` renders nothing when a
+    board has no tags at all — a test toggling "Show in the sidebar > Tags" on a fresh board with no
+    tagged cards saw `visible: False` both before *and* after re-enabling it, which looked like the
+    show/hide toggle was one-way. It wasn't; the div was just genuinely empty. Any test asserting
+    visibility of a section that can legitimately have no content needs real content in it first —
+    `test_hide_a_sidebar_section_live_and_persisted` adds a tagged card before touching the toggle.
 14. **The sidebar footer icons (`.side-foot`) are `position: fixed`, not part of the sidebar's
     flex/scroll flow** — same idea as the FAB, mirrored bottom-left, so they're reachable no matter
     how nav's flex math resolves. Left nested inside `.sidebar` in the markup on purpose (hides for
