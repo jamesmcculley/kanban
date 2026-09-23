@@ -225,9 +225,10 @@ h1 { margin:0; font-size:22px; }
 .fab-btn:hover { transform:scale(1.06); }
 .fab.open .fab-btn { transform:rotate(45deg); }
 .fab-menu { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
-.fab-menu button { border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); border-radius:20px;
-                   padding:8px 16px; cursor:pointer; box-shadow:0 2px 8px #0003; }
-.fab-menu button:hover { border-color:var(--accent); }
+.fab-menu button, .fab-menu a { border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);
+                   border-radius:20px; padding:8px 16px; cursor:pointer; box-shadow:0 2px 8px #0003;
+                   text-decoration:none; display:inline-block; }
+.fab-menu button:hover, .fab-menu a:hover { border-color:var(--accent); }
 .fab-form { margin:0; } .fab-form[hidden], .fab-menu[hidden] { display:none; }
 .fab-form input { width:230px; padding:10px 12px; border-radius:20px; border:1px solid var(--accent);
                   background:var(--bg-card); color:var(--text-primary); box-shadow:0 2px 8px #0003; }
@@ -410,3 +411,16 @@ html[data-sidebar=collapsed] .sidebar-rail { display:grid; place-items:center; }
                                     background:var(--bg); color:var(--text-primary); font-size:15px; text-align:center; }
 .login-card .primary-btn { padding:10px; font-size:15px; }
 .login-card .error { color:var(--danger); font-size:13px; margin:0; }
+
+/* CSV import (/import) */
+.import-form { display:flex; flex-direction:column; gap:14px; align-items:flex-start; }
+.import-file { display:flex; flex-direction:column; gap:6px; font-weight:600; font-size:13px; }
+.import-target { display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer; }
+.import-subfields { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 10px 24px; }
+.import-subfields input[type=text], .import-subfields select { padding:7px 9px; border-radius:6px;
+       border:1px solid var(--border); background:var(--bg); color:var(--text-primary); }
+.import-format { border-collapse:collapse; margin:10px 0; font-size:13px; }
+.import-format th, .import-format td { border:1px solid var(--border); padding:5px 10px; text-align:left; }
+.import-format code { background:var(--hover); padding:1px 4px; border-radius:4px; }
+.import-errors { margin:6px 0 0; padding-left:20px; color:var(--text-subtle); font-size:13px; }
+.import-errors li { margin:2px 0; }

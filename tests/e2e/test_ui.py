@@ -1039,3 +1039,23 @@ def test_archive_and_unarchive_board(page):
     page.wait_for_load_state()
     expect(page.locator(".empty")).to_be_visible()
     expect(page.get_by_role("link", name="Side project", exact=True)).to_be_visible()  # back
+
+
+def test_import_csv_creates_a_new_board(page):
+    page.click(".fab-btn")
+    page.get_by_role("link", name="Import from CSV").click()
+    page.wait_for_url("**/import")
+
+    csv_text = "title,list,tags,priority\nBuy paint,Todo,home,high\nFix the sink,Doing,,\n"
+    page.set_input_files('input[type="file"]', files=[
+        {"name": "cards.csv", "mimeType": "text/csv", "buffer": csv_text.encode()}])
+    page.fill('input[name="new_title"]', "Imported via UI")
+    page.click('button:has-text("Import")')
+    page.wait_for_load_state()
+
+    expect(page.get_by_text("Imported 2")).to_be_visible()
+    page.click("text=Go to Imported via UI")
+    page.wait_for_url("**/b/imported-via-ui")
+    expect(page.locator(".card", has_text="Buy paint")).to_be_visible()
+    expect(page.locator(".card", has_text="Fix the sink")).to_be_visible()
+    expect(page.locator('.column[data-column="Doing"] .card', has_text="Fix the sink")).to_be_visible()

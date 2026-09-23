@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Import{% endblock %}
+{% block content %}
+  <header class="page-head"><h1>Import from CSV</h1></header>
+  <main class="settings">
+    <section class="card-section">
+      <form method="post" action="{{ url_for('boards.do_import') }}" enctype="multipart/form-data" class="import-form">
+        <label class="import-file"><span>CSV file</span>
+          <input type="file" name="file" accept=".csv,text/csv" required></label>
+
+        <fieldset>
+          <legend>Import into</legend>
+          <label class="import-target"><input type="radio" name="target" value="new" checked onchange="document.getElementById('new-fields').hidden = false; document.getElementById('existing-fields').hidden = true;">
+            A new board</label>
+          <div id="new-fields" class="import-subfields">
+            <input type="text" name="new_title" placeholder="Board name" autocomplete="off">
+            <select name="new_kind" aria-label="Board kind">
+              <option value="kanban">Kanban board (uses the CSV's "list" column)</option>
+              <option value="tasks">Task list (flat — "list" is ignored)</option>
+            </select>
+          </div>
+          <label class="import-target"><input type="radio" name="target" value="existing" onchange="document.getElementById('new-fields').hidden = true; document.getElementById('existing-fields').hidden = false;">
+            An existing board</label>
+          <div id="existing-fields" class="import-subfields" hidden>
+            {% if card_boards %}
+            <select name="existing_slug" aria-label="Board to import into">
+              {% for b in card_boards %}<option value="{{ b.slug }}">{{ b.title }}</option>{% endfor %}
+            </select>
+            {% else %}
+            <p class="muted">No boards yet — import into a new one instead.</p>
+            {% endif %}
+          </div>
+        </fieldset>
+
+        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+        <button type="submit" class="primary-btn">Import</button>
+      </form>
+    </section>
+
+    <section class="card-section">
+      <h2>CSV format</h2>
+      <p class="muted">One row per card. Only <code>title</code> is required — everything else is optional.</p>
+      <table class="import-format">
+        <thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>title</code></td><td>The card's title (required; <code>name</code> also works)</td></tr>
+          <tr><td><code>list</code></td><td>Which list it goes in — created if it doesn't exist yet (kanban boards only; <code>column</code>/<code>status</code> also work)</td></tr>
+          <tr><td><code>due</code></td><td>A due date — natural language works too, e.g. "tomorrow", "in 3 days"</td></tr>
+          <tr><td><code>start</code></td><td>A start date, same format as due</td></tr>
+          <tr><td><code>tags</code></td><td>Space- or comma-separated, with or without <code>#</code></td></tr>
+          <tr><td><code>priority</code></td><td><code>low</code>, <code>medium</code> or <code>high</code></td></tr>
+          <tr><td><code>notes</code></td><td>The card's notes (Markdown works; <code>body</code> also works)</td></tr>
+          <tr><td><code>done</code></td><td><code>yes</code>/<code>true</code>/<code>1</code> marks it already completed</td></tr>
+        </tbody>
+      </table>
+      <a class="link-btn" href="{{ url_for('boards.import_example_csv') }}" download>Download an example CSV</a>
+    </section>
+  </main>
+{% endblock %}

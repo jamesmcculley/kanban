@@ -115,6 +115,7 @@
       <button type="button" data-action="board">New board</button>
       <button type="button" data-action="tasks">New task list</button>
       <button type="button" data-action="area">New area</button>
+      <a href="{{ url_for('boards.import_csv') }}">Import from CSV</a>
     </div>
     <button type="button" class="fab-btn" aria-label="Add" title="Add">{{ icon('plus', 24) }}</button>
   </div>

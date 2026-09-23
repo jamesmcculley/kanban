@@ -617,14 +617,14 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
     def add_card(self, slug: str, title: str, column: str, due: str | None = None,
                  repeat: str | None = None, tags: list[str] | None = None,
                  top: bool = False, start: str | None = None, labels: list[str] | None = None,
-                 priority: str | None = None) -> Card:
+                 priority: str | None = None, body: str = "") -> Card:
         board = self.get_board(slug)
         if column not in board.columns:
             raise ValueError(f"unknown column: {column}")
         siblings = self.cards_by_column(slug)[column]
         known = {x["id"] for x in board.labels}
         card = Card(uuid.uuid4().hex[:8], title, column, position=len(siblings), due=due,
-                    repeat=repeat, tags=parse_tags(tags), start=start,
+                    repeat=repeat, tags=parse_tags(tags), start=start, body=body,
                     labels=[x for x in (labels or []) if x in known],
                     priority=priority if priority in PRIORITIES else None)
         self._save(slug, card)
@@ -634,6 +634,46 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         card = self.get_card(slug, card.id)
         card.effects = effects
         return card
+
+    def import_cards(self, slug: str, rows: list[dict]) -> tuple[int, list[str]]:
+        """Create cards from parsed CSV rows (csvimport.parse_csv). Returns (how many were
+        created, problems worth mentioning) -- one bad row never aborts the rest of the import.
+        A tasks-kind board ignores each row's "list" (there's only ever the one column); a kanban
+        board creates any list name it doesn't already have, case-insensitively."""
+        board = self.get_board(slug)
+        errors: list[str] = []
+        created = 0
+        for row in rows:
+            if board.kind == "tasks":
+                column = TASKS_COLUMN
+            else:
+                wanted = row["list"]
+                existing = next((c for c in board.columns if c.lower() == wanted.lower()), None) if wanted else None
+                if existing:
+                    column = existing
+                elif wanted:
+                    try:
+                        self.add_column(slug, wanted)
+                    except ValueError as exc:
+                        errors.append(f"{row['title']!r}: {exc}")
+                        continue
+                    board = self.get_board(slug)
+                    column = next(c for c in board.columns if c.lower() == wanted.lower())
+                elif board.columns:
+                    column = next((c for c in board.columns if c not in board.hidden), board.columns[0])
+                else:
+                    errors.append(f"{row['title']!r}: board has no lists to import into")
+                    continue
+            try:
+                card = self.add_card(slug, row["title"], column, due=row["due"], tags=row["tags"],
+                                     start=row["start"], priority=row["priority"], body=row["notes"])
+            except ValueError as exc:
+                errors.append(f"{row['title']!r}: {exc}")
+                continue
+            if row["done"]:
+                self.complete_card(slug, card.id)
+            created += 1
+        return created, errors
 
     def move_card(self, slug: str, card_id: str, column: str, index: int) -> list[str]:
         """Move a card; if it changed lists, run the board's "moved into" rules.

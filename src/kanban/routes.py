@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from flask import (
     Blueprint,
+    Response,
     abort,
     current_app,
     jsonify,
@@ -13,8 +14,8 @@ from flask import (
     url_for,
 )
 
+from . import csvimport, notes
 from . import labels as L
-from . import notes
 from . import rules as R
 from . import settings as S
 from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
@@ -90,6 +91,54 @@ def create_board():
     except ValueError:
         abort(400)
     return redirect(url_for("boards.board", slug=board.slug))
+
+
+def _importable_boards():
+    return [b for b in store().list_boards() if b.kind in ("kanban", "tasks") and b.parent is None]
+
+
+@bp.get("/import")
+def import_csv():
+    return render_template("import.html", card_boards=_importable_boards())
+
+
+@bp.get("/import/example.csv")
+def import_example_csv():
+    return Response(csvimport.EXAMPLE_CSV, mimetype="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=example.csv"})
+
+
+@bp.post("/import")
+def do_import():
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return render_template("import.html", error="Choose a CSV file first.",
+                               card_boards=_importable_boards()), 400
+    try:
+        text = file.read().decode("utf-8-sig")  # -sig: Excel/Numbers often add a BOM
+    except UnicodeDecodeError:
+        return render_template("import.html", error="That doesn't look like a text CSV file.",
+                               card_boards=_importable_boards()), 400
+    rows, parse_errors = csvimport.parse_csv(text)
+
+    target = request.form.get("target")
+    if target == "existing":
+        slug = request.form.get("existing_slug", "")
+        try:
+            board = store().get_board(slug)
+        except KeyError:
+            abort(400)
+    else:
+        title = request.form.get("new_title", "").strip() or "Imported"
+        kind = request.form.get("new_kind", "kanban")
+        try:
+            board = store().create_board(title, kind=kind)
+        except ValueError:
+            abort(400)
+
+    created, import_errors = store().import_cards(board.slug, rows)
+    return render_template("import_result.html", board=board, created=created,
+                           errors=parse_errors + import_errors, total=len(rows))
 
 
 @bp.get("/b/<slug>")

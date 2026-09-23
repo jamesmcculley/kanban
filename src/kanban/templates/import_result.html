@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Import results{% endblock %}
+{% block content %}
+  <header class="page-head"><h1>Import results</h1></header>
+  <main class="settings">
+    <section class="card-section">
+      <p>Imported <strong>{{ created }}</strong> of {{ total }} row{{ 's' if total != 1 }} into
+        <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }}</a>.</p>
+      {% if errors %}
+      <p class="muted">{{ errors|length }} thing{{ 's' if errors|length != 1 }} worth a look:</p>
+      <ul class="import-errors">
+        {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      <div class="actions">
+        <a href="{{ url_for('boards.import_csv') }}" class="link-btn">Import another file</a>
+        <a href="{{ url_for('boards.board', slug=board.slug) }}" class="primary-btn">Go to {{ board.title }}</a>
+      </div>
+    </section>
+  </main>
+{% endblock %}

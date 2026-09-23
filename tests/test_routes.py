@@ -1,3 +1,5 @@
+import io
+
 import pytest
 
 from kanban import create_app
@@ -209,3 +211,65 @@ def test_archive_and_unarchive_board_routes(client):
 def test_archive_unknown_board_404s(client):
     assert client.post("/b/nope/archive").status_code == 404
     assert client.post("/b/nope/unarchive").status_code == 404
+
+
+# ---- CSV import -------------------------------------------------------------------------------
+
+def _csv_file(text):
+    return (io.BytesIO(text.encode()), "cards.csv")
+
+
+def test_import_page_and_example_csv(client):
+    assert "Import from CSV" in client.get("/b/my-board").text  # reachable from the fab menu
+    page = client.get("/import")
+    assert page.status_code == 200 and "CSV file" in page.text
+    example = client.get("/import/example.csv")
+    assert example.status_code == 200 and "text/csv" in example.headers["Content-Type"]
+    assert b"title" in example.data
+
+
+def test_import_creates_a_new_board(client):
+    csv_text = "title,list,tags\nBuy paint,Todo,home\nFix bug,Doing,\n"
+    r = client.post("/import", data={
+        "file": _csv_file(csv_text), "target": "new", "new_title": "Imported Board", "new_kind": "kanban",
+    }, content_type="multipart/form-data")
+    assert r.status_code == 200 and "Imported <strong>2</strong>" in r.text
+    page = client.get("/b/imported-board").text
+    assert "Buy paint" in page and "Fix bug" in page and "#home" in page
+
+
+def test_import_into_an_existing_board(client):
+    csv_text = "title,list\nExisting board card,Todo\n"
+    r = client.post("/import", data={"file": _csv_file(csv_text), "target": "existing", "existing_slug": "my-board"},
+                    content_type="multipart/form-data")
+    assert r.status_code == 200
+    assert "Existing board card" in client.get("/b/my-board").text
+
+
+def test_import_into_a_tasks_board(client):
+    client.post("/boards", data={"title": "Quick Tasks", "kind": "tasks"})
+    csv_text = "title\nDo the thing\n"
+    r = client.post("/import", data={"file": _csv_file(csv_text), "target": "existing", "existing_slug": "quick-tasks"},
+                    content_type="multipart/form-data")
+    assert r.status_code == 200
+    assert "Do the thing" in client.get("/b/quick-tasks").text
+
+
+def test_import_without_a_file_shows_an_error(client):
+    r = client.post("/import", data={"target": "new", "new_title": "X"}, content_type="multipart/form-data")
+    assert r.status_code == 400 and "Choose a CSV file" in r.text
+
+
+def test_import_bad_row_and_missing_title_are_reported(client):
+    csv_text = "title,due\n,tomorrow\nOk row,not-a-date\n"
+    r = client.post("/import", data={"file": _csv_file(csv_text), "target": "new", "new_title": "X"},
+                    content_type="multipart/form-data")
+    assert r.status_code == 200
+    assert "Imported <strong>1</strong>" in r.text
+    assert "no title" in r.text and "couldn&#39;t understand" in r.text.lower()
+
+
+def test_import_unknown_existing_board_400s(client):
+    r = client.post("/import", data={"file": _csv_file("title\nx\n"), "target": "existing", "existing_slug": "nope"},
+                    content_type="multipart/form-data")
+    assert r.status_code == 400

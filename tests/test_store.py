@@ -345,3 +345,72 @@ def test_archived_boards_are_excluded_from_active_surfaces(store):
     # still fully reachable directly, and list_boards() still sees it (area/layout/trash need to)
     assert store.get_board(b.slug).title == "B"
     assert b.slug in {x.slug for x in store.list_boards()}
+
+
+# ---- CSV import -----------------------------------------------------------------------------
+
+def _row(**over):
+    row = {"title": "x", "list": "", "start": None, "due": None, "tags": [],
+           "priority": None, "notes": "", "done": False}
+    row.update(over)
+    return row
+
+
+def test_import_creates_cards_in_existing_columns(store):
+    b = store.create_board("B", ["Todo", "Doing"])
+    created, errors = store.import_cards(b.slug, [_row(title="a", list="Todo"), _row(title="b", list="Doing")])
+    assert created == 2 and errors == []
+    cols = store.cards_by_column(b.slug)
+    assert [c.title for c in cols["Todo"]] == ["a"] and [c.title for c in cols["Doing"]] == ["b"]
+
+
+def test_import_creates_missing_columns(store):
+    b = store.create_board("B", ["Todo"])
+    created, errors = store.import_cards(b.slug, [_row(title="a", list="Someday")])
+    assert created == 1 and errors == []
+    assert "Someday" in store.get_board(b.slug).columns
+    assert store.cards_by_column(b.slug)["Someday"][0].title == "a"
+
+
+def test_import_column_match_is_case_insensitive(store):
+    b = store.create_board("B", ["Todo"])
+    created, errors = store.import_cards(b.slug, [_row(title="a", list="todo")])
+    assert created == 1 and errors == []
+    assert store.get_board(b.slug).columns == ["Todo"]  # no duplicate "todo" column created
+    assert store.cards_by_column(b.slug)["Todo"][0].title == "a"
+
+
+def test_import_with_no_list_uses_first_visible_column(store):
+    b = store.create_board("B", ["Todo", "Doing"])
+    store.set_column_hidden(b.slug, "Todo", True)
+    created, errors = store.import_cards(b.slug, [_row(title="a")])
+    assert created == 1 and errors == []
+    assert store.cards_by_column(b.slug)["Doing"][0].title == "a"
+
+
+def test_import_into_a_tasks_board_ignores_list(store):
+    b = store.create_board("B", kind="tasks")
+    created, errors = store.import_cards(b.slug, [_row(title="a", list="Ignored")])
+    assert created == 1 and errors == []
+    assert store.cards_by_column(b.slug)["Tasks"][0].title == "a"
+
+
+def test_import_sets_dates_tags_priority_notes_and_done(store):
+    b = store.create_board("B", ["Todo"])
+    row = _row(title="a", list="Todo", due="2026-10-01", start="2026-09-25",
+               tags=["home"], priority="high", notes="body text", done=True)
+    created, errors = store.import_cards(b.slug, [row])
+    assert created == 1 and errors == []
+    card = store.cards_by_column(b.slug)["Todo"][0]
+    assert (card.due, card.start, card.tags, card.priority, card.body, card.done) == (
+        "2026-10-01", "2026-09-25", ["home"], "high", "body text", True)
+
+
+def test_import_one_bad_row_does_not_abort_the_rest(store):
+    b = store.create_board("B")
+    for col in list(b.columns):
+        store.delete_column(b.slug, col)  # now genuinely has no lists at all
+    rows = [_row(title="a"), _row(title="b")]
+    created, errors = store.import_cards(b.slug, rows)
+    assert created == 0
+    assert len(errors) == 2 and all("no lists" in e for e in errors)

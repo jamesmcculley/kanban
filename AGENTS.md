@@ -17,8 +17,8 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 ## Boundaries
 
 - **Pure domain modules never touch I/O or Flask:** `rules.py`, `settings.py`, `dates.py`, `notes.py`,
-  `tags.py`, `labels.py`. `tests/test_rules.py::test_domain_modules_are_pure` enforces it. `Store`
-  (and its mixins) does the file I/O; `routes.py` is thin HTTP glue.
+  `tags.py`, `labels.py`, `csvimport.py`. `tests/test_rules.py::test_domain_modules_are_pure` enforces
+  it. `Store` (and its mixins) does the file I/O; `routes.py` is thin HTTP glue.
 - **Reading never writes.** Hiding completed cards is a view (`view_columns`), not an archive pass.
 - **Files are the source of truth** (Markdown + YAML frontmatter). Unknown frontmatter must survive a save.
 - Do not add a database, a JS build step, or third-party runtime requests (htmx and Sortable are vendored).
