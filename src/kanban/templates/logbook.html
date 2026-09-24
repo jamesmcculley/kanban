@@ -4,9 +4,11 @@
 {% block title %}Logbook{% endblock %}
 {% block content %}
   <header class="page-head"><h1 data-page="logbook">Logbook</h1>
-    <a class="link-btn export-link" href="{{ export_url }}">{{ icon('download', 14) }} Export CSV</a>
+    {% include "_date_filter.html" %}
+    <button type="button" class="icon-btn" title="Export activity" aria-label="Export activity"
+            hx-get="{{ url_for('boards.export_dialog', **{'from': date_from, 'to': date_to}) }}"
+            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
-  {% include "_date_filter.html" %}
   <main class="agenda logbook">
     {% for day, events in days.items() %}
       <h2>{{ day|day_label }} <span class="count">{{ events|length }}</span></h2>

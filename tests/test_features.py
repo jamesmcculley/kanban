@@ -246,12 +246,39 @@ def test_metrics_page_and_csv_export(client):
     assert r.headers["Content-Type"].startswith("text/csv")
     assert 'filename="activity.csv"' in r.headers["Content-Disposition"]
     body = r.text
-    assert body.startswith("completed_at,title,board,list,repeating\r\n")
+    assert body.startswith("completed_at,title,board,list,priority,tags,repeating\r\n")
     assert "Paint fence" in body and "Mow lawn" in body
     # a date range both filters the page and carries into the export link
     ranged = client.get("/export/activity.csv?from=2099-01-01&to=2099-01-02")
-    assert ranged.text == "completed_at,title,board,list,repeating\r\n"
+    assert ranged.text == "completed_at,title,board,list,priority,tags,repeating\r\n"
     assert 'filename="activity_2099-01-01_2099-01-02.csv"' in ranged.headers["Content-Disposition"]
+
+
+def test_export_activity_narrowed_by_text_tags_priority_and_board(client):
+    home = _add(client, "Paint fence #home")
+    work = _add(client, "Write report")
+    client.post(f"/b/my-board/cards/{work}", data={"title": "Write report", "body": "", "priority": "high"})
+    client.post(f"/b/my-board/cards/{home}/complete")
+    client.post(f"/b/my-board/cards/{work}/complete")
+
+    by_text = client.get("/export/activity.csv?q=fence").text
+    assert "Paint fence" in by_text and "Write report" not in by_text
+
+    by_tag = client.get("/export/activity.csv?tags=%23home").text
+    assert "Paint fence" in by_tag and "Write report" not in by_tag
+
+    by_priority = client.get("/export/activity.csv?priority=high").text
+    assert "Write report" in by_priority and "Paint fence" not in by_priority
+
+    by_board = client.get("/export/activity.csv?board=elsewhere").text
+    assert "Paint fence" not in by_board and "Write report" not in by_board  # neither is on "elsewhere"
+
+
+def test_export_dialog_renders_with_boards_and_current_range(client):
+    r = client.get("/export/dialog?from=2026-09-01&to=2026-09-30")
+    assert r.status_code == 200
+    assert 'value="2026-09-01"' in r.text and 'value="2026-09-30"' in r.text
+    assert 'name="board" value="my-board"' in r.text
 
 
 def test_edit_card_dialog_standalone_reloads_instead_of_swapping_the_card(client):

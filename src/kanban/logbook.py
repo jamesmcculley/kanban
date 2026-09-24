@@ -36,6 +36,10 @@ class LogbookMixin:
                  "board_title": board.title, "list": card.column}
         if card.repeat:
             event["repeat"] = True
+        if card.tags:
+            event["tags"] = list(card.tags)
+        if card.priority:
+            event["priority"] = card.priority
         return event
 
     def log_completion(self, board, card, at: str) -> None:

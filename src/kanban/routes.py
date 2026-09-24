@@ -1,6 +1,5 @@
 import json
 from datetime import date, datetime
-from urllib.parse import urlencode
 
 from flask import (
     Blueprint,
@@ -663,13 +662,7 @@ def logbook():
     live = {b.slug for b in store().list_boards()}
     return render_template("logbook.html", days=days, live=live, date_from=date_from,
                            date_to=date_to, presets=_presets(date.today(), overdue=False),
-                           saved=store().list_filters(), filter_url=url_for("boards.logbook"),
-                           export_url=_export_url(date_from, date_to))
-
-
-def _export_url(date_from, date_to):
-    qs = urlencode({k: v for k, v in (("from", date_from), ("to", date_to)) if v})
-    return url_for("boards.export_activity") + (f"?{qs}" if qs else "")
+                           saved=store().list_filters(), filter_url=url_for("boards.logbook"))
 
 
 @bp.get("/metrics")
@@ -679,13 +672,27 @@ def metrics():
     return render_template("metrics.html", total=len(events), by_board=M.by_board(events),
                            by_weekday=M.by_weekday(events), date_from=date_from, date_to=date_to,
                            presets=_presets(date.today(), overdue=False), saved=store().list_filters(),
-                           filter_url=url_for("boards.metrics"), export_url=_export_url(date_from, date_to))
+                           filter_url=url_for("boards.metrics"))
+
+
+@bp.get("/export/dialog")
+def export_dialog():
+    """A pop-out with granular export options (date range, title text, tags, priority, board) --
+    opened from the download icon next to the date filter on Logbook/Metrics, not a direct
+    download link, so a bulk export can be narrowed the same way any other filter in the app is."""
+    date_from, date_to = _filter_from_query()
+    boards = [b for b in store().list_boards() if b.kind in ("kanban", "tasks") and not b.archived]
+    return render_template("_export_dialog.html", date_from=date_from, date_to=date_to, boards=boards)
 
 
 @bp.get("/export/activity.csv")
 def export_activity():
     date_from, date_to = _filter_from_query()
     events = store().logbook(limit=None, date_from=date_from, date_to=date_to)
+    events = M.filter_events(events, q=request.args.get("q", ""),
+                             tags=parse_tags(request.args.get("tags", "")),
+                             priorities=request.args.getlist("priority"),
+                             boards=request.args.getlist("board"))
     name = "activity.csv" if not (date_from or date_to) else f"activity_{date_from or 'start'}_{date_to or 'end'}.csv"
     resp = make_response(M.to_csv(events))
     resp.headers["Content-Type"] = "text/csv; charset=utf-8"

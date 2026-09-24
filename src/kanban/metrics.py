@@ -31,7 +31,30 @@ def to_csv(events: list[dict]) -> str:
     itself (newest-first, for scanning what you just did)."""
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["completed_at", "title", "board", "list", "repeating"])
+    writer.writerow(["completed_at", "title", "board", "list", "priority", "tags", "repeating"])
     for e in sorted(events, key=lambda e: e["at"]):
-        writer.writerow([e["at"], e["title"], e["board_title"], e["list"], "yes" if e.get("repeat") else ""])
+        writer.writerow([e["at"], e["title"], e["board_title"], e["list"], e.get("priority", ""),
+                         " ".join(e.get("tags") or []), "yes" if e.get("repeat") else ""])
     return buf.getvalue()
+
+
+def filter_events(events: list[dict], q: str = "", tags: list[str] | None = None,
+                  priorities: list[str] | None = None, boards: list[str] | None = None) -> list[dict]:
+    """Narrow an already date-filtered event list by title text, tags, priority and board -- each
+    optional, and an empty/missing filter matches everything (same "nothing checked = no
+    narrowing" convention as the per-board filter, filter.js). `tags` and `priority` only ever
+    match events logged since those started being recorded (see logbook.py's `_event`); older
+    entries simply never match a tag or priority filter, same as a card with none set wouldn't."""
+    q = (q or "").strip().lower()
+    tag_set, priority_set, board_set = set(tags or []), set(priorities or []), set(boards or [])
+
+    def matches(e: dict) -> bool:
+        if q and q not in e["title"].lower():
+            return False
+        if tag_set and not tag_set & set(e.get("tags") or []):
+            return False
+        if priority_set and (e.get("priority") or "none") not in priority_set:
+            return False
+        return not (board_set and e["board"] not in board_set)
+
+    return [e for e in events if matches(e)]

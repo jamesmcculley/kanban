@@ -3,8 +3,9 @@
 {% from "_card_row.html" import card_row %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-  <header class="page-head"><h1 data-page="scheduled">{{ title }}</h1></header>
-  {% include "_date_filter.html" %}
+  <header class="page-head"><h1 data-page="scheduled">{{ title }}</h1>
+    {% include "_date_filter.html" %}
+  </header>
   <main class="agenda">
     {% for due, items in groups.items() %}
       <h2 class="{% if due < today %}overdue{% endif %}">

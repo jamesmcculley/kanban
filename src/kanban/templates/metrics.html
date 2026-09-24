@@ -3,9 +3,11 @@
 {% block title %}Metrics{% endblock %}
 {% block content %}
   <header class="page-head"><h1>Metrics</h1>
-    <a class="link-btn export-link" href="{{ export_url }}">{{ icon('download', 14) }} Export CSV</a>
+    {% include "_date_filter.html" %}
+    <button type="button" class="icon-btn" title="Export activity" aria-label="Export activity"
+            hx-get="{{ url_for('boards.export_dialog', **{'from': date_from, 'to': date_to}) }}"
+            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
-  {% include "_date_filter.html" %}
   <main class="metrics">
     <p class="metric-total"><span class="metric-num">{{ total }}</span> completed{% if date_from or date_to %} in this range{% endif %}</p>
     {% if total %}

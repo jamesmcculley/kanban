@@ -334,7 +334,6 @@ h1 { margin:0; font-size:22px; }
 /* checklist boxes in rendered notes: undo the dialog's "inputs fill the row" rule */
 .dialog .md input.task { width:auto; padding:0; margin:0 7px 0 0; vertical-align:-1px; }
 .md li:has(> input.task) { list-style:none; margin-left:-1.3em; }
-.export-link { margin-left:auto; align-self:flex-start; display:inline-flex; align-items:center; gap:5px; }
 
 /* Metrics: totals plus simple CSS bar charts -- no charting library, per the "no third-party
    runtime requests" boundary; a <div> whose width is a percentage does the whole job. */
@@ -457,6 +456,7 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
             border-radius:6px; padding:7px 12px; cursor:pointer; display:flex; align-items:center; gap:5px; }
 .move-btn:hover { border-color:var(--accent); }
 .start-field { display:flex; gap:8px; }
+.export-date { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-subtle); flex:1; }
 .completed-at-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-subtle); }
 .completed-at-row input { padding:5px 7px; border-radius:6px; border:1px solid var(--border);
                           background:var(--bg); color:var(--text-primary); font-size:13px; }
@@ -491,8 +491,8 @@ html[data-today-hide~="completed"] [data-today-section="completed"],
 html[data-today-hide~="created"] [data-today-section="created"] { display:none; }
 .today-view section { margin-bottom:26px; }
 
-/* Scheduled/Logbook date-range filter bar */
-.filter-bar { display:flex; flex-direction:column; gap:10px; padding:0 24px 16px; max-width:680px; }
+/* Today/Scheduled/Logbook/Metrics date-range filter: the trigger button lives right in .page-head
+   (see _date_filter.html), so only the popover panel itself needs its own layout here. */
 .filter-range { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .filter-range label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-subtle); }
 .filter-range input[type=date] { padding:5px 7px; border-radius:6px; border:1px solid var(--border);

@@ -23,8 +23,9 @@ directory can also be opened as an Obsidian vault.
   filter, and an edit (pencil) button on each entry to fix anything about it — not just when it
   was completed
 - **Metrics** (toolbar icon): totals for a date range, plus busiest board and busiest day of the
-  week, as simple bar charts; **export activity to CSV**, all of it or just a date range, from
-  Metrics or the Logbook
+  week, as simple bar charts
+- **Export activity to CSV**, from Metrics or the Logbook — a pop-out for granular options (date
+  range, title text, tags, priority, which boards), not just everything in one shot
 - An edit button right on a Scheduled card, so you don't have to go find it on its board
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
 - **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its

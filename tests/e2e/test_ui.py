@@ -1250,7 +1250,7 @@ def test_edit_button_on_a_scheduled_card_opens_the_full_edit_dialog(page):
     expect(page.locator(".agenda .row", has_text="renew passport ASAP")).to_be_visible()
 
 
-def test_metrics_page_shows_totals_and_export_link(page):
+def test_metrics_page_shows_totals_and_export_dialog(page):
     add_card(page, "Todo", "ship it")
     page.locator(".card", has_text="ship it").locator(".check").click()
     expect(page.locator(".card.done")).to_be_visible()
@@ -1259,12 +1259,18 @@ def test_metrics_page_shows_totals_and_export_link(page):
     page.wait_for_url("**/metrics")
     expect(page.locator(".metric-num")).to_have_text("1")
     expect(page.locator(".metric-block", has_text="By board")).to_contain_text("My Board")
-    export = page.get_by_role("link", name="Export CSV")
-    expect(export).to_be_visible()
-    resp = page.request.get(page.base + export.get_attribute("href"))
-    assert resp.ok
-    assert "ship it" in resp.text()
-    assert resp.headers["content-type"].startswith("text/csv")
+
+    page.get_by_role("button", name="Export activity").click()
+    dialog = page.locator("#modal .export-dialog")
+    expect(dialog).to_be_visible()
+    expect(dialog.get_by_role("checkbox", name="My Board")).to_be_visible()   # granular: board picker
+    expect(dialog.locator('input[name="q"]')).to_be_visible()                 # and text/tag search
+    with page.expect_download() as download_info:
+        dialog.get_by_role("button", name="Export CSV").click()
+    download = download_info.value
+    assert download.suggested_filename == "activity.csv"
+    body = (download.path()).read_text()
+    assert "ship it" in body
 
 
 def test_today_view_shows_due_completed_created_and_lets_you_hide_each(page):
@@ -1318,7 +1324,7 @@ def test_hide_page_titles_from_settings(page):
 
     page.goto(page.base + "/logbook")
     expect(page.locator('h1[data-page="logbook"]')).to_be_hidden()
-    expect(page.locator(".export-link")).to_be_visible()             # only the heading is gone
+    expect(page.locator('button[aria-label="Export activity"]')).to_be_visible()  # only the heading is gone
 
     page.goto(page.base + "/scheduled")
     expect(page.locator('h1[data-page="scheduled"]')).to_be_visible()  # untouched: only Logbook was hidden
