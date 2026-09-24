@@ -679,6 +679,27 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         card.effects = effects
         return card
 
+    def duplicate_card(self, slug: str, card_id: str) -> Card:
+        """A copy of a card, positioned right after the original in the same list -- same tags,
+        labels, priority, dates, repeat and notes, but a fresh (not done) copy with its own new id
+        and creation time: duplicating is "another one of these", not "another copy of something
+        already finished". Runs "added" rules, same as any other new card."""
+        original = self.get_card(slug, card_id)
+        board = self.get_board(slug)
+        known = {x["id"] for x in board.labels}
+        siblings = self.cards_by_column(slug)[original.column]
+        copy = Card(uuid.uuid4().hex[:8], f"{original.title} (copy)", original.column,
+                    position=len(siblings), start=original.start, due=original.due,
+                    body=original.body, repeat=original.repeat, tags=list(original.tags),
+                    labels=[x for x in original.labels if x in known], priority=original.priority,
+                    created=datetime.now().isoformat(timespec="minutes"))
+        self._save(slug, copy)
+        self._move(slug, copy.id, original.column, original.position + 1)
+        effects = self._run_rules(slug, "added", copy.id)
+        copy = self.get_card(slug, copy.id)
+        copy.effects = effects
+        return copy
+
     def import_cards(self, slug: str, rows: list[dict]) -> tuple[int, list[str]]:
         """Create cards from parsed CSV rows (csvimport.parse_csv). Returns (how many were
         created, problems worth mentioning) -- one bad row never aborts the rest of the import.

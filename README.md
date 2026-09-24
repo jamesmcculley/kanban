@@ -12,7 +12,8 @@ directory can also be opened as an Obsidian vault.
 - **Advanced Search** — narrow by title/notes text, tags, priority, board and open/done status,
   combined; **save a search and pin it to the sidebar**, rename, duplicate or delete it from Settings
 - Natural-language start and due dates, and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
-- **Move any card to any list on any board** from its edit dialog, not just by dragging
+- **Move or duplicate any card** from its edit dialog — reachable from a board, Scheduled, the
+  Logbook, Today or Search, so it works the same "from anywhere," not just by dragging on a board
 - **Rules and settings**, per board and global: e.g. "when a card is completed, move it to Done"; new-card
   position; hide completed cards; default lists for new boards; hide list/board titles or card counts
 - Twelve colour themes plus a Default that follows your device, and three text sizes (Settings)

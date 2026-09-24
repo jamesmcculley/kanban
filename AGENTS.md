@@ -151,7 +151,13 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     button's own footprint — `clip-path` affects pointer events, not just paint, so the cut-out
     band passes clicks through to the button underneath instead of eating them. The e2e drag tests
     had to move their target Y off the exact vertical center for the same reason.
-21. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+21. **A `title` attribute is not an element's accessible name when it also has visible text
+    content — the text wins.** The card-edit dialog's new Duplicate button (icon + the word
+    "Duplicate", plus `title="Duplicate this card"` for the tooltip) has an accessible name of
+    just "Duplicate", not "Duplicate this card": `title` only becomes the accessible name when
+    there's *no* text content to use instead. `page.get_by_role("button", name="Duplicate this
+    card")` timed out finding nothing; `name="Duplicate"` (the visible text) found it immediately.
+22. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
     — a concurrent read landing between the truncate and the new content finishing could see a
     half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
     run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.

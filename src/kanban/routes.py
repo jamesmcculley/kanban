@@ -270,6 +270,20 @@ def update_card(slug, card_id):
     return render_template("_card.html", board=store().get_board(slug), card=card)
 
 
+@bp.post("/b/<slug>/cards/<card_id>/duplicate")
+def duplicate_card(slug, card_id):
+    """Reachable from the card-edit dialog, so from anywhere a card can be opened -- board,
+    Scheduled, Logbook, Today, Search. Undo just trashes the fresh copy (boards.delete_card),
+    same as undoing any other new card."""
+    try:
+        copy = store().duplicate_card(slug, card_id)
+    except KeyError:
+        abort(404)
+    undo = {"url": url_for("boards.delete_card", slug=slug, card_id=copy.id), "method": "DELETE"}
+    message = f"Duplicated “{_short(copy.title)}”" + "".join(f" · {e}" for e in copy.effects)
+    return jsonify(_toast(message, undo))
+
+
 @bp.post("/b/<slug>/cards/<card_id>/complete")
 def complete(slug, card_id):
     try:

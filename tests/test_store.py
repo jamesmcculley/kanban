@@ -209,6 +209,46 @@ def test_add_card_at_top(store):
     assert store.get_card(b.slug, other.id).position == 0
 
 
+def test_duplicate_card_copies_fields_and_lands_right_after_the_original(store):
+    b = store.create_board("B")
+    store.add_card(b.slug, "before", "Todo")
+    original = store.add_card(b.slug, "Buy paint", "Todo", due="2026-10-01", tags=["home"],
+                              priority="high", repeat="every monday", body="get primer too")
+    store.add_card(b.slug, "after", "Todo")
+
+    copy = store.duplicate_card(b.slug, original.id)
+    assert copy.id != original.id
+    assert copy.title == "Buy paint (copy)"
+    assert (copy.due, copy.tags, copy.priority, copy.repeat, copy.body) == (
+        original.due, original.tags, original.priority, original.repeat, original.body)
+    assert copy.created is not None
+
+    ordered = store.cards_by_column(b.slug)["Todo"]
+    assert [c.title for c in ordered] == ["before", "Buy paint", "Buy paint (copy)", "after"]
+
+
+def test_duplicate_card_of_a_done_card_starts_fresh(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "x", "Todo")
+    store.complete_card(b.slug, card.id, datetime(2026, 9, 1, 9, 0))
+    copy = store.duplicate_card(b.slug, card.id)
+    assert copy.done is False and copy.completed is None    # not the original's done state
+
+
+def test_duplicate_card_keeps_labels(store):
+    b = store.create_board("B")
+    lbl = store.add_label(b.slug, "Urgent", "red")
+    card = store.add_card(b.slug, "x", "Todo", labels=[lbl["id"]])
+    copy = store.duplicate_card(b.slug, card.id)
+    assert copy.labels == [lbl["id"]]
+
+
+def test_duplicate_card_missing_card_raises_keyerror(store):
+    b = store.create_board("B")
+    with pytest.raises(KeyError):
+        store.duplicate_card(b.slug, "nope")
+
+
 def test_card_created_timestamp_round_trips_and_survives_an_edit(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "x", "Todo", now=datetime(2026, 9, 1, 8, 30))

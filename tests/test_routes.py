@@ -108,6 +108,23 @@ def test_saved_search_crud_and_pin_to_sidebar(client):
     assert len(client.application.config["STORE"].list_searches()) == 1  # the duplicate is still there
 
 
+def test_duplicate_card_route_and_undo(client):
+    cid, _ = _add(client, "Buy paint")
+    assert 'title="Duplicate this card"' in client.get(f"/b/my-board/cards/{cid}").text
+
+    r = client.post(f"/b/my-board/cards/{cid}/duplicate")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "Duplicated" in data["message"] and data["undo"]["method"] == "DELETE"
+    page = client.get("/b/my-board").text
+    assert "Buy paint</span>" in page and "Buy paint (copy)</span>" in page
+
+    assert client.delete(data["undo"]["url"]).status_code == 200  # trashed, same as any card delete
+    assert "Buy paint (copy)" not in client.get("/b/my-board").text
+
+    assert client.post("/b/my-board/cards/nope/duplicate").status_code == 404
+
+
 def test_board_export_dialog_and_csv(client):
     _add(client, "Paint fence #home")
     r = client.post("/b/my-board/cards", data={"title": "Mow lawn", "column": "Doing"})

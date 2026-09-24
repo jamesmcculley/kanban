@@ -62,6 +62,35 @@ def test_complete_stamps_time_and_edit_in_place(page):
     expect(page.locator(".card .repeat")).to_be_visible()
 
 
+def test_duplicate_a_card_from_the_edit_dialog_and_undo(page):
+    add_card(page, "Todo", "Buy paint #home")
+    page.locator(".card", has_text="Buy paint").locator(".title").click()
+    with page.expect_navigation():
+        page.get_by_role("button", name="Duplicate").click()
+    expect(page.locator(".card", has_text="Buy paint (copy)")).to_be_visible()
+    expect(page.locator(".card", has_text="Buy paint").first).to_be_visible()  # original still there
+
+    toast(page).get_by_role("button", name="Undo").click()
+    page.wait_for_load_state()
+    expect(page.locator(".card", has_text="Buy paint (copy)")).to_have_count(0)
+
+
+def test_duplicate_is_available_from_a_standalone_dialog_too(page):
+    add_card(page, "Todo", "needs doing")
+    page.locator(".card", has_text="needs doing").locator(".title").click()
+    page.fill(".dialog input[name=due]", "today")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    page.locator('[data-today-section="due"] .row', has_text="needs doing").get_by_role(
+        "button", name="Edit this card").click()
+    with page.expect_navigation():
+        page.get_by_role("button", name="Duplicate").click()
+    expect(page.locator('[data-today-section="created"]', has_text="needs doing (copy)")).to_be_visible()
+
+
 def test_add_rename_hide_delete_lists(page):
     fab_add(page, "New list", "Later")
     expect(page.locator('.column[data-column="Later"]')).to_be_visible()
