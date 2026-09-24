@@ -14,6 +14,9 @@
         <label><input type="checkbox" class="today-section-check" data-section="created" checked> Created today</label>
       </div>
     </div>
+    <button type="button" class="icon-btn" title="Export Today" aria-label="Export Today"
+            hx-get="{{ url_for('boards.today_export_dialog') }}"
+            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
   <main class="agenda today-view">
     <section data-today-section="due">

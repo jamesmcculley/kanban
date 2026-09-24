@@ -15,10 +15,12 @@ class _Card:
     tags: list = field(default_factory=list)
     priority: str | None = None
     done: bool = False
+    title: str = "x"
+    column: str = "Todo"
 
 
-def _pair(slug="a", tags=None, priority=None, done=False):
-    return (_Board(slug), _Card(tags or [], priority, done))
+def _pair(slug="a", tags=None, priority=None, done=False, title="x", column="Todo"):
+    return (_Board(slug), _Card(tags or [], priority, done, title, column))
 
 
 def test_refine_with_nothing_set_matches_everything():
@@ -49,6 +51,16 @@ def test_refine_by_status_open_or_done():
     # both or neither checked -> no narrowing, same as the export dialog's priority convention
     assert len(S.refine(results, statuses=["open", "done"])) == 2
     assert len(S.refine(results, statuses=[])) == 2
+
+
+def test_refine_by_text_is_case_insensitive_title_substring():
+    results = [_pair(title="Buy paint"), _pair(title="Mow lawn")]
+    assert [c.title for _, c in S.refine(results, q="PAINT")] == ["Buy paint"]
+
+
+def test_refine_by_list():
+    results = [_pair(column="Todo"), _pair(column="Done")]
+    assert [c.column for _, c in S.refine(results, lists=["Done"])] == ["Done"]
 
 
 def test_refine_combines_all_filters_with_and():

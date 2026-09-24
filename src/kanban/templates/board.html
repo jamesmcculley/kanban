@@ -6,6 +6,9 @@
     {% if parent %}<a class="crumb" href="{{ url_for('boards.board', slug=parent.slug) }}">{{ parent.title }}</a><span class="crumb-sep">/</span>{% endif %}
     {% include "_board_title.html" %}
     {% include "_filter_panel.html" %}
+    <button type="button" class="icon-btn" title="Export this board" aria-label="Export this board"
+            hx-get="{{ url_for('boards.board_export_dialog', slug=board.slug) }}"
+            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
     {% if hidden_done %}
     <a class="chip" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Hidden by this board's settings">{{ hidden_done }} completed hidden</a>
     {% endif %}

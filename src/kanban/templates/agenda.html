@@ -5,6 +5,9 @@
 {% block content %}
   <header class="page-head"><h1 data-page="scheduled">{{ title }}</h1>
     {% include "_date_filter.html" %}
+    <button type="button" class="icon-btn" title="Export Scheduled" aria-label="Export Scheduled"
+            hx-get="{{ url_for('boards.scheduled_export_dialog', **{'from': date_from, 'to': date_to}) }}"
+            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
   <main class="agenda">
     {% for due, items in groups.items() %}

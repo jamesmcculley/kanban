@@ -107,6 +107,67 @@ def test_saved_search_crud_and_pin_to_sidebar(client):
     assert client.post(f"/searches/{sid}/delete").status_code == 204
     assert len(client.application.config["STORE"].list_searches()) == 1  # the duplicate is still there
 
+
+def test_board_export_dialog_and_csv(client):
+    _add(client, "Paint fence #home")
+    r = client.post("/b/my-board/cards", data={"title": "Mow lawn", "column": "Doing"})
+    mow_id = r.text.split('data-id="')[1][:8]
+    client.post(f"/b/my-board/cards/{mow_id}", data={"title": "Mow lawn", "body": "", "priority": "high"})
+
+    dialog = client.get("/b/my-board/export/dialog")
+    assert dialog.status_code == 200
+    assert 'action="/b/my-board/export.csv"' in dialog.text
+    assert 'name="list" value="Todo"' in dialog.text and 'name="board"' not in dialog.text  # single board: no board picker
+
+    full = client.get("/b/my-board/export.csv")
+    assert full.status_code == 200
+    assert 'filename="my-board.csv"' in full.headers["Content-Disposition"]
+    assert "Paint fence" in full.text and "Mow lawn" in full.text
+    assert full.text.splitlines()[0] == "title,board,list,start,due,tags,priority,notes,done"
+
+    by_list = client.get("/b/my-board/export.csv?list=Doing").text
+    assert "Mow lawn" in by_list and "Paint fence" not in by_list
+    by_priority = client.get("/b/my-board/export.csv?priority=high").text
+    assert "Mow lawn" in by_priority and "Paint fence" not in by_priority
+
+    assert client.get("/b/nope/export/dialog").status_code == 404
+    assert client.get("/b/nope/export.csv").status_code == 404
+
+
+def test_scheduled_export_dialog_and_csv(client):
+    cid, _ = _add(client, "Paint fence")
+    client.post(f"/b/my-board/cards/{cid}", data={"title": "Paint fence", "body": "", "due": "today"})
+
+    dialog = client.get("/scheduled/export/dialog")
+    assert dialog.status_code == 200
+    assert 'action="/scheduled/export.csv"' in dialog.text
+    assert 'name="board" value="my-board"' in dialog.text
+
+    csv_text = client.get("/scheduled/export.csv").text
+    assert "Paint fence" in csv_text
+    assert client.get("/scheduled/export.csv?board=elsewhere").text.count("\n") == 1  # header only
+
+
+def test_today_export_dialog_and_csv_combines_sections(client):
+    due_id, _ = _add(client, "needs doing")
+    client.post(f"/b/my-board/cards/{due_id}", data={"title": "needs doing", "body": "", "due": "today"})
+    done_id, _ = _add(client, "already finished")
+    client.post(f"/b/my-board/cards/{done_id}/complete")
+
+    dialog = client.get("/today/export/dialog")
+    assert dialog.status_code == 200
+    assert 'action="/today/export.csv"' in dialog.text
+    assert 'name="section" value="due"' in dialog.text
+
+    csv_text = client.get("/today/export.csv").text
+    assert csv_text.splitlines()[0] == "section,title,board,list,start,due,tags,priority,notes,done"
+    rows = csv_text.splitlines()[1:]
+    sections = {r.split(",")[0] for r in rows}
+    assert "due" in sections and "completed" in sections and "created" in sections
+
+    due_only = client.get("/today/export.csv?section=due").text
+    assert "needs doing" in due_only and "already finished" not in due_only
+
     # a plain empty search (no q, no advanced fields) is still "type something", not "show all"
     assert "Type something" in client.get("/search").text
 

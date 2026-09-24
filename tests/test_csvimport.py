@@ -1,6 +1,7 @@
+from dataclasses import dataclass, field
 from datetime import date
 
-from kanban.csvimport import parse_csv
+from kanban.csvimport import cards_to_csv, parse_csv
 
 
 def test_parses_a_full_row():
@@ -62,3 +63,53 @@ def test_empty_file_reports_an_error():
 def test_unknown_columns_are_ignored_not_an_error():
     rows, errors = parse_csv("title,some_other_tool_column\nx,whatever\n")
     assert errors == [] and rows[0]["title"] == "x"
+
+
+# ---- cards_to_csv (export) ---------------------------------------------------------------------
+
+@dataclass
+class _Board:
+    title: str
+
+
+@dataclass
+class _Card:
+    title: str
+    column: str = "Todo"
+    start: str | None = None
+    due: str | None = None
+    tags: list = field(default_factory=list)
+    priority: str | None = None
+    body: str = ""
+    done: bool = False
+
+
+def test_cards_to_csv_matches_the_columns_parse_csv_reads():
+    results = [(_Board("My Board"), _Card("Buy paint", tags=["home"], priority="high", due="2026-10-01"))]
+    out = cards_to_csv(results)
+    lines = out.splitlines()
+    assert lines[0] == "title,board,list,start,due,tags,priority,notes,done"
+    assert lines[1] == "Buy paint,My Board,Todo,,2026-10-01,home,high,,"
+
+    # round trips: export -> parse_csv reads the same shape back out
+    rows, errors = parse_csv(out)
+    assert errors == []
+    assert rows[0]["title"] == "Buy paint" and rows[0]["tags"] == ["home"] and rows[0]["priority"] == "high"
+
+
+def test_cards_to_csv_done_flag():
+    out = cards_to_csv([(_Board("B"), _Card("x", done=True))])
+    assert out.splitlines()[1].endswith(",yes")
+
+
+def test_cards_to_csv_with_sections_adds_a_leading_column():
+    results = [(_Board("B"), _Card("due card")), (_Board("B"), _Card("created card"))]
+    out = cards_to_csv(results, sections=["due", "created"])
+    lines = out.splitlines()
+    assert lines[0].startswith("section,title,")
+    assert lines[1].startswith("due,due card,")
+    assert lines[2].startswith("created,created card,")
+
+
+def test_cards_to_csv_empty():
+    assert cards_to_csv([]) == "title,board,list,start,due,tags,priority,notes,done\r\n"

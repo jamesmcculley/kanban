@@ -1328,6 +1328,32 @@ def test_metrics_page_shows_totals_and_export_dialog(page):
     assert "ship it" in body
 
 
+def test_export_a_board_narrowed_by_list(page):
+    add_card(page, "Todo", "Paint fence")
+    add_card(page, "Doing", "Mow lawn")
+
+    page.get_by_role("button", name="Export this board").click()
+    dialog = page.locator("#modal .export-dialog")
+    expect(dialog).to_be_visible()
+    dialog.get_by_role("checkbox", name="Doing").check()
+    with page.expect_download() as download_info:
+        dialog.get_by_role("button", name="Export CSV").click()
+    download = download_info.value
+    assert download.suggested_filename == "my-board.csv"
+    body = download.path().read_text()
+    assert "Mow lawn" in body and "Paint fence" not in body
+
+
+def test_export_buttons_present_on_scheduled_and_today(page):
+    page.click('.sidebar [data-go="s"]')
+    page.wait_for_url("**/scheduled")
+    expect(page.get_by_role("button", name="Export Scheduled")).to_be_visible()
+
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    expect(page.get_by_role("button", name="Export Today")).to_be_visible()
+
+
 def test_today_view_shows_due_completed_created_and_lets_you_hide_each(page):
     add_card(page, "Todo", "needs doing")
     page.locator(".card", has_text="needs doing").locator(".title").click()

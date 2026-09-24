@@ -1,0 +1,67 @@
+{# Pop-out export options for a cards-shaped export (a board, Scheduled or Today) -- same text/
+   tags/priority fields as the activity export dialog, plus whichever of these the caller passes:
+   a board picker (multi-board sources), a list picker (a single board), a status picker (sources
+   that mix open and done cards) and Today's section checkboxes. A plain GET form: submitting it
+   is the download, same as everywhere else this pattern is used.
+   Context: action (the CSV endpoint), title (for the heading), date_from/date_to (optional),
+   boards (list, for the board picker), columns (list, for the list picker), show_status (bool),
+   show_sections (bool). #}
+{% from "_icons.html" import icon %}
+<div class="backdrop" onclick="if (event.target === this) this.remove()">
+  <form class="dialog export-dialog" method="get" action="{{ action }}">
+    <button type="button" class="dialog-close" aria-label="Close" title="Close"
+            onclick="this.closest('.backdrop').remove()">{{ icon('x', 18) }}</button>
+    <h3>Export {{ title }}</h3>
+    {% if date_from is defined %}
+    <div class="start-field">
+      <label class="export-date">From <input type="date" name="from" value="{{ date_from or '' }}"></label>
+      <label class="export-date">To <input type="date" name="to" value="{{ date_to or '' }}"></label>
+    </div>
+    {% endif %}
+    <input type="text" name="q" placeholder="Search titles…" aria-label="Search titles" autocomplete="off">
+    <input type="text" name="tags" placeholder="Tags: #home #work" aria-label="Tags" autocomplete="off">
+    {% if boards %}
+    <fieldset class="filter-group">
+      <legend>Boards <span class="muted">none checked = all boards</span></legend>
+      {% for b in boards %}
+      <label class="filter-check"><input type="checkbox" name="board" value="{{ b.slug }}"> {{ b.title }}</label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+    {% if columns %}
+    <fieldset class="filter-group">
+      <legend>Lists <span class="muted">none checked = all lists</span></legend>
+      {% for col in columns %}
+      <label class="filter-check"><input type="checkbox" name="list" value="{{ col }}"> {{ col }}</label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+    <fieldset class="filter-group">
+      <legend>Priority <span class="muted">none checked = any</span></legend>
+      {% for p in ('high', 'medium', 'low') %}
+      <label class="filter-check"><input type="checkbox" name="priority" value="{{ p }}">
+        <span class="priority p-{{ p }}">{{ icon('flag', 13) }}</span> {{ p|capitalize }}</label>
+      {% endfor %}
+      <label class="filter-check"><input type="checkbox" name="priority" value="none"> No priority</label>
+    </fieldset>
+    {% if show_status %}
+    <fieldset class="filter-group">
+      <legend>Status <span class="muted">neither = either</span></legend>
+      <label class="filter-check"><input type="checkbox" name="status" value="open"> Open</label>
+      <label class="filter-check"><input type="checkbox" name="status" value="done"> Done</label>
+    </fieldset>
+    {% endif %}
+    {% if show_sections %}
+    <fieldset class="filter-group">
+      <legend>Sections <span class="muted">none checked = all three</span></legend>
+      <label class="filter-check"><input type="checkbox" name="section" value="due"> Due &amp; overdue</label>
+      <label class="filter-check"><input type="checkbox" name="section" value="completed"> Completed today</label>
+      <label class="filter-check"><input type="checkbox" name="section" value="created"> Created today</label>
+    </fieldset>
+    {% endif %}
+    <div class="actions">
+      <button type="button" onclick="this.closest('.backdrop').remove()">Cancel</button>
+      <button type="submit" class="primary">{{ icon('download', 14) }} Export CSV</button>
+    </div>
+  </form>
+</div>

@@ -188,6 +188,32 @@ def board(slug):
                            display=display, labels=store().list_labels(slug))
 
 
+@bp.get("/b/<slug>/export/dialog")
+def board_export_dialog(slug):
+    try:
+        b = store().get_board(slug)
+    except KeyError:
+        abort(404)
+    return render_template("_cards_export_dialog.html", action=url_for("boards.board_export", slug=slug),
+                           title=b.title, boards=None, columns=b.columns, show_status=True, show_sections=False)
+
+
+@bp.get("/b/<slug>/export.csv")
+def board_export(slug):
+    try:
+        b = store().get_board(slug)
+    except KeyError:
+        abort(404)
+    results = [(b, c) for c in store().list_cards(slug)]
+    results = SR.refine(results, q=request.args.get("q", ""), tags=parse_tags(request.args.get("tags", "")),
+                        priorities=request.args.getlist("priority"), lists=request.args.getlist("list"),
+                        statuses=request.args.getlist("status"))
+    resp = make_response(csvimport.cards_to_csv(results))
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{slug}.csv"'
+    return resp
+
+
 @bp.post("/b/<slug>/cards")
 def add_card(slug):
     title, due, rule, tags = _parse_quick(request.form.get("title", ""))
@@ -331,7 +357,7 @@ def search():
     heading = f"Search: {q}" if q else ("Advanced search" if advanced else "Search")
     empty = ("No cards match." if (q or advanced) else
             "Type something to search cards, notes, tags and board names.")
-    search_boards = [b for b in store().list_boards() if b.kind in ("kanban", "tasks") and not b.archived]
+    search_boards = _card_boards()
     editing = request.args.get("edit", "")
     saved = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
     return render_template("results.html", q=q, heading=heading, results=results, empty=empty,
@@ -522,6 +548,30 @@ def scheduled():
                            saved=store().list_filters(), filter_url=url_for("boards.scheduled"))
 
 
+def _card_boards():
+    return [b for b in store().list_boards() if b.kind in ("kanban", "tasks") and not b.archived]
+
+
+@bp.get("/scheduled/export/dialog")
+def scheduled_export_dialog():
+    date_from, date_to = _filter_from_query()
+    return render_template("_cards_export_dialog.html", action=url_for("boards.scheduled_export"),
+                           title="Scheduled", date_from=date_from, date_to=date_to, boards=_card_boards(),
+                           columns=None, show_status=False, show_sections=False)
+
+
+@bp.get("/scheduled/export.csv")
+def scheduled_export():
+    date_from, date_to = _filter_from_query()
+    results = store().scheduled_cards(date_from, date_to)
+    results = SR.refine(results, q=request.args.get("q", ""), tags=parse_tags(request.args.get("tags", "")),
+                        priorities=request.args.getlist("priority"), boards=request.args.getlist("board"))
+    resp = make_response(csvimport.cards_to_csv(results))
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = 'attachment; filename="scheduled.csv"'
+    return resp
+
+
 @bp.get("/today")
 def today_view():
     """Due-or-overdue, completed today and created today, in one glance -- not a date-range view
@@ -534,6 +584,52 @@ def today_view():
     live = {b.slug for b in store().list_boards()}
     return render_template("today.html", due=due, completed=completed, created=created,
                            today=today, live=live)
+
+
+@bp.get("/today/export/dialog")
+def today_export_dialog():
+    return render_template("_cards_export_dialog.html", action=url_for("boards.today_export"),
+                           title="Today", boards=_card_boards(), columns=None, show_status=False,
+                           show_sections=True)
+
+
+def _resolve_logged_cards(events: list[dict]) -> list[tuple]:
+    """Logbook events reference a board+card by id, not a live Card object -- resolve whichever
+    still exist (the vast majority, for "completed today") so they can be filtered and exported
+    the same way as any other (board, card) pair. One that's gone (board or card deleted since)
+    is silently skipped, same as it already is everywhere else logbook entries meet live data."""
+    resolved = []
+    for e in events:
+        try:
+            resolved.append((store().get_board(e["board"]), store().get_card(e["board"], e["card"])))
+        except KeyError:
+            continue
+    return resolved
+
+
+@bp.get("/today/export.csv")
+def today_export():
+    today = date.today().isoformat()
+    wanted_sections = request.args.getlist("section")
+    kwargs = {"q": request.args.get("q", ""), "tags": parse_tags(request.args.get("tags", "")),
+              "priorities": request.args.getlist("priority"), "boards": request.args.getlist("board")}
+    results, sections = [], []
+    if not wanted_sections or "due" in wanted_sections:
+        due = SR.refine(store().scheduled_cards(date_to=today), **kwargs)
+        results += due
+        sections += ["due"] * len(due)
+    if not wanted_sections or "completed" in wanted_sections:
+        completed = SR.refine(_resolve_logged_cards(store().logbook(date_from=today, date_to=today)), **kwargs)
+        results += completed
+        sections += ["completed"] * len(completed)
+    if not wanted_sections or "created" in wanted_sections:
+        created = SR.refine(store().created_on(today), **kwargs)
+        results += created
+        sections += ["created"] * len(created)
+    resp = make_response(csvimport.cards_to_csv(results, sections=sections))
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = 'attachment; filename="today.csv"'
+    return resp
 
 
 @bp.post("/filters")
@@ -783,7 +879,7 @@ def export_dialog():
     opened from the download icon next to the date filter on Logbook/Metrics, not a direct
     download link, so a bulk export can be narrowed the same way any other filter in the app is."""
     date_from, date_to = _filter_from_query()
-    boards = [b for b in store().list_boards() if b.kind in ("kanban", "tasks") and not b.archived]
+    boards = _card_boards()
     return render_template("_export_dialog.html", date_from=date_from, date_to=date_to, boards=boards)
 
 

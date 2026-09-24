@@ -1,9 +1,12 @@
-"""CSV import: turn spreadsheet rows into card-shaped dicts (pure: no I/O, no Store).
+"""CSV import and export: the card <-> spreadsheet-row boundary (pure: no I/O, no Store).
 
-Header row required (case-insensitive; only "title" is needed). Recognized columns, with a couple
-of common aliases: title (or name), list (or column/status), start, due, tags, priority,
+Import: header row required (case-insensitive; only "title" is needed). Recognized columns, with
+a couple of common aliases: title (or name), list (or column/status), start, due, tags, priority,
 notes (or body), done. Unknown columns are ignored, not an error -- a CSV exported from somewhere
 else always has extra columns this app has no use for.
+
+Export (`cards_to_csv`): the same column shape, so exporting, editing in a spreadsheet and
+re-importing is a real round trip, not just a one-way dump.
 """
 
 from __future__ import annotations
@@ -66,3 +69,23 @@ def parse_csv(text: str) -> tuple[list[dict], list[str]]:
             "done": get(raw, "done").lower() in _TRUE,
         })
     return rows, errors
+
+
+def cards_to_csv(results: list[tuple], sections: list[str] | None = None) -> str:
+    """`results`: (board, card) pairs, the shape Store.search/all_cards/scheduled_cards/
+    created_on all return. Same column shape `parse_csv` reads, so export -> edit -> re-import is
+    a real round trip. `sections`, if given (same length as `results`), adds a leading "section"
+    column -- used by Today's export, which combines three different lists (due, completed,
+    created) into one file and still wants each row's source recorded."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    header = (["section"] if sections else []) + ["title", "board", "list", "start", "due",
+                                                   "tags", "priority", "notes", "done"]
+    writer.writerow(header)
+    for i, (board, card) in enumerate(results):
+        row = ([sections[i]] if sections else []) + [
+            card.title, board.title, card.column, card.start or "", card.due or "",
+            " ".join(card.tags), card.priority or "", card.body, "yes" if card.done else "",
+        ]
+        writer.writerow(row)
+    return buf.getvalue()

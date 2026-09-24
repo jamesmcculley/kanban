@@ -26,8 +26,10 @@ directory can also be opened as an Obsidian vault.
   was completed
 - **Metrics** (toolbar icon): totals for a date range, plus busiest board and busiest day of the
   week, as simple bar charts
-- **Export activity to CSV**, from Metrics or the Logbook — a pop-out for granular options (date
-  range, title text, tags, priority, which boards), not just everything in one shot
+- **Export to CSV** — completed activity from Metrics or the Logbook; real cards from any board,
+  Scheduled or Today — each a pop-out for granular options (text, tags, priority, board/list,
+  Today's sections), not just everything in one shot. A board's export is the same shape CSV
+  import reads, so export → edit → re-import is a real round trip
 - An edit button right on a Scheduled card, so you don't have to go find it on its board
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
 - **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its
