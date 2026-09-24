@@ -1,10 +1,10 @@
-// Sidebar size: Regular -> Skinny -> Hidden -> Regular. Two buttons drive the same cycle: one
-// inside the sidebar (visible at Regular/Skinny), one a slim rail fixed at the edge (visible only
-// at Hidden, since the sidebar itself is gone then) -- clicking the rail lands on Regular directly
-// because Hidden -> Regular is the wrap-around step, not a detour through Skinny.
+// Sidebar: open or hidden, nothing in between (there used to be a "skinny" icon-rail middle
+// state -- removed as unnecessary complexity; a plain on/off toggle was the actual ask). One
+// button, living outside <aside> in the markup (see base.html) so it's clickable in both states;
+// its own icon flips between a left- and right-pointing chevron via CSS, keyed off data-sidebar.
 window.SidebarMode = (() => {
   const root = document.documentElement;
-  const MODES = ['regular', 'skinny', 'hidden'];
+  const MODES = ['regular', 'hidden'];
   const get = () => { try { return localStorage.getItem('sidebar-mode') || 'regular'; } catch { return 'regular'; } };
   function set(mode) {
     if (mode === 'regular') root.removeAttribute('data-sidebar'); else root.setAttribute('data-sidebar', mode);

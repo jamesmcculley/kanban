@@ -33,9 +33,9 @@ directory can also be opened as an Obsidian vault.
 - **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its
   cards, rules and history stay exactly as they were; unarchive it any time from its own page or the
   Archived boards list
-- Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists,
-  and three sizes — regular, a narrow icon rail, or fully hidden — cycled from one button, plus a
-  resizable width (drag its edge, or type a number in Settings)
+- Sidebar with areas, boards you can rename or delete, drag-to-reorder for boards, areas and lists;
+  open or hidden (a single arrow button centered on its edge), plus a resizable width (drag the
+  edge, or type a number in Settings)
 - **Sort boards** alphabetically, most recently updated or most recently created, or drag them
   manually (Settings) — and **show or hide any sidebar section** (logo, search, Today, Scheduled,
   Logbook, boards, tags, the theme toggle) except the toolbar at the bottom, so there's

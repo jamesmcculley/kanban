@@ -115,6 +115,8 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     (the active one, with a background colour) still looked like *something* was there; a second,
     inactive row looked like the board had vanished from the sidebar entirely. Fixed with
     `display: none` on `.pin-btn` specifically in skinny mode, freeing the space for real.
+    (Skinny mode itself was later removed — see ADR 0007's amendment — but the underlying lesson,
+    that a hover-reveal via `opacity` isn't free at a narrow enough width, still generalizes.)
 17. **A board page and the sidebar can each show a "reveal a checklist panel" popover at once, and
     reusing the same generic classes for both (`.eye-menu-wrap`, `[data-eye-toggle]`, `.eye-menu`,
     `.eye-row`, `.icon-badge`) is exactly right for the shared open/close JS -- ui.js's handler
@@ -140,7 +142,16 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     a `<span>`'s text is. Fixed by filtering on the input itself (`:has(input[value="..."])`)
     instead. Worth remembering anywhere a row's identifying text lives in an editable field rather
     than plain text, which by now is most rename-in-place UI in this app.
-20. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+20. **Two elements deliberately centered on the same edge will fight over the same pixels unless
+    something explicitly yields.** The sidebar's collapse button sits centered vertically right on
+    top of the resize handle's edge (on purpose — that's the whole design). Left alone, the
+    higher-z-index button silently swallowed every resize drag that started anywhere near vertical
+    center, since `bounding_box()`-style hit-testing has no idea one element sits above another.
+    Fixed with `clip-path` on the resize handle, cutting a hole in its hit area the size of the
+    button's own footprint — `clip-path` affects pointer events, not just paint, so the cut-out
+    band passes clicks through to the button underneath instead of eating them. The e2e drag tests
+    had to move their target Y off the exact vertical center for the same reason.
+21. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
     — a concurrent read landing between the truncate and the new content finishing could see a
     half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
     run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.

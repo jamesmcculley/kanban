@@ -10,7 +10,7 @@
     var s = localStorage.getItem('font-size');
     if (SIZES.indexOf(s) > -1) document.documentElement.setAttribute('data-font-size', s);
     var mode = localStorage.getItem('sidebar-mode');
-    if (mode === 'skinny' || mode === 'hidden') document.documentElement.setAttribute('data-sidebar', mode);
+    if (mode === 'hidden') document.documentElement.setAttribute('data-sidebar', mode);
     var width = parseInt(localStorage.getItem('sidebar-width'), 10);
     if (width >= 180 && width <= 420) document.documentElement.style.setProperty('--sidebar-width', width + 'px');
     var hide = JSON.parse(localStorage.getItem('sidebar-hide') || '{}');

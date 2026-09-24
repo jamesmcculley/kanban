@@ -819,28 +819,22 @@ def test_hidden_lists_panel_toggle_each_and_all(page):
     expect(page.locator('[data-eye-toggle] .icon-badge')).to_have_count(0)
 
 
-def test_sidebar_cycles_regular_skinny_hidden_and_persists(page):
-    toggle = page.get_by_role("button", name="Resize sidebar")
+def test_sidebar_toggle_is_a_plain_on_off_and_persists(page):
+    toggle = page.get_by_role("button", name="Toggle sidebar")
     sidebar = page.locator(".sidebar")
     expect(sidebar).to_be_visible()
-    regular_width = sidebar.bounding_box()["width"]
-
-    toggle.click()                                                     # -> skinny
-    expect(sidebar).to_be_visible()
-    expect(page.locator("html")).to_have_attribute("data-sidebar", "skinny")
-    assert sidebar.bounding_box()["width"] < regular_width
 
     toggle.click()                                                     # -> hidden
     expect(sidebar).to_be_hidden()
-    rail = page.get_by_role("button", name="Show sidebar")
-    expect(rail).to_be_visible()
+    expect(page.locator("html")).to_have_attribute("data-sidebar", "hidden")
+    expect(toggle).to_be_visible()                                     # same button works in both states
 
     page.reload()
     expect(sidebar).to_be_hidden()                                     # persisted across reload
 
-    rail.click()                                                       # wraps straight to regular
+    toggle.click()                                                     # -> back to regular
     expect(sidebar).to_be_visible()
-    expect(page.locator("html")).not_to_have_attribute("data-sidebar", "skinny")
+    expect(page.locator("html")).not_to_have_attribute("data-sidebar", "hidden")
     expect(page.locator("html")).not_to_have_attribute("data-sidebar", "hidden")
 
 
@@ -1400,9 +1394,12 @@ def test_resize_sidebar_by_dragging_the_handle_and_it_persists(page):
     box = handle.bounding_box()
     start_width = page.locator(".sidebar").bounding_box()["width"]
 
-    page.mouse.move(box["x"] + 2, box["y"] + box["height"] / 2)
+    # not the handle's exact vertical center: the collapse button sits right on top of that band
+    # (clip-cut out of the handle's own hit area on purpose -- see app.css)
+    y = box["y"] + 60
+    page.mouse.move(box["x"] + 2, y)
     page.mouse.down()
-    page.mouse.move(box["x"] + 62, box["y"] + box["height"] / 2, steps=5)  # drag ~60px wider
+    page.mouse.move(box["x"] + 62, y, steps=5)  # drag ~60px wider
     page.mouse.up()
 
     new_width = page.locator(".sidebar").bounding_box()["width"]
@@ -1431,9 +1428,10 @@ def test_resize_sidebar_from_settings_number_field_and_restore_default(page):
 def test_dragging_the_handle_updates_the_settings_field(page):
     handle = page.locator("[data-sidebar-resize]")
     box = handle.bounding_box()
-    page.mouse.move(box["x"] + 2, box["y"] + box["height"] / 2)
+    y = box["y"] + 60  # avoid the collapse button's cut-out band at vertical center
+    page.mouse.move(box["x"] + 2, y)
     page.mouse.down()
-    page.mouse.move(box["x"] + 42, box["y"] + box["height"] / 2, steps=5)
+    page.mouse.move(box["x"] + 42, y, steps=5)
     page.mouse.up()
     new_width = round(page.locator(".sidebar").bounding_box()["width"])
 

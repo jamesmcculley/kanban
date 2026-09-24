@@ -416,37 +416,31 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .rule-error { color:var(--danger); font-size:13px; margin:0; min-height:1.2em; }
 .settings a { color:var(--accent-text); }
 
-/* Sidebar toggle cycles Regular -> Skinny -> Hidden -> Regular (the same button both places; the
-   rail only shows in Hidden, and clicking it wraps straight back to Regular, skipping Skinny).
-   Bottom-left, same corner as .side-foot (where this same toggle lives at Regular/Skinny) -- it
-   used to sit top-left, which made the button appear to jump across the screen on every collapse. */
-.sidebar-rail { display:none; position:fixed; left:24px; bottom:24px; z-index:16; border:1px solid var(--border);
-                background:var(--bg-card); color:var(--text-subtle); border-radius:8px; padding:7px; cursor:pointer; }
-.sidebar-rail:hover { color:var(--text-primary); border-color:var(--accent); }
+/* Sidebar open/hidden toggle: one button, centered vertically on the boundary between the
+   sidebar and the content pane (half-overlapping each), so it reads as "the thing that controls
+   this edge" rather than a tucked-away menu item. Lives outside <aside> in the markup, so it
+   still works when the sidebar itself is display:none. left tracks --sidebar-width live (the same
+   custom property the resize handle sets), so it stays glued to the edge as you resize; at Hidden
+   it collapses to the screen edge. */
+.sidebar-collapse-btn { position:fixed; top:50%; left:var(--sidebar-width); transform:translate(-50%, -50%);
+                        z-index:17; width:22px; height:40px; display:grid; place-items:center;
+                        border:1px solid var(--border); border-radius:8px; background:var(--bg-card);
+                        color:var(--text-subtle); cursor:pointer; box-shadow:0 2px 8px #0003; }
+.sidebar-collapse-btn:hover { color:var(--text-primary); border-color:var(--accent); }
+.collapse-icon-closed { display:none; }
 html[data-sidebar=hidden] .sidebar { display:none; }
-html[data-sidebar=hidden] .sidebar-rail { display:grid; place-items:center; }
+html[data-sidebar=hidden] .sidebar-collapse-btn { left:0; }
+html[data-sidebar=hidden] .collapse-icon-open { display:none; }
+html[data-sidebar=hidden] .collapse-icon-closed { display:grid; }
 
-/* Skinny: a fixed narrow rail. Search, area labels, drag handles and anything text-heavy (tags)
-   don't fit and are hidden outright, regardless of the "show in sidebar" choices -- those choices
-   are about what's in the (regular-width) sidebar, not a promise everything fits in 64px too. Board
-   titles ellipsis-truncate to a letter or two; the link's native title="" tooltip has the rest. */
-html[data-sidebar=skinny] .sidebar { width:72px; padding-left:6px; padding-right:6px; }
-html[data-sidebar=skinny] .search,
-html[data-sidebar=skinny] .side-boards-head,
-html[data-sidebar=skinny] .area-head,
-html[data-sidebar=skinny] #tag-section,
-html[data-sidebar=skinny] .grip,
-html[data-sidebar=skinny] .pin-btn,
-html[data-sidebar=skinny] .hide-btn,
-html[data-sidebar=skinny] #theme-label,
-html[data-sidebar=skinny] .resize-handle { display:none; }
-html[data-sidebar=skinny] .board-row a span,
-html[data-sidebar=skinny] .sidebar nav a span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-html[data-sidebar=skinny] .side-head { justify-content:center; }
-
-/* Drag the sidebar's own right edge to resize it (Regular mode only -- Skinny is a fixed width). */
+/* Drag the sidebar's own right edge to resize it (only while the sidebar is open). Same edge the
+   collapse button sits centered on (above), so its hit area is cut out here (clip-path affects
+   pointer events, not just paint) -- otherwise the button, being higher z-index, would swallow
+   every drag that starts near vertical center. */
 .resize-handle { position:absolute; top:0; right:-3px; width:6px; height:100%; cursor:col-resize;
-                 z-index:2; background:transparent; }
+                 z-index:2; background:transparent;
+                 clip-path:polygon(0 0, 100% 0, 100% calc(50% - 24px), 0 calc(50% - 24px),
+                                    0 calc(50% + 24px), 100% calc(50% + 24px), 100% 100%, 0 100%); }
 .resize-handle:hover, .resize-handle.active { background:var(--accent); opacity:.5; }
 html[data-sidebar=hidden] .resize-handle { display:none; }
 

@@ -124,7 +124,6 @@
            aria-label="Settings" title="Settings">{{ icon('settings') }}</a>
         <button type="button" class="icon-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
                 onclick="document.getElementById('help').hidden = false">{{ icon('help-circle') }}</button>
-        <button type="button" class="icon-btn" data-sidebar-toggle aria-label="Resize sidebar: regular, skinny, or hidden" title="Cycles: regular → skinny → hidden">{{ icon('panel-left') }}</button>
         {% if auth_enabled %}
         <form method="post" action="{{ url_for('auth.logout') }}" class="logout-form">
           <button type="submit" class="icon-btn" aria-label="Log out" title="Log out">{{ icon('log-out') }}</button>
@@ -133,7 +132,13 @@
       </div>
       <div class="resize-handle" data-sidebar-resize title="Drag to resize"></div>
     </aside>
-    <button type="button" class="sidebar-rail" data-sidebar-toggle aria-label="Show sidebar" title="Show sidebar">{{ icon('panel-left') }}</button>
+    {# One button, living outside <aside> so it works in both states (nothing inside a hidden
+       sidebar is clickable) -- centered on the boundary between sidebar and content, the icon
+       itself indicating which way it'll move next. #}
+    <button type="button" class="sidebar-collapse-btn" data-sidebar-toggle aria-label="Toggle sidebar" title="Toggle sidebar">
+      <span class="collapse-icon-open">{{ icon('chevron-left', 16) }}</span>
+      <span class="collapse-icon-closed">{{ icon('chevron-right', 16) }}</span>
+    </button>
     <div class="content">{% block content %}{% endblock %}</div>
   </div>
   <div class="fab" id="fab" data-board-url="{{ url_for('boards.create_board') }}" data-capture-url="{{ url_for('boards.capture') }}"

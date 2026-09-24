@@ -97,3 +97,15 @@ regular and fully hidden), and a way to resize the sidebar by dragging or typing
 Hidden) was fixed top-left, but the same toggle at Regular/Skinny lives bottom-left in `.side-foot`
 — collapsing the sidebar made the button visually jump across the screen instead of staying roughly
 where it was. Moved the rail to the same bottom-left corner.
+
+**Second amendment (a later round still):** Skinny mode is gone — the owner's call was that a
+three-way cycle was complexity the app didn't need; open or hidden is the actual distinction that
+matters. The two toggle buttons (in-sidebar, and the "show sidebar" rail) are now one button that
+lives outside `<aside>` in the markup (a sibling of `.sidebar` and `.content`), so it works
+unchanged in both states without needing a second element for "sidebar is gone, nothing inside it
+is clickable." It's centered vertically on the boundary between sidebar and content, half-
+overlapping each pane (the owner's explicit ask, for a more standard "this edge is what controls
+the sidebar" affordance), with a chevron that points the direction it'll move next — `<` to close,
+`>` to reopen — swapped via CSS off `data-sidebar`, no JS icon-swapping needed. Centering it
+exactly on the resize handle's own edge meant the two fought over the same pixels; see AGENTS.md
+trap 20 for the fix (a `clip-path` cutout on the handle, sized to the button).
