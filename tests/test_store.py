@@ -556,3 +556,71 @@ def test_reading_cards_while_writing_never_sees_a_half_written_file(store):
     for t in threads:
         t.join()
     assert errors == []
+
+
+# ---- saved searches ---------------------------------------------------------------------------
+
+def test_save_search_stores_criteria_and_defaults_unpinned(store):
+    entry = store.save_search("Home tasks", {"q": "", "tags": ["home"], "priority": [], "board": [], "status": []})
+    assert entry["name"] == "Home tasks" and entry["tags"] == ["home"] and entry["pinned"] is False
+    assert store.list_searches() == [entry]
+
+
+def test_save_search_rejects_a_blank_name(store):
+    with pytest.raises(ValueError):
+        store.save_search("   ", {"q": "x"})
+
+
+def test_update_search_replaces_criteria_keeps_id_name_and_pin(store):
+    entry = store.save_search("Home", {"q": "", "tags": ["home"]})
+    store.set_search_pinned(entry["id"], True)
+    updated = store.update_search(entry["id"], {"q": "paint", "tags": ["home", "diy"]})
+    assert updated["id"] == entry["id"] and updated["name"] == "Home"
+    assert updated["q"] == "paint" and updated["tags"] == ["home", "diy"]
+    assert updated["pinned"] is True
+
+
+def test_rename_search(store):
+    entry = store.save_search("Home", {"q": ""})
+    renamed = store.rename_search(entry["id"], "  Home stuff  ")
+    assert renamed["name"] == "Home stuff"
+    with pytest.raises(ValueError):
+        store.rename_search(entry["id"], "   ")
+
+
+def test_duplicate_search_gets_a_new_id_and_copy_suffix_and_starts_unpinned(store):
+    entry = store.save_search("Home", {"q": "", "tags": ["home"]})
+    store.set_search_pinned(entry["id"], True)
+    copy = store.duplicate_search(entry["id"])
+    assert copy["id"] != entry["id"]
+    assert copy["name"] == "Home (copy)"
+    assert copy["tags"] == ["home"]
+    assert copy["pinned"] is False                  # the original's pin doesn't carry over
+    assert len(store.list_searches()) == 2
+
+
+def test_set_search_pinned_toggles(store):
+    entry = store.save_search("Home", {"q": ""})
+    store.set_search_pinned(entry["id"], True)
+    assert store.list_searches()[0]["pinned"] is True
+    store.set_search_pinned(entry["id"], False)
+    assert store.list_searches()[0]["pinned"] is False
+
+
+def test_delete_search_removes_it(store):
+    entry = store.save_search("Home", {"q": ""})
+    store.delete_search(entry["id"])
+    assert store.list_searches() == []
+
+
+def test_search_actions_on_an_unknown_id_raise_keyerror(store):
+    with pytest.raises(KeyError):
+        store.update_search("nope", {"q": "x"})
+    with pytest.raises(KeyError):
+        store.rename_search("nope", "x")
+    with pytest.raises(KeyError):
+        store.duplicate_search("nope")
+    with pytest.raises(KeyError):
+        store.set_search_pinned("nope", True)
+    with pytest.raises(KeyError):
+        store.delete_search("nope")

@@ -155,6 +155,15 @@
     if (!e.target.closest('.date-filter-wrap')) document.querySelectorAll('.date-filter-panel').forEach(m => (m.hidden = true));
   });
 
+  // -- Search: the Advanced search panel, same reveal-a-sibling-panel pattern again, its own
+  // classes for the same reason (see above) -- a Search page result can itself be on a board with
+  // its own .filter-wrap, so nothing here can risk being mistaken for that one either.
+  document.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-search-filter-toggle]');
+    if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
+    if (!e.target.closest('.search-filter-wrap')) document.querySelectorAll('.search-filter-panel').forEach(m => (m.hidden = true));
+  });
+
   // -- "Move to": any card, to any list on any board, from the edit dialog --------------------
   document.addEventListener('click', async e => {
     const btn = e.target.closest('.move-btn');

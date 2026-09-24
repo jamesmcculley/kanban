@@ -65,6 +65,16 @@
         <a href="{{ url_for('boards.logbook') }}" data-go="l" title="Logbook" class="side-logbook
            {{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
 
+        {% if pinned_searches %}
+        <div class="side-searches">
+          <h3>Saved searches</h3>
+          {% for s in pinned_searches %}
+          <a href="{{ s.url }}" title="{{ s.name }}"
+             class="{{ 'active' if request.endpoint == 'boards.search' and request.args.get('edit') == s.id }}"><span>{{ s.name }}</span></a>
+          {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="side-boards">
           <div class="side-boards-head">
             <h3>Boards</h3>

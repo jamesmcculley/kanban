@@ -53,6 +53,64 @@ def test_agenda_hides_done_and_search_page(client):
     assert "No cards match" in client.get("/search?q=zzzz").text
 
 
+def test_advanced_search_narrows_by_tags_priority_board_and_status(client):
+    home_id, _ = _add(client, "Paint fence #home")
+    client.post("/boards", data={"title": "Second"})
+    r = client.post("/b/second/cards", data={"title": "Write report", "column": "Todo"})
+    work_id = r.text.split('data-id="')[1][:8]
+    client.post(f"/b/second/cards/{work_id}", data={"title": "Write report", "body": "", "priority": "high"})
+
+    page = client.get("/search?tags=%23home").text          # advanced-only, no q -- still searches
+    assert "Paint fence" in page and "Write report" not in page
+
+    page = client.get("/search?priority=high").text
+    assert "Write report" in page and "Paint fence" not in page
+
+    page = client.get("/search?board=second").text
+    assert "Write report" in page and "Paint fence" not in page
+
+    client.post(f"/b/my-board/cards/{home_id}/complete")
+    page = client.get("/search?status=done").text
+    assert "Paint fence" in page and "Write report" not in page
+
+
+def test_saved_search_crud_and_pin_to_sidebar(client):
+    r = client.post("/searches", data={"name": "Home stuff", "tags": "#home", "return_to": "/search?tags=%23home"})
+    assert r.status_code == 302 and r.headers["Location"] == "/search?tags=%23home"
+    [entry] = client.application.config["STORE"].list_searches()
+    sid = entry["id"]
+    assert entry == {"id": sid, "name": "Home stuff", "pinned": False, "q": "", "tags": ["home"],
+                     "priority": [], "board": [], "status": []}
+
+    # it shows up as a chip on the Search page and isn't in the sidebar until pinned
+    page = client.get("/search").text
+    assert "Home stuff" in page and 'aria-labelledby="searches-h"' not in page  # that's Settings, not here
+    assert 'class="side-searches"' not in client.get("/b/my-board").text
+
+    assert client.post(f"/searches/{sid}/pin").status_code == 204
+    assert 'class="side-searches"' in client.get("/b/my-board").text  # now pinned into the sidebar
+    assert client.post(f"/searches/{sid}/pin").status_code == 204     # toggles back off
+    assert 'class="side-searches"' not in client.get("/b/my-board").text
+
+    assert client.post(f"/searches/{sid}/rename", data={"name": "  Home  "}).status_code == 204
+    assert client.post(f"/searches/{sid}/rename", data={"name": "   "}).status_code == 422
+
+    dup = client.post(f"/searches/{sid}/duplicate")
+    assert dup.status_code == 204
+    names = {s["name"] for s in client.application.config["STORE"].list_searches()}
+    assert names == {"Home", "Home (copy)"}
+
+    assert client.post(f"/searches/{sid}/update", data={"q": "paint", "return_to": "/search"}).status_code == 302
+    assert client.application.config["STORE"].get_search(sid)["q"] == "paint"
+
+    assert client.post("/searches/nope/rename", data={"name": "x"}).status_code == 404
+    assert client.post(f"/searches/{sid}/delete").status_code == 204
+    assert len(client.application.config["STORE"].list_searches()) == 1  # the duplicate is still there
+
+    # a plain empty search (no q, no advanced fields) is still "type something", not "show all"
+    assert "Type something" in client.get("/search").text
+
+
 def test_column_routes(client):
     assert client.post("/b/my-board/columns", data={"name": "Later"}).headers["HX-Refresh"] == "true"
     assert client.post("/b/my-board/columns", data={"name": "later"}).status_code == 400

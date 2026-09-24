@@ -17,7 +17,7 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 ## Boundaries
 
 - **Pure domain modules never touch I/O or Flask:** `rules.py`, `settings.py`, `dates.py`, `notes.py`,
-  `tags.py`, `labels.py`, `csvimport.py`, `metrics.py`. `tests/test_rules.py::test_domain_modules_are_pure`
+  `tags.py`, `labels.py`, `csvimport.py`, `metrics.py`, `search.py`. `tests/test_rules.py::test_domain_modules_are_pure`
   enforces it. `Store` (and its mixins) does the file I/O; `routes.py` is thin HTTP glue.
 - **Reading never writes.** Hiding completed cards is a view (`view_columns`), not an archive pass.
 - **Files are the source of truth** (Markdown + YAML frontmatter). Unknown frontmatter must survive a save.
@@ -133,7 +133,14 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     stops substring matches; it does nothing about two unrelated elements sharing the exact same
     name. Fixed by scoping the locator to its actual container (`.date-filter-panel`). Same root
     cause as trap 17, one level up (accessible name vs. CSS class).
-19. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+19. **Playwright's `has_text` matches rendered text content, not an `<input value="...">`.** The
+    saved-search rows in Settings show each search's name in an editable `<input>` (same blur-to-
+    save idiom as board/area titles), and `page.locator(".saved-search-row", has_text="Home
+    stuff")` never matched it — an input's value isn't part of its element's text content the way
+    a `<span>`'s text is. Fixed by filtering on the input itself (`:has(input[value="..."])`)
+    instead. Worth remembering anywhere a row's identifying text lives in an editable field rather
+    than plain text, which by now is most rename-in-place UI in this app.
+20. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
     — a concurrent read landing between the truncate and the new content finishing could see a
     half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
     run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.

@@ -84,6 +84,7 @@ html[data-sidebar-hide~="search"] .sidebar .search { display:none; }
 html[data-sidebar-hide~="scheduled"] .side-scheduled { display:none; }
 html[data-sidebar-hide~="today"] .side-today { display:none; }
 html[data-sidebar-hide~="logbook"] .side-logbook { display:none; }
+html[data-sidebar-hide~="searches"] .side-searches { display:none; }
 html[data-sidebar-hide~="boards"] .side-boards { display:none; }
 html[data-sidebar-hide~="tags"] #tag-section { display:none; }
 html[data-sidebar-hide~="theme"] .theme-btn { display:none; }
@@ -382,6 +383,19 @@ fieldset { border:0; margin:0; padding:0; min-width:0; } legend { font-weight:60
 .board-hide-rows { columns:220px; column-gap:24px; }
 .board-hide-rows .eye-row { break-inside:avoid; padding:5px 2px; }
 
+/* Saved searches (Settings): server-side/shared, like saved date filters -- rename inline (same
+   blur-to-save idiom as board/area titles), pin/duplicate/delete alongside. */
+.saved-search-list { display:flex; flex-direction:column; }
+.saved-search-row { display:flex; align-items:center; gap:14px; padding:8px 0; border-top:1px solid var(--border); }
+.saved-search-row:first-child { border-top:0; }
+.rename-form { flex:1; min-width:0; margin:0; }
+.saved-search-name { width:100%; font:inherit; font-weight:600; background:none; border:1px solid transparent;
+                     border-radius:6px; padding:4px 6px; margin-left:-6px; color:var(--text-primary); }
+.saved-search-name:hover { border-color:var(--border); }
+.saved-search-name:focus { border-color:var(--accent); outline:none; background:var(--bg); }
+.pin-check { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-subtle); white-space:nowrap; cursor:pointer; }
+.pin-check input { width:auto; }
+
 /* settings rows and rules */
 .pref-row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 0; border-top:1px solid var(--border); }
 .pref-row:first-of-type { border-top:0; } .pref-row label { font-weight:600; display:block; } .pref-row small { color:var(--text-subtle); display:block; }
@@ -461,15 +475,18 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .completed-at-row input { padding:5px 7px; border-radius:6px; border:1px solid var(--border);
                           background:var(--bg); color:var(--text-primary); font-size:13px; }
 
-/* per-board filter (text/labels/priority/tags, filter.js) and the Scheduled/Logbook custom date-range
-   popover (data-date-filter-toggle, ui.js): same floating-panel look, unrelated JS -- kept as separate
-   wrapper classes (.filter-wrap / .date-filter-wrap) on purpose so filter.js's `.filter-wrap` lookup
-   never picks up the date panel by accident. */
-.filter-wrap, .date-filter-wrap { position:relative; }
+/* per-board filter (text/labels/priority/tags, filter.js), the Scheduled/Logbook custom date-range
+   popover (data-date-filter-toggle, ui.js) and Advanced Search (data-search-filter-toggle, ui.js):
+   same floating-panel look, unrelated JS -- kept as separate wrapper classes on purpose so one
+   popover's lookup never picks up another by accident (AGENTS.md trap 9). */
+.filter-wrap, .date-filter-wrap, .search-filter-wrap { position:relative; }
 .filter-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:8; background:var(--bg-card);
                 border:1px solid var(--border); border-radius:10px; padding:14px; width:230px;
                 display:flex; flex-direction:column; gap:12px; box-shadow:0 6px 20px #0003; }
-.date-filter-panel { width:max-content; max-width:300px; }
+.date-filter-panel, .search-filter-panel { width:max-content; max-width:300px; }
+.search-filter-panel form { display:flex; flex-direction:column; gap:12px; }
+.search-filter-panel input[type=text] { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
+                                        background:var(--bg); color:var(--text-primary); }
 .filter-panel .filter-text { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
                               background:var(--bg); color:var(--text-primary); }
 .filter-group { display:flex; flex-direction:column; gap:5px; max-height:160px; overflow:auto; }
@@ -477,7 +494,7 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .filter-check input { flex:none; }
 .filter-status { margin:0; font-size:12px; min-height:1em; }
 .card.filter-hidden { display:none; }
-.filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
+.filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active, .search-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
 
 /* Today: its own "show/hide these three sections" popover (own class, not .filter-wrap/
    .date-filter-wrap -- see the comment above trap 9 in AGENTS.md) and the section-hide itself,

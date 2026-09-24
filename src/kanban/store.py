@@ -780,6 +780,79 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         filters.insert(len(filters) if index is None else max(0, min(index, len(filters))), entry)
         self._store_filters(filters)
 
+    # -- saved searches: named Advanced Search criteria, optionally pinned to the sidebar --------
+
+    def list_searches(self) -> list[dict]:
+        return [s for s in (self._meta().get("searches") or []) if isinstance(s, dict) and s.get("id")]
+
+    def get_search(self, search_id: str) -> dict:
+        return self._find_search(self.list_searches(), search_id)
+
+    def _store_searches(self, searches: list[dict]) -> None:
+        meta = self._meta()
+        meta["searches"] = searches
+        self._write_meta(meta)
+
+    def _find_search(self, searches: list[dict], search_id: str) -> dict:
+        for s in searches:
+            if s["id"] == search_id:
+                return s
+        raise KeyError(search_id)
+
+    def save_search(self, name: str, criteria: dict) -> dict:
+        """`criteria`: {q, tags, priority, board, status} -- whatever Advanced Search had set,
+        stored as-is so re-running it later reproduces exactly the same result set."""
+        name = " ".join(name.split())
+        if not name:
+            raise ValueError("give the search a name")
+        searches = self.list_searches()
+        entry = {"id": uuid.uuid4().hex[:8], "name": name, "pinned": False, **criteria}
+        searches.append(entry)
+        self._store_searches(searches)
+        return entry
+
+    def update_search(self, search_id: str, criteria: dict) -> dict:
+        """Replace a saved search's criteria in place (its own "Edit"), keeping its id, name and
+        pin state -- used when Advanced Search is opened from a saved search, changed, and saved
+        back rather than saved as a new one."""
+        searches = self.list_searches()
+        entry = self._find_search(searches, search_id)
+        entry.update(criteria)
+        self._store_searches(searches)
+        return entry
+
+    def rename_search(self, search_id: str, name: str) -> dict:
+        name = " ".join(name.split())
+        if not name:
+            raise ValueError("give the search a name")
+        searches = self.list_searches()
+        entry = self._find_search(searches, search_id)
+        entry["name"] = name
+        self._store_searches(searches)
+        return entry
+
+    def duplicate_search(self, search_id: str) -> dict:
+        searches = self.list_searches()
+        original = self._find_search(searches, search_id)
+        copy = {**original, "id": uuid.uuid4().hex[:8], "name": f"{original['name']} (copy)", "pinned": False}
+        searches.append(copy)
+        self._store_searches(searches)
+        return copy
+
+    def set_search_pinned(self, search_id: str, pinned: bool) -> dict:
+        searches = self.list_searches()
+        entry = self._find_search(searches, search_id)
+        entry["pinned"] = pinned
+        self._store_searches(searches)
+        return entry
+
+    def delete_search(self, search_id: str) -> dict:
+        searches = self.list_searches()
+        entry = self._find_search(searches, search_id)
+        searches.remove(entry)
+        self._store_searches(searches)
+        return entry
+
     def rename_board(self, slug: str, title: str) -> None:
         board = self.get_board(slug)
         board.title = self._clean_name(title, [])

@@ -55,6 +55,7 @@
         <label><input type="checkbox" name="sidebar-show" value="today"> Today</label>
         <label><input type="checkbox" name="sidebar-show" value="scheduled"> Scheduled</label>
         <label><input type="checkbox" name="sidebar-show" value="logbook"> Logbook</label>
+        <label><input type="checkbox" name="sidebar-show" value="searches"> Saved searches</label>
         <label><input type="checkbox" name="sidebar-show" value="boards"> Boards</label>
         <label><input type="checkbox" name="sidebar-show" value="tags"> Tags</label>
         <label><input type="checkbox" name="sidebar-show" value="theme"> Theme toggle</label>
@@ -92,6 +93,35 @@
         button too, revealed on hover.</p>
       {% else %}
       <p class="muted">No boards yet.</p>
+      {% endif %}
+    </section>
+
+    <section class="card-section" aria-labelledby="searches-h">
+      <h2 id="searches-h">Saved searches <span class="muted">shared by everyone on this instance</span></h2>
+      {% if searches %}
+      <div class="saved-search-list">
+        {% for s in searches %}
+        <div class="saved-search-row">
+          <form class="rename-form" hx-post="{{ url_for('boards.rename_search', search_id=s.id) }}"
+                hx-swap="none" hx-on::response-error="location.reload()">
+            <input class="saved-search-name" name="name" value="{{ s.name }}" aria-label="Search name" autocomplete="off"
+                   onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
+          </form>
+          <a href="{{ s.url }}" class="link-btn">Run</a>
+          <label class="pin-check">
+            <input type="checkbox" {% if s.pinned %}checked{% endif %}
+                   hx-post="{{ url_for('boards.toggle_search_pin', search_id=s.id) }}"
+                   hx-trigger="change" hx-swap="none" hx-on::after-request="location.reload()"> Pin to sidebar
+          </label>
+          <button type="button" class="link-btn" data-post="{{ url_for('boards.duplicate_search', search_id=s.id) }}"
+                  data-after="reload">Duplicate</button>
+          <button type="button" class="link-btn" data-post="{{ url_for('boards.delete_search', search_id=s.id) }}"
+                  data-confirm="Delete? Click again" data-after="reload">Delete</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted">None yet — save one from the filter icon on the Search page.</p>
       {% endif %}
     </section>
 

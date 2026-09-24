@@ -1189,6 +1189,67 @@ def test_hide_one_board_from_settings_and_it_persists(page):
     expect(page.locator('.board-row[data-slug="zebra"]')).to_be_visible()  # reversible
 
 
+def test_advanced_search_narrows_by_tag_without_typing_a_query(page):
+    add_card(page, "Todo", "Paint fence #home")
+    add_card(page, "Todo", "Write report")
+    page.locator('.sidebar .search input[name="q"]').click()
+    page.keyboard.press("Enter")  # empty search -> lands on /search
+    page.wait_for_url("**/search*")
+    expect(page.locator(".empty")).to_contain_text("Type something")
+
+    page.get_by_role("button", name="Advanced search").click()
+    panel = page.locator(".search-filter-panel")
+    expect(panel).to_be_visible()
+    panel.locator('input[name="tags"]').fill("#home")
+    with page.expect_navigation():
+        panel.get_by_role("button", name="Apply").click()
+    expect(page.locator(".agenda .row", has_text="Paint fence")).to_be_visible()
+    expect(page.locator(".agenda .row", has_text="Write report")).to_have_count(0)
+
+
+def _search_row(page, name):
+    # the name lives in an <input value="...">, not text content, so has_text can't find it
+    return page.locator(".saved-search-row").filter(has=page.locator(f'input.saved-search-name[value="{name}"]'))
+
+
+def test_save_pin_rename_duplicate_and_delete_a_search(page):
+    add_card(page, "Todo", "Paint fence #home")
+    page.goto(page.base + "/search?tags=%23home")
+    page.get_by_role("button", name="Advanced search").click()
+    panel = page.locator(".search-filter-panel")
+    panel.locator('input[name="name"]').fill("Home stuff")
+    with page.expect_navigation():
+        panel.get_by_role("button", name="Save").click()
+    page.get_by_role("button", name="Advanced search").click()   # the redirect reset the panel closed
+    expect(page.locator(".saved-chip", has_text="Home stuff")).to_be_visible()
+    expect(page.locator(".side-searches")).to_have_count(0)   # saved, but not pinned yet
+
+    page.goto(page.base + "/settings")
+    row = _search_row(page, "Home stuff")
+    expect(row).to_be_visible()
+    row.get_by_role("checkbox", name="Pin to sidebar").check()
+    page.wait_for_load_state()
+    expect(page.locator(".side-searches a", has_text="Home stuff")).to_be_visible()
+
+    name_input = _search_row(page, "Home stuff").locator(".saved-search-name")
+    name_input.fill("Home things")
+    name_input.blur()
+    page.wait_for_timeout(200)
+    page.reload()
+    expect(page.locator(".side-searches a", has_text="Home things")).to_be_visible()
+
+    _search_row(page, "Home things").get_by_role("button", name="Duplicate").click()
+    page.wait_for_load_state()
+    copy_row = _search_row(page, "Home things (copy)")
+    expect(copy_row).to_be_visible()
+
+    copy_row.get_by_role("button", name="Delete").click()
+    copy_row.get_by_role("button", name="Delete").click()  # two-step confirm
+    page.wait_for_load_state()
+    expect(_search_row(page, "Home things (copy)")).to_have_count(0)
+    expect(_search_row(page, "Home things")).to_have_count(1)  # the original stays
+
+
 def test_hide_a_board_directly_from_its_row_and_settings_reflects_it(page):
     fab_add(page, "New board", "Zebra")
     page.wait_for_url("**/b/zebra")

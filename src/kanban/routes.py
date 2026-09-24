@@ -1,5 +1,6 @@
 import json
 from datetime import date, datetime
+from urllib.parse import urlencode
 
 from flask import (
     Blueprint,
@@ -18,6 +19,7 @@ from . import csvimport, notes
 from . import labels as L
 from . import metrics as M
 from . import rules as R
+from . import search as SR
 from . import settings as S
 from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
 from .store import PRIORITIES, TASKS_COLUMN, effective_date
@@ -61,6 +63,29 @@ def _parse_quick(raw: str):
     return title, (due.isoformat() if due else None), rule, tags
 
 
+def _search_run_url(entry: dict) -> str:
+    """A saved search's own URL always carries `edit=<id>` -- opening Advanced Search from it
+    shows an "Update" button (in place of "Save") the moment you change anything, rather than
+    needing a separate edit mode. Used for both the Search page's saved-search chips and the
+    sidebar's pinned ones."""
+    params = [("q", entry["q"])] if entry.get("q") else []
+    if entry.get("tags"):
+        params.append(("tags", " ".join(entry["tags"])))
+    params += [("priority", p) for p in entry.get("priority") or []]
+    params += [("board", b) for b in entry.get("board") or []]
+    params += [("status", s) for s in entry.get("status") or []]
+    params.append(("edit", entry["id"]))
+    return f"{url_for('boards.search')}?{urlencode(params)}"
+
+
+def _search_criteria_from(args) -> dict:
+    """`args`: request.args (GET, for /search itself) or request.form (POST, for saving/updating
+    a saved search) -- both support .get()/.getlist(), so one helper covers both."""
+    return {"q": args.get("q", "").strip(), "tags": parse_tags(args.get("tags", "")),
+            "priority": args.getlist("priority"), "board": args.getlist("board"),
+            "status": args.getlist("status")}
+
+
 @bp.app_context_processor
 def nav():
     today = date.today().isoformat()
@@ -68,9 +93,10 @@ def nav():
     current = (request.view_args or {}).get("slug") if request.endpoint == "boards.board" else None
     card_boards = [b for b in store().list_boards()
                    if b.kind in ("kanban", "tasks") and b.parent is None and not b.archived]
+    pinned_searches = [{**s, "url": _search_run_url(s)} for s in store().list_searches() if s.get("pinned")]
     return {"sidebar": store().sidebar(), "tags": store().tag_counts(), "today": today,
             "today_count": due_now, "current_board": current, "card_boards": card_boards,
-            "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES,
+            "theme_names": THEME_NAMES, "text_sizes": TEXT_SIZES, "pinned_searches": pinned_searches,
             "auth_enabled": bool(current_app.config.get("PASSWORD"))}
 
 
@@ -290,11 +316,87 @@ def toggle_task(slug, card_id, n):
 
 @bp.get("/search")
 def search():
-    q = request.args.get("q", "").strip()
-    return render_template("results.html", q=q, heading=f"Search: {q}" if q else "Search",
-                           results=store().search(q),
-                           empty="No cards match." if q else
-                           "Type something to search cards, notes, tags and board names.")
+    criteria = _search_criteria_from(request.args)
+    q, tags, priorities, board_slugs, statuses = (criteria["q"], criteria["tags"], criteria["priority"],
+                                                   criteria["board"], criteria["status"])
+    advanced = bool(tags or priorities or board_slugs or statuses)
+    if not q and not advanced:
+        results = []
+    else:
+        # Advanced-only (no text typed): browse everything instead of Store.search()'s "no terms,
+        # no results" -- a plain empty search still means "type something", but checking a Tags or
+        # Priority box with an empty search box means "show me what matches those".
+        base = store().search(q) if q else store().all_cards()
+        results = SR.refine(base, tags=tags, priorities=priorities, boards=board_slugs, statuses=statuses)
+    heading = f"Search: {q}" if q else ("Advanced search" if advanced else "Search")
+    empty = ("No cards match." if (q or advanced) else
+            "Type something to search cards, notes, tags and board names.")
+    search_boards = [b for b in store().list_boards() if b.kind in ("kanban", "tasks") and not b.archived]
+    editing = request.args.get("edit", "")
+    saved = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
+    return render_template("results.html", q=q, heading=heading, results=results, empty=empty,
+                           advanced=advanced, tags_raw=request.args.get("tags", ""),
+                           priorities=priorities, board_slugs=board_slugs, statuses=statuses,
+                           search_boards=search_boards, saved=saved, editing=editing,
+                           editing_name=next((s["name"] for s in saved if s["id"] == editing), None))
+
+
+@bp.post("/searches")
+def create_search():
+    name = request.form.get("name", "")
+    try:
+        store().save_search(name, _search_criteria_from(request.form))
+    except ValueError as exc:
+        return str(exc), 422
+    return redirect(request.form.get("return_to") or url_for("boards.search"))
+
+
+@bp.post("/searches/<search_id>/update")
+def update_search(search_id):
+    try:
+        store().update_search(search_id, _search_criteria_from(request.form))
+    except KeyError:
+        abort(404)
+    return redirect(request.form.get("return_to") or url_for("boards.search"))
+
+
+@bp.post("/searches/<search_id>/rename")
+def rename_search(search_id):
+    try:
+        store().rename_search(search_id, request.form.get("name", ""))
+    except KeyError:
+        abort(404)
+    except ValueError as exc:
+        return str(exc), 422
+    return "", 204
+
+
+@bp.post("/searches/<search_id>/duplicate")
+def duplicate_search(search_id):
+    try:
+        store().duplicate_search(search_id)
+    except KeyError:
+        abort(404)
+    return "", 204
+
+
+@bp.post("/searches/<search_id>/pin")
+def toggle_search_pin(search_id):
+    try:
+        entry = store().get_search(search_id)
+        store().set_search_pinned(search_id, not entry["pinned"])
+    except KeyError:
+        abort(404)
+    return "", 204
+
+
+@bp.post("/searches/<search_id>/delete")
+def delete_search(search_id):
+    try:
+        store().delete_search(search_id)
+    except KeyError:
+        abort(404)
+    return "", 204
 
 
 @bp.get("/sidebar/stats")
@@ -792,8 +894,9 @@ def _rules_context(scope, lists):
 @bp.get("/settings")
 def settings():
     gs = store().global_settings()
+    searches = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
     return render_template("settings.html", themes=theme_cards(), text_sizes=TEXT_SIZES, gs=gs,
-                           resolved=S.resolve(gs), **_rules_context(None, None))
+                           resolved=S.resolve(gs), searches=searches, **_rules_context(None, None))
 
 
 @bp.post("/settings")

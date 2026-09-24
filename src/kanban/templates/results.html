@@ -2,7 +2,81 @@
 {% from "_icons.html" import icon %}
 {% block title %}{{ heading }}{% endblock %}
 {% block content %}
-  <header class="page-head"><h1>{{ heading }}</h1></header>
+  <header class="page-head"><h1>{{ heading }}</h1>
+    <div class="search-filter-wrap">
+      <button type="button" class="icon-btn{{ ' active' if advanced }}" data-search-filter-toggle
+              aria-label="Advanced search" title="Advanced search">{{ icon('filter', 15) }}</button>
+      <div class="search-filter-panel filter-panel" hidden>
+        {% if saved %}
+        <div class="filter-chips">
+          {% for s in saved %}
+          <span class="chip saved-chip{{ ' active' if s.id == editing }}">
+            <a href="{{ s.url }}">{{ s.name }}{% if s.pinned %} {{ icon('pin', 10) }}{% endif %}</a>
+            <button type="button" class="chip-x" aria-label="Delete saved search {{ s.name }}" title="Delete this saved search"
+                    data-post="{{ url_for('boards.delete_search', search_id=s.id) }}" data-after="reload">×</button>
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <form method="get" action="{{ url_for('boards.search') }}">
+          <input type="hidden" name="q" value="{{ q }}">
+          <input type="text" name="tags" placeholder="Tags: #home #work" value="{{ tags_raw }}" autocomplete="off">
+          {% if search_boards %}
+          <fieldset class="filter-group">
+            <legend>Boards <span class="muted">none checked = all</span></legend>
+            {% for b in search_boards %}
+            <label class="filter-check"><input type="checkbox" name="board" value="{{ b.slug }}"
+                   {% if b.slug in board_slugs %}checked{% endif %}> {{ b.title }}</label>
+            {% endfor %}
+          </fieldset>
+          {% endif %}
+          <fieldset class="filter-group">
+            <legend>Priority <span class="muted">none checked = any</span></legend>
+            {% for p in ('high', 'medium', 'low') %}
+            <label class="filter-check"><input type="checkbox" name="priority" value="{{ p }}"
+                   {% if p in priorities %}checked{% endif %}>
+              <span class="priority p-{{ p }}">{{ icon('flag', 13) }}</span> {{ p|capitalize }}</label>
+            {% endfor %}
+            <label class="filter-check"><input type="checkbox" name="priority" value="none"
+                   {% if 'none' in priorities %}checked{% endif %}> No priority</label>
+          </fieldset>
+          <fieldset class="filter-group">
+            <legend>Status <span class="muted">neither = either</span></legend>
+            <label class="filter-check"><input type="checkbox" name="status" value="open"
+                   {% if 'open' in statuses %}checked{% endif %}> Open</label>
+            <label class="filter-check"><input type="checkbox" name="status" value="done"
+                   {% if 'done' in statuses %}checked{% endif %}> Done</label>
+          </fieldset>
+          <div class="actions">
+            {% if advanced %}<a href="{{ url_for('boards.search', q=q) }}" class="link-btn">Clear</a>{% endif %}
+            <button type="submit" class="primary">Apply</button>
+          </div>
+        </form>
+        {% if q or advanced %}
+        {% macro criteria_fields() %}
+          <input type="hidden" name="q" value="{{ q }}">
+          <input type="hidden" name="tags" value="{{ tags_raw }}">
+          {% for p in priorities %}<input type="hidden" name="priority" value="{{ p }}">{% endfor %}
+          {% for b in board_slugs %}<input type="hidden" name="board" value="{{ b }}">{% endfor %}
+          {% for st in statuses %}<input type="hidden" name="status" value="{{ st }}">{% endfor %}
+          <input type="hidden" name="return_to" value="{{ request.full_path }}">
+        {% endmacro %}
+        {% if editing %}
+        <form method="post" action="{{ url_for('boards.update_search', search_id=editing) }}" class="save-filter">
+          {{ criteria_fields() }}
+          <button type="submit">Update “{{ editing_name }}”</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('boards.create_search') }}" class="save-filter">
+          {{ criteria_fields() }}
+          <input name="name" placeholder="Save this search as…" autocomplete="off" required>
+          <button type="submit">Save</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </header>
   <main class="agenda">
     {% for board, card in results %}
       <div class="row{% if card.done %} done{% endif %}" data-id="{{ card.id }}">

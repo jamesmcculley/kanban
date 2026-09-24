@@ -73,7 +73,7 @@ def test_domain_modules_are_pure():
     banned = {"flask", "pathlib", "os", "shutil", "yaml", "kanban.store", "store"}
     root = pathlib.Path(__file__).parent.parent / "src" / "kanban"
     for name in ("rules.py", "settings.py", "dates.py", "notes.py", "tags.py", "labels.py", "csvimport.py",
-                 "metrics.py"):
+                 "metrics.py", "search.py"):
         for node in ast.walk(ast.parse((root / name).read_text())):
             mods = ([a.name for a in node.names] if isinstance(node, ast.Import)
                     else [node.module or ""] if isinstance(node, ast.ImportFrom) and node.level == 0 else [])
