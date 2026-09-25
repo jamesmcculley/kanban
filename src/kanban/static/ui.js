@@ -3,7 +3,7 @@
 (() => {
   // -- [data-post]: POST from a button, then react to the JSON reply ------------------------
   // data-vals='{"k": "v"}'  form fields    data-confirm="text"  needs a second click
-  // data-after="reload|home|clear-done"    what to do on success
+  // data-after="reload|home|navigate|clear-done"    what to do on success
   const timers = new WeakMap();
   function arm(btn) {
     btn.classList.add('armed');
@@ -19,7 +19,7 @@
     btn.querySelector('.confirm-label')?.remove();
   }
 
-  function after(btn, data) {
+  function after(btn, data, response) {
     const undoable = data.message ? [data.message, data.undo] : null;
     switch (btn.dataset.after) {
       case 'reload':
@@ -29,6 +29,13 @@
       case 'home':
         if (undoable) window.toast.later(...undoable);
         location.href = '/';
+        break;
+      case 'navigate':
+        // The route redirected (e.g. to a newly-created or duplicated board); fetch follows
+        // redirects itself, so response.url is already the final page -- go there, same as the
+        // FAB's own "New board" flow (fab.js) already does with a plain fetch + location.href.
+        if (undoable) window.toast.later(...undoable);
+        location.href = response.url;
         break;
       case 'clear-done': {
         const col = btn.closest('.column');
@@ -53,8 +60,8 @@
     });
     if (!r.ok) return window.toast('That did not work. Reload and try again.');
     let data = {};
-    try { data = await r.json(); } catch { /* 204 / empty */ }
-    after(btn, data);
+    try { data = await r.json(); } catch { /* 204 / empty, or a redirect landed on an HTML page */ }
+    after(btn, data, r);
   });
 
   // -- drop a card on a sidebar board (or the Inbox) to move it there -------------------------

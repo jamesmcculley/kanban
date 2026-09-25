@@ -125,6 +125,19 @@ def test_duplicate_card_route_and_undo(client):
     assert client.post("/b/my-board/cards/nope/duplicate").status_code == 404
 
 
+def test_duplicate_board_route(client):
+    assert 'title="Duplicate this board"' in client.get("/b/my-board").text
+
+    r = client.post("/b/my-board/duplicate", follow_redirects=False)
+    assert r.status_code == 302
+    dest = r.headers["Location"]
+    assert dest == "/b/my-board-copy"
+    page = client.get(dest).text
+    assert "My Board (copy)" in page
+
+    assert client.post("/b/nope/duplicate").status_code == 404
+
+
 def test_board_export_dialog_and_csv(client):
     _add(client, "Paint fence #home")
     r = client.post("/b/my-board/cards", data={"title": "Mow lawn", "column": "Doing"})

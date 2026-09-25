@@ -249,6 +249,57 @@ def test_duplicate_card_missing_card_raises_keyerror(store):
         store.duplicate_card(b.slug, "nope")
 
 
+# ---- duplicate_board ---------------------------------------------------------------------------
+
+def test_duplicate_board_copies_structure_settings_rules_and_labels(store):
+    b = store.create_board("Home Reno")
+    store.add_column(b.slug, "Someday")
+    store.set_column_hidden(b.slug, "Someday", True)
+    store.add_area("House")
+    store.apply_layout(["House"], {"House": [b.slug]})
+    store.save_board_settings(b.slug, {"hide_done": "1"})
+    store.add_rule(b.slug, {"when": "completed", "do": "move", "arg": "Done"})
+    lbl = store.add_label(b.slug, "Urgent", "red")
+
+    copy = store.duplicate_board(b.slug)
+    assert copy.slug != b.slug
+    assert copy.title == "Home Reno (copy)"
+    assert copy.kind == "kanban" and copy.columns == store.get_board(b.slug).columns
+    assert copy.hidden == ["Someday"] and copy.area == "House"
+    assert copy.pinned is False and copy.archived is False
+    assert store.settings_for(copy.slug)["hide_done"] is True
+    assert len(copy.rules) == 1 and copy.rules[0]["do"] == "move"
+    assert copy.labels == [lbl]
+
+
+def test_duplicate_board_copies_every_card_as_is_including_done_ones(store):
+    b = store.create_board("B")
+    store.add_card(b.slug, "open one", "Todo", tags=["home"], priority="high")
+    done = store.add_card(b.slug, "done one", "Todo")
+    store.complete_card(b.slug, done.id, datetime(2026, 9, 1, 9, 0))
+
+    copy = store.duplicate_board(b.slug)
+    cards = {c.title: c for c in store.list_cards(copy.slug)}
+    assert set(cards) == {"open one", "done one"}          # titles unchanged, unlike duplicate_card
+    assert cards["open one"].tags == ["home"] and cards["open one"].priority == "high"
+    assert cards["done one"].done is True                  # a full snapshot, not reset like a single card
+    assert all(c.id != orig.id for c, orig in zip(
+        store.list_cards(copy.slug), store.list_cards(b.slug), strict=False))
+
+
+def test_duplicate_board_starts_unpinned_and_unarchived_even_if_original_was(store):
+    b = store.create_board("B")
+    store.set_pinned(b.slug, True)
+    store.archive_board(b.slug)
+    copy = store.duplicate_board(b.slug)
+    assert copy.pinned is False and copy.archived is False
+
+
+def test_duplicate_board_missing_board_raises_keyerror(store):
+    with pytest.raises(KeyError):
+        store.duplicate_board("nope")
+
+
 def test_card_created_timestamp_round_trips_and_survives_an_edit(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "x", "Todo", now=datetime(2026, 9, 1, 8, 30))

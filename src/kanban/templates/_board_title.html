@@ -7,6 +7,8 @@
          onblur="if (this.value !== this.defaultValue) this.form.requestSubmit()">
 </form>
 {% endif %}
+<button type="button" class="icon-btn" title="Duplicate this board" aria-label="Duplicate board"
+        data-post="{{ url_for('boards.duplicate_board', slug=board.slug) }}" data-after="navigate">{{ icon('copy') }}</button>
 <button type="button" class="icon-btn danger" title="Delete this board" aria-label="Delete board"
         data-post="{{ url_for('boards.delete_board', slug=board.slug) }}" data-confirm="Delete? Click again"
         data-after="home">{{ icon('trash') }}</button>

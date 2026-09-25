@@ -789,6 +789,19 @@ def rename_board(slug):
     return _refresh()
 
 
+@bp.post("/b/<slug>/duplicate")
+def duplicate_board(slug):
+    """Redirects to the new board (the client follows it and navigates there itself --
+    data-after="navigate", ui.js), same as creating one from the FAB. No undo toast (a redirect
+    has no JSON body to carry one) -- the board's own "Delete board" button, right there once you
+    land on it, is itself undoable (boards.restore_board) if the copy turns out unwanted."""
+    try:
+        copy = store().duplicate_board(slug)
+    except KeyError:
+        abort(404)
+    return redirect(url_for("boards.board", slug=copy.slug))
+
+
 @bp.post("/b/<slug>/delete")
 def delete_board(slug):
     try:

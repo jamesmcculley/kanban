@@ -197,12 +197,16 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["created"] = board.created
         _write(self._board_dir(board.slug) / "board.md", {**board.extra, **meta})
 
-    def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban") -> Board:
-        if kind not in BOARD_KINDS:
-            raise ValueError(f"unknown board kind: {kind}")
+    def _unique_slug(self, title: str) -> str:
         slug, n = slugify(title), 2
         while (self.root / slug).exists():
             slug, n = f"{slugify(title)}-{n}", n + 1
+        return slug
+
+    def create_board(self, title: str, columns: list[str] | None = None, kind: str = "kanban") -> Board:
+        if kind not in BOARD_KINDS:
+            raise ValueError(f"unknown board kind: {kind}")
+        slug = self._unique_slug(title)
         last = max((b.position for b in self.list_boards()), default=0)
         if kind == "tasks":
             chosen = [TASKS_COLUMN]
@@ -213,6 +217,32 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         (self.root / slug / "cards").mkdir(parents=True)
         self._save_board(board)
         return board
+
+    def duplicate_board(self, slug: str) -> Board:
+        """A full copy of a board: same kind, lists, hidden-list state, area, settings overrides,
+        rules and label definitions, and a copy of every card exactly as it is now -- including
+        done/completed ones. Unlike duplicate_card, this is a snapshot of the board, not "another
+        one of these", so nothing about a card's state resets. Starts unpinned and unarchived
+        even if the original wasn't (a duplicate is meant to be immediately useful), right after
+        the original in the sidebar."""
+        original = self.get_board(slug)
+        new_slug = self._unique_slug(f"{original.title} (copy)")
+        last = max((b.position for b in self.list_boards()), default=0)
+        copy = Board(new_slug, f"{original.title} (copy)", list(original.columns),
+                    hidden=list(original.hidden), area=original.area, position=last + 1,
+                    kind=original.kind, settings=dict(original.settings),
+                    rules=[dict(r) for r in original.rules], labels=[dict(lbl) for lbl in original.labels],
+                    created=datetime.now().isoformat(timespec="minutes"))
+        (self.root / new_slug / "cards").mkdir(parents=True)
+        self._save_board(copy)
+        for card in self.list_cards(slug):
+            clone = Card(uuid.uuid4().hex[:8], card.title, card.column, position=card.position,
+                        start=card.start, due=card.due, body=card.body, repeat=card.repeat,
+                        done=card.done, completed=card.completed, last_completed=card.last_completed,
+                        tags=list(card.tags), labels=list(card.labels), priority=card.priority,
+                        archived=card.archived, created=datetime.now().isoformat(timespec="minutes"))
+            self._save(new_slug, clone)
+        return copy
 
     # -- labels: a board's own small, named, coloured set ------------------
 

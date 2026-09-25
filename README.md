@@ -14,6 +14,8 @@ directory can also be opened as an Obsidian vault.
 - Natural-language start and due dates, and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
 - **Move or duplicate any card** from its edit dialog — reachable from a board, Scheduled, the
   Logbook, Today or Search, so it works the same "from anywhere," not just by dragging on a board
+- **Duplicate a whole board** — a full copy, cards (including done ones), lists, settings, rules
+  and labels all included
 - **Rules and settings**, per board and global: e.g. "when a card is completed, move it to Done"; new-card
   position; hide completed cards; default lists for new boards; hide list/board titles or card counts
 - Twelve colour themes plus a Default that follows your device, and three text sizes (Settings)

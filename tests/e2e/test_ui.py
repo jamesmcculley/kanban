@@ -66,7 +66,7 @@ def test_duplicate_a_card_from_the_edit_dialog_and_undo(page):
     add_card(page, "Todo", "Buy paint #home")
     page.locator(".card", has_text="Buy paint").locator(".title").click()
     with page.expect_navigation():
-        page.get_by_role("button", name="Duplicate").click()
+        page.locator("#modal").get_by_role("button", name="Duplicate").click()
     expect(page.locator(".card", has_text="Buy paint (copy)")).to_be_visible()
     expect(page.locator(".card", has_text="Buy paint").first).to_be_visible()  # original still there
 
@@ -87,8 +87,22 @@ def test_duplicate_is_available_from_a_standalone_dialog_too(page):
     page.locator('[data-today-section="due"] .row', has_text="needs doing").get_by_role(
         "button", name="Edit this card").click()
     with page.expect_navigation():
-        page.get_by_role("button", name="Duplicate").click()
+        page.locator("#modal").get_by_role("button", name="Duplicate").click()
     expect(page.locator('[data-today-section="created"]', has_text="needs doing (copy)")).to_be_visible()
+
+
+def test_duplicate_a_board(page):
+    add_card(page, "Todo", "open task")
+    add_card(page, "Todo", "done task")
+    page.locator(".card", has_text="done task").locator(".check").click()
+    expect(page.locator(".card.done")).to_be_visible()
+
+    with page.expect_navigation():
+        page.get_by_role("button", name="Duplicate board").click()
+    assert "/b/my-board-copy" in page.url
+    expect(page.locator(".board-title")).to_have_value("My Board (copy)")
+    expect(page.locator(".card", has_text="open task").locator(".check")).not_to_be_checked()
+    expect(page.locator(".card", has_text="done task").locator(".check")).to_be_checked()  # full snapshot
 
 
 def test_add_rename_hide_delete_lists(page):

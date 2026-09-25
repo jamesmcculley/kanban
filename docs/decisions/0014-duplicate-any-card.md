@@ -37,3 +37,27 @@ The owner asked to "allow any card to be duplicated from anywhere" — not just 
   board (in-place) and a standalone context (Today).
 - Found writing the e2e tests: the button's `title="Duplicate this card"` isn't its accessible
   name once it also has visible text ("Duplicate") — the text wins. See `AGENTS.md` trap 21.
+
+**Amendment (a later round): duplicate a whole board too.** `Store.duplicate_board` follows the
+same shape but a deliberately *different* rule for what "fresh" means:
+
+- **Every card is copied exactly as it is, done state included** — duplicating a card is "another
+  one of these" (fresh makes sense), but duplicating a *board* is "a snapshot of this board right
+  now," where a done card silently becoming un-done on the copy would be actively wrong, not just
+  unhelpful. Title still gets ` (copy)` appended (the board's, not each card's — cards keep their
+  own titles unchanged), same convention either way.
+- **Structure, settings, rules and label definitions all copy too** (columns, hidden-list state,
+  area, board-level settings overrides, rules, labels) — a board's automation and layout are part
+  of what makes it *that board*; a duplicate missing its rules would surprise the owner the first
+  time a card doesn't do what the original board's did.
+- **Starts unpinned and unarchived regardless of the original** — same reasoning as a duplicated
+  search starting unpinned (ADR 0012): a duplicate is meant to be immediately useful, not to
+  silently inherit state that was about the *original's* place in the sidebar, not the copy's.
+- **No undo toast** (unlike duplicating a card) — the route redirects straight to the new board
+  (`data-after="navigate"`, a new case added to the shared `[data-post]` handler in `ui.js`,
+  mirroring the FAB's own "create, then `location.href` to it" flow for new boards), and a
+  redirect has no JSON body to carry toast data in. The new board's own "Delete board" button,
+  right there once you land on it, is itself undoable if the copy turns out unwanted — good enough
+  without inventing a way to attach a toast to a redirect.
+- `_unique_slug` was pulled out of `create_board` (it needed the identical "make a slug, disambiguate
+  with -2, -3... if taken" logic) rather than copied a second time.
