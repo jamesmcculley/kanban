@@ -216,8 +216,36 @@
     if (!btn) return;
     const r = await fetch(btn.dataset.hideUrl, { method: 'POST', body: new URLSearchParams({ hidden: '1' }) });
     if (!r.ok) return window.toast('Could not hide that card');
-    btn.closest('.card, .row')?.remove();
+    const row = btn.closest('.card, .row');
+    const title = row?.querySelector('.title')?.textContent.trim() || '';
+    row?.remove();
     window.toast('Hidden — revive it from this board’s eye icon');
+    // If this card's own board is the page we're on, its "Hidden cards" eye menu was rendered
+    // server-side at page load -- still showing 0 hidden right up until a reload, unless patched
+    // in now. Hiding from anywhere else (Today, Scheduled, Logbook, Review) has no such panel on
+    // the page to begin with, so this is a no-op there.
+    const wrap = document.querySelector('.card-eye-menu-wrap');
+    if (!wrap || !title) return;
+    const menu = wrap.querySelector('.eye-menu');
+    menu.querySelector('.muted')?.remove();
+    const newRow = document.createElement('div');
+    newRow.className = 'eye-row';
+    const span = document.createElement('span');
+    span.textContent = title;
+    const revealBtn = document.createElement('button');
+    revealBtn.type = 'button';
+    revealBtn.className = 'link-btn card-reveal-btn';
+    revealBtn.dataset.url = btn.dataset.hideUrl;
+    revealBtn.textContent = 'Show';
+    newRow.append(span, revealBtn);
+    menu.appendChild(newRow);
+    const toggle = wrap.querySelector('[data-eye-toggle]');
+    const count = menu.querySelectorAll('.eye-row').length;
+    let badge = toggle.querySelector('.icon-badge');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'icon-badge'; toggle.appendChild(badge); }
+    badge.textContent = String(count);
+    toggle.setAttribute('aria-label', `Show or hide cards (${count} hidden)`);
+    toggle.setAttribute('title', `Hidden cards — ${count} hidden`);
   });
 
   // -- Revive a hidden card, from its own board's "Hidden cards" eye menu (_board_title.html) --

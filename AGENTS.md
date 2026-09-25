@@ -197,6 +197,19 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     fix actually matters (not just theoretical) by reverting it and watching
     `test_reading_cards_while_writing_never_sees_a_half_written_file` fail with the exact same
     `KeyError('id')` from the real crash, then reapplying it and watching that test pass.
+25. **A quick action that removes its own row from the DOM without a reload can leave a *different*,
+    server-rendered summary of the same underlying set stale on the same page.** Hiding a card
+    (ADR 0018) deliberately avoids `location.reload()` -- unlike the list-hide eye menu's checkbox,
+    which does reload -- so the row just vanishes and a toast explains where to find it again. But
+    that board's own "Hidden cards" eye-menu panel was rendered once, server-side, at page load;
+    hiding a card without reloading left it saying "No hidden cards" for the rest of that page
+    view, found by opening the panel right after hiding instead of only checking after a reload
+    (an easy step to skip, since reloading first "fixes" it and hides the gap). Fixed by patching
+    the panel's DOM directly in the same click handler (new `.eye-row`, badge count, `aria-label`)
+    instead of leaving it to catch up next visit -- same shape as `HiddenBoards.render()` staying
+    in sync with its badge, just server-rendered content being patched instead of a generated
+    stylesheet. Any future "remove a row live, no reload" action needs the same check: is there
+    another on-page summary of that same set that was only ever rendered once?
 
 ## Log
 

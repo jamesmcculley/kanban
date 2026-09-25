@@ -73,6 +73,11 @@ lives on -- and for this to fully replace Review's exclude, not sit alongside it
 - Unit tests cover `set_card_hidden`, `hidden_cards`, and hidden-card filtering in `view_columns`,
   `scheduled_cards`/`created_on`/`search`, and `logbook()`'s history-drops-out behavior. Route
   tests cover the hide/reveal round trip and confirm a hidden card actually disappears from every
-  page (board, Today, Scheduled, Logbook, Review, Search) in one pass. One e2e test hides a card
-  from a Review row and revives it from its board's new eye menu, exercising the full cross-page
-  loop, not just the two ends of it in isolation.
+  page (board, Today, Scheduled, Logbook, Review, Search) in one pass. Two e2e tests: one hides a
+  card from a Review row and revives it from its board's new eye menu (the full cross-page loop);
+  one hides a card from its own board and checks the "Hidden cards" panel *without* a reload.
+- That second test caught a real bug during manual smoke-testing after deploy, not before: hiding
+  a card removes its row live (no reload, unlike list-hiding's checkbox), but the "Hidden cards"
+  panel is otherwise rendered once, server-side, at page load -- it kept saying "No hidden cards"
+  until the page was reloaded. Fixed by patching that panel's DOM (new row, badge count,
+  `aria-label`) in the same click handler. See AGENTS.md trap 25.

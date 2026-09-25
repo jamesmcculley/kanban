@@ -1777,3 +1777,21 @@ def test_collapsible_section_works_on_dynamic_per_day_groups_too(page):
     page.reload()
     page.wait_for_load_state()
     expect(page.locator(".logbook .collapsible-section").first.locator(".collapsible-body")).to_be_hidden()  # persisted
+
+
+def test_hide_a_card_from_its_own_board_updates_the_eye_menu_live(page):
+    add_card(page, "Todo", "hide me now")
+    card = page.locator(".card", has_text="hide me now")
+    card.hover()
+    card.get_by_role("button", name="Hide “hide me now”").click()
+    expect(card).to_have_count(0)
+
+    # the eye menu was rendered at page load with 0 hidden cards -- must reflect the hide live,
+    # not only after a reload
+    page.get_by_role("button", name="Show or hide cards (1 hidden)").click()
+    menu = page.locator(".card-eye-menu-wrap .eye-menu")
+    expect(menu).to_contain_text("hide me now")
+
+    menu.get_by_role("button", name="Show").click()
+    page.wait_for_load_state()
+    expect(page.locator(".card", has_text="hide me now")).to_be_visible()
