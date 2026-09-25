@@ -803,6 +803,22 @@ def test_hidden_cards_lists_only_this_boards_hidden_cards(store):
     assert store.hidden_cards(other.slug) == []
 
 
+def test_all_hidden_cards_spans_every_board_sorted_by_board_then_card_title(store):
+    b1 = store.create_board("Zebra")
+    b2 = store.create_board("Apple")
+    c1 = store.add_card(b1.slug, "z card", "Todo")
+    c2 = store.add_card(b2.slug, "b card", "Todo")
+    c3 = store.add_card(b2.slug, "a card", "Todo")
+    assert store.all_hidden_cards() == []
+    store.set_card_hidden(b1.slug, c1.id, True)
+    store.set_card_hidden(b2.slug, c2.id, True)
+    store.set_card_hidden(b2.slug, c3.id, True)
+    result = store.all_hidden_cards()
+    assert [(b.title, c.title) for b, c in result] == [
+        ("Apple", "a card"), ("Apple", "b card"), ("Zebra", "z card"),
+    ]
+
+
 def test_hidden_card_left_out_of_view_columns(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "a", "Todo")
@@ -832,3 +848,32 @@ def test_hidden_card_completion_drops_out_of_the_logbook(store):
     assert card.id in [e["card"] for e in store.logbook()]
     store.set_card_hidden(b.slug, card.id, True)
     assert card.id not in [e["card"] for e in store.logbook()]
+
+
+def test_reorder_today_sets_today_order_in_the_given_order(store, tmp_path):
+    b = store.create_board("B")
+    a = store.add_card(b.slug, "a", "Todo")
+    c = store.add_card(b.slug, "c", "Todo")
+    assert a.today_order is None and c.today_order is None
+    store.reorder_today([c.id, a.id])
+    assert store.get_card(b.slug, c.id).today_order == 0
+    assert store.get_card(b.slug, a.id).today_order == 1
+    text = (tmp_path / b.slug / "cards" / f"{c.id}.md").read_text()
+    assert "today_order: 0" in text
+
+
+def test_reorder_today_spans_multiple_boards(store):
+    b1 = store.create_board("One")
+    b2 = store.create_board("Two")
+    c1 = store.add_card(b1.slug, "on board one", "Todo")
+    c2 = store.add_card(b2.slug, "on board two", "Todo")
+    store.reorder_today([c2.id, c1.id])
+    assert store.get_card(b1.slug, c1.id).today_order == 1
+    assert store.get_card(b2.slug, c2.id).today_order == 0
+
+
+def test_reorder_today_ignores_unknown_ids(store):
+    b = store.create_board("B")
+    a = store.add_card(b.slug, "a", "Todo")
+    store.reorder_today(["nope", a.id, "also-nope"])
+    assert store.get_card(b.slug, a.id).today_order == 1

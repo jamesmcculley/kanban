@@ -1,17 +1,23 @@
-{# Pop-out export options for a cards-shaped export (a board, Scheduled or Today) -- same text/
-   tags/priority fields as the activity export dialog, plus whichever of these the caller passes:
-   a board picker (multi-board sources), a list picker (a single board), a status picker (sources
-   that mix open and done cards) and Today's section checkboxes. A plain GET form: submitting it
-   is the download, same as everywhere else this pattern is used.
+{# Pop-out export options for a cards-shaped export (a board, Scheduled, Today or Review) -- same
+   text/tags/priority fields as the activity export dialog, plus whichever of these the caller
+   passes: a board picker (multi-board sources), a list picker (a single board), a status picker
+   (sources that mix open and done cards) and a caller-defined section checklist (Today's
+   due/completed/created, Review's completed/upcoming -- the values and labels differ per page, so
+   the caller passes both rather than this template hardcoding one page's set). A plain GET form:
+   submitting it is the download, same as everywhere else this pattern is used.
    Context: action (the CSV endpoint), title (for the heading), date_from/date_to (optional),
    boards (list, for the board picker), columns (list, for the list picker), show_status (bool),
-   show_sections (bool). #}
+   sections (list of (value, label) pairs, or None/empty for no section checklist), extra_fields
+   (dict, or None -- carried through as hidden inputs; a plain GET form replaces its action URL's
+   own query string on submit, so params a page needs to keep, like Review's back/forward/starred,
+   have to ride along as form fields instead of being baked into `action`). #}
 {% from "_icons.html" import icon %}
 <div class="backdrop" onclick="if (event.target === this) this.remove()">
   <form class="dialog export-dialog" method="get" action="{{ action }}">
     <button type="button" class="dialog-close" aria-label="Close" title="Close"
             onclick="this.closest('.backdrop').remove()">{{ icon('x', 18) }}</button>
     <h3>Export {{ title }}</h3>
+    {% for k, v in (extra_fields or {}).items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
     {% if date_from is defined %}
     <div class="start-field">
       <label class="export-date">From <input type="date" name="from" value="{{ date_from or '' }}"></label>
@@ -51,12 +57,12 @@
       <label class="filter-check"><input type="checkbox" name="status" value="done"> Done</label>
     </fieldset>
     {% endif %}
-    {% if show_sections %}
+    {% if sections %}
     <fieldset class="filter-group">
-      <legend>Sections <span class="muted">none checked = all three</span></legend>
-      <label class="filter-check"><input type="checkbox" name="section" value="due"> Due &amp; overdue</label>
-      <label class="filter-check"><input type="checkbox" name="section" value="completed"> Completed today</label>
-      <label class="filter-check"><input type="checkbox" name="section" value="created"> Created today</label>
+      <legend>Sections <span class="muted">none checked = all</span></legend>
+      {% for value, label in sections %}
+      <label class="filter-check"><input type="checkbox" name="section" value="{{ value }}"> {{ label }}</label>
+      {% endfor %}
     </fieldset>
     {% endif %}
     <div class="actions">

@@ -1,8 +1,15 @@
 # 0018. Hide any card, revived from its own board -- replaces Review's per-card exclude
 
-- Status: accepted
+- Status: accepted (amended 2026-09-25 -- see below)
 - Date: 2026-09-25
 - Departs from standard: none
+
+> **Amendment, same day:** Settings gained a small "Hidden cards" section listing every hidden
+> card across every board (`Store.all_hidden_cards`), each with a "Show" button reusing the exact
+> same `.card-reveal-btn` handler the per-board eye menu already uses. This closes the gap this
+> ADR's Consequences section already named: a hidden card was only ever findable from its own
+> board's eye menu, so forgetting which board it was on meant no way back to it at all (Search
+> excludes hidden cards too, on purpose). Not a design change, just completing it.
 
 ## Context
 

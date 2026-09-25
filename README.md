@@ -40,13 +40,16 @@ directory can also be opened as an Obsidian vault.
 - **Hide any card** from every card-listing view at once (a board, Today, Scheduled, Logbook,
   Review, Search, Metrics) without archiving or deleting it — a quick button on the card itself,
   wherever it's shown; revived from a "Hidden cards" eye icon on its own board or task list, same
-  as reviving a hidden list
+  as reviving a hidden list — or from a cross-board "Hidden cards" list in Settings, if you don't
+  remember which board it was on
 - **Collapsible sections** on Today, Scheduled, Logbook and Review — fold any section or per-day
   group out of the way with the chevron on its heading; remembered per device
+- **Reorder Today's "Due & overdue" list by dragging** — a real manual priority order that
+  overrides date sorting entirely, so an old overdue task can sit below something due today
 - **Export to CSV** — completed activity from Metrics or the Logbook; real cards from any board,
-  Scheduled or Today — each a pop-out for granular options (text, tags, priority, board/list,
-  Today's sections), not just everything in one shot. A board's export is the same shape CSV
-  import reads, so export → edit → re-import is a real round trip
+  Scheduled, Today or Review — each a pop-out for granular options (text, tags, priority,
+  board/list, Today/Review's own sections), not just everything in one shot. A board's export is
+  the same shape CSV import reads, so export → edit → re-import is a real round trip
 - An edit button right on a Scheduled card, so you don't have to go find it on its board
 - Undo for deletes and completions; deleted things wait in a Trash until you empty it
 - **Archive a board** to tuck it out of the sidebar, search and Scheduled without deleting it — its

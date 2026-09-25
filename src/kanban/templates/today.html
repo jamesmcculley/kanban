@@ -21,8 +21,8 @@
   <main class="agenda today-view">
     <section class="collapsible-section" data-today-section="due" data-collapse-id="today:due">
       <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse Due &amp; overdue">{{ icon('chevron-down', 14) }}</button>
-        Due &amp; overdue</h2>
-      <div class="collapsible-body">
+        Due &amp; overdue <span class="muted today-drag-hint">— drag to reorder</span></h2>
+      <div class="collapsible-body" data-reorder-url="{{ url_for('boards.reorder_today') }}">
         {% for board, card in due %}{{ card_row(board, card, today) }}
         {% else %}<p class="empty">Nothing due or overdue.</p>{% endfor %}
       </div>
@@ -44,4 +44,23 @@
       </div>
     </section>
   </main>
+  <script>
+    // Manual order for "Due & overdue" (Card.today_order): drag any row, and the *whole* visible
+    // list is reindexed and sent at once, same "send the full order, not a delta" shape as
+    // board.html's column reorder -- simplest to keep correct, and what move_card/reorder_columns
+    // already do elsewhere. filter keeps a click on the checkbox, hide button or edit pencil from
+    // being swallowed as a drag start (AGENTS.md: Sortable already won't start one from the board/
+    // list link -- it's an <a> -- so that's not in this list on purpose).
+    (() => {
+      const body = document.querySelector('[data-today-section="due"] .collapsible-body');
+      if (!body || !window.Sortable) return;
+      new Sortable(body, {
+        animation: 150, preventOnFilter: false, filter: '.check, .card-hide-btn, .icon-btn',
+        onEnd: () => fetch(body.dataset.reorderUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [...body.querySelectorAll('.row')].map(r => r.dataset.id) }),
+        }).then(r => { if (!r.ok) location.reload(); }),
+      });
+    })();
+  </script>
 {% endblock %}

@@ -1795,3 +1795,34 @@ def test_hide_a_card_from_its_own_board_updates_the_eye_menu_live(page):
     menu.get_by_role("button", name="Show").click()
     page.wait_for_load_state()
     expect(page.locator(".card", has_text="hide me now")).to_be_visible()
+
+
+def test_reorder_today_due_list_by_dragging(page):
+    # titles avoid embedded date words ("today"/"tomorrow"/...) -- quick-add would strip them
+    # into a due date instead of keeping them in the title (see the comment on the similar Today
+    # test above).
+    add_card(page, "Todo", "overdue from way back")
+    page.locator(".card", has_text="overdue from way back").locator(".title").click()
+    page.fill(".dialog input[name=due]", "2020-01-01")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    add_card(page, "Todo", "freshly due")
+    page.locator(".card", has_text="freshly due").locator(".title").click()
+    page.fill(".dialog input[name=due]", "today")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    due = page.locator('[data-today-section="due"] .collapsible-body')
+    rows = due.locator(".row")
+    expect(rows.first).to_contain_text("overdue from way back")  # date order by default
+
+    drag(page, due.locator(".row", has_text="freshly due"),
+         due.locator(".row", has_text="overdue from way back"), dy=-5)
+    expect(rows.first).to_contain_text("freshly due")            # manual order takes over live
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator('[data-today-section="due"] .collapsible-body .row').first).to_contain_text("freshly due")  # persisted

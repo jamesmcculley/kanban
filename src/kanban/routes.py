@@ -198,7 +198,7 @@ def board_export_dialog(slug):
     except KeyError:
         abort(404)
     return render_template("_cards_export_dialog.html", action=url_for("boards.board_export", slug=slug),
-                           title=b.title, boards=None, columns=b.columns, show_status=True, show_sections=False)
+                           title=b.title, boards=None, columns=b.columns, show_status=True, sections=None)
 
 
 @bp.get("/b/<slug>/export.csv")
@@ -610,7 +610,7 @@ def scheduled_export_dialog():
     date_from, date_to = _filter_from_query()
     return render_template("_cards_export_dialog.html", action=url_for("boards.scheduled_export"),
                            title="Scheduled", date_from=date_from, date_to=date_to, boards=_card_boards(),
-                           columns=None, show_status=False, show_sections=False)
+                           columns=None, show_status=False, sections=None)
 
 
 @bp.get("/scheduled/export.csv")
@@ -629,9 +629,15 @@ def scheduled_export():
 def today_view():
     """Due-or-overdue, completed today and created today, in one glance -- not a date-range view
     (there's no filter form), just today. Each of the three sections can be hidden from the page
-    itself (a personal, per-device preference -- see today-hide in sidebar.js), not here."""
+    itself (a personal, per-device preference -- see today-hide in sidebar.js), not here.
+
+    "Due & overdue" is drag-reorderable (Card.today_order): a card with an order sorts by it, full
+    stop, ahead of every card that's never been dragged -- those fall back to the original
+    date/board/position order, stably, so touching one card doesn't reshuffle the rest. This only
+    reorders *this* list; Scheduled and Review's own "upcoming" keep sorting by date alone."""
     today = date.today().isoformat()
     due = store().scheduled_cards(date_to=today)
+    due.sort(key=lambda bc: (bc[1].today_order is None, bc[1].today_order or 0))
     completed = store().logbook(date_from=today, date_to=today)
     created = store().created_on(today)
     live = {b.slug for b in store().list_boards()}
@@ -639,11 +645,21 @@ def today_view():
                            today=today, live=live)
 
 
+@bp.post("/today/reorder")
+def reorder_today():
+    ids = (request.get_json(silent=True) or {}).get("ids")
+    if not isinstance(ids, list):
+        abort(400)
+    store().reorder_today([str(i) for i in ids])
+    return "", 204
+
+
 @bp.get("/today/export/dialog")
 def today_export_dialog():
     return render_template("_cards_export_dialog.html", action=url_for("boards.today_export"),
                            title="Today", boards=_card_boards(), columns=None, show_status=False,
-                           show_sections=True)
+                           sections=[("due", "Due & overdue"), ("completed", "Completed today"),
+                                     ("created", "Created today")])
 
 
 def _resolve_logged_cards(events: list[dict]) -> list[tuple]:
@@ -685,20 +701,16 @@ def today_export():
     return resp
 
 
-@bp.get("/review")
-def review():
-    """A quick "what did I do / what am I doing" report: completed in the last `back` days,
-    due-or-overdue within the next `forward` days -- or, with `starred=1`, every starred card ever
-    (completed and open), ignoring both day counts entirely (built for an annual review, not a
-    weekly one). Both counts are free text, not a dropdown -- 0 is a real answer ("nothing that
-    direction"), so only a missing/unparseable value falls back to the 7-day default. Not worth
-    mentioning something? Hide the card (its own quick hide button, or the edit dialog) -- it drops
-    out of this report the same way it drops out of every other one; see set_card_hidden."""
-    today = date.today()
+def _review_args():
     back = RV.clamp_days(request.args["back"], 7) if "back" in request.args else 7
     forward = RV.clamp_days(request.args["forward"], 7) if "forward" in request.args else 7
-    starred_only = bool(request.args.get("starred"))
+    return back, forward, bool(request.args.get("starred"))
 
+
+def _review_cards(back: int, forward: int, starred_only: bool) -> tuple[list[tuple], list[tuple]]:
+    """Shared by the page itself and its CSV export, so "what counts as Completed/Upcoming right
+    now" is defined exactly once."""
+    today = date.today()
     if starred_only:
         starred = [(b, c) for b, c in store().all_cards() if c.starred and not c.hidden]
         completed = [(b, c) for b, c in starred if c.done]
@@ -715,9 +727,53 @@ def review():
             upcoming = store().scheduled_cards(date_to=until)
     completed.sort(key=lambda bc: bc[1].completed or "", reverse=True)
     upcoming.sort(key=lambda bc: effective_date(bc[1]) or "9999-12-31")
+    return completed, upcoming
 
+
+@bp.get("/review")
+def review():
+    """A quick "what did I do / what am I doing" report: completed in the last `back` days,
+    due-or-overdue within the next `forward` days -- or, with `starred=1`, every starred card ever
+    (completed and open), ignoring both day counts entirely (built for an annual review, not a
+    weekly one). Both counts are free text, not a dropdown -- 0 is a real answer ("nothing that
+    direction"), so only a missing/unparseable value falls back to the 7-day default. Not worth
+    mentioning something? Hide the card (its own quick hide button, or the edit dialog) -- it drops
+    out of this report the same way it drops out of every other one; see set_card_hidden."""
+    back, forward, starred_only = _review_args()
+    completed, upcoming = _review_cards(back, forward, starred_only)
     return render_template("review.html", completed=completed, upcoming=upcoming, back=back,
-                           forward=forward, starred_only=starred_only, today=today.isoformat())
+                           forward=forward, starred_only=starred_only, today=date.today().isoformat())
+
+
+@bp.get("/review/export/dialog")
+def review_export_dialog():
+    back, forward, starred_only = _review_args()
+    return render_template("_cards_export_dialog.html", action=url_for("boards.review_export"),
+                           title="Review", boards=_card_boards(), columns=None, show_status=False,
+                           sections=[("completed", "Completed"), ("upcoming", "Upcoming")],
+                           extra_fields={"back": back, "forward": forward, "starred": "1" if starred_only else ""})
+
+
+@bp.get("/review/export.csv")
+def review_export():
+    back, forward, starred_only = _review_args()
+    wanted_sections = request.args.getlist("section")
+    kwargs = {"q": request.args.get("q", ""), "tags": parse_tags(request.args.get("tags", "")),
+              "priorities": request.args.getlist("priority"), "boards": request.args.getlist("board")}
+    completed, upcoming = _review_cards(back, forward, starred_only)
+    results, sections = [], []
+    if not wanted_sections or "completed" in wanted_sections:
+        rows = SR.refine(completed, **kwargs)
+        results += rows
+        sections += ["completed"] * len(rows)
+    if not wanted_sections or "upcoming" in wanted_sections:
+        rows = SR.refine(upcoming, **kwargs)
+        results += rows
+        sections += ["upcoming"] * len(rows)
+    resp = make_response(csvimport.cards_to_csv(results, sections=sections))
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = 'attachment; filename="review.csv"'
+    return resp
 
 
 @bp.post("/filters")
@@ -1109,7 +1165,8 @@ def settings():
     gs = store().global_settings()
     searches = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
     return render_template("settings.html", themes=theme_cards(), text_sizes=TEXT_SIZES, gs=gs,
-                           resolved=S.resolve(gs), searches=searches, **_rules_context(None, None))
+                           resolved=S.resolve(gs), searches=searches, hidden_cards=store().all_hidden_cards(),
+                           **_rules_context(None, None))
 
 
 @bp.post("/settings")

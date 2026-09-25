@@ -272,6 +272,25 @@ def test_today_view_shows_due_completed_and_created(client):
     assert page.count('aria-label="Edit this card"') >= 4          # every row gets one
 
 
+def test_reorder_today_overrides_date_order_and_persists(client):
+    old_id, _ = _add(client, "overdue from way back")
+    client.post(f"/b/my-board/cards/{old_id}", data={"title": "overdue from way back", "body": "", "due": "2020-01-01"})
+    new_id, _ = _add(client, "due today")
+    client.post(f"/b/my-board/cards/{new_id}", data={"title": "due today", "body": "", "due": "today"})
+
+    page = client.get("/today").text
+    due_section = page.split('data-today-section="due"')[1].split('data-today-section="completed"')[0]
+    assert due_section.index("overdue from way back") < due_section.index("due today")  # date order by default
+
+    r = client.post("/today/reorder", json={"ids": [new_id, old_id]})
+    assert r.status_code == 204
+    page = client.get("/today").text
+    due_section = page.split('data-today-section="due"')[1].split('data-today-section="completed"')[0]
+    assert due_section.index("due today") < due_section.index("overdue from way back")  # manual order now wins
+
+    assert client.post("/today/reorder", json={"not_ids": []}).status_code == 400
+
+
 def test_star_toggle(client):
     cid, _ = _add(client, "x")
     r = client.post(f"/b/my-board/cards/{cid}/star")
@@ -326,6 +345,41 @@ def test_review_starred_only_ignores_day_counts(client):
     assert "far off but starred" not in page
 
 
+def test_review_export_dialog_and_csv_combines_sections(client):
+    due_id, _ = _add(client, "coming up")
+    client.post(f"/b/my-board/cards/{due_id}", data={"title": "coming up", "body": "", "due": "tomorrow"})
+    done_id, _ = _add(client, "already finished")
+    client.post(f"/b/my-board/cards/{done_id}/complete")
+
+    dialog = client.get("/review/export/dialog")
+    assert dialog.status_code == 200
+    assert 'action="/review/export.csv"' in dialog.text
+    assert 'name="section" value="completed"' in dialog.text
+    assert 'name="section" value="upcoming"' in dialog.text
+
+    csv_text = client.get("/review/export.csv").text
+    assert csv_text.splitlines()[0] == "section,title,board,list,start,due,tags,priority,notes,done"
+    rows = csv_text.splitlines()[1:]
+    sections = {r.split(",")[0] for r in rows}
+    assert "completed" in sections and "upcoming" in sections
+
+    upcoming_only = client.get("/review/export.csv?section=upcoming").text
+    assert "coming up" in upcoming_only and "already finished" not in upcoming_only
+
+
+def test_review_export_dialog_carries_current_back_forward_starred(client):
+    dialog = client.get("/review/export/dialog?back=3&forward=0&starred=1")
+    assert 'name="back" value="3"' in dialog.text
+    assert 'name="forward" value="0"' in dialog.text
+    assert 'name="starred" value="1"' in dialog.text
+
+    far_id, _ = _add(client, "far off but starred")
+    client.post(f"/b/my-board/cards/{far_id}", data={"title": "far off but starred", "body": "", "due": "in 999 days"})
+    client.post(f"/b/my-board/cards/{far_id}/star")
+    csv_text = client.get("/review/export.csv?starred=1").text
+    assert "far off but starred" in csv_text
+
+
 def test_hide_card_route(client):
     cid, _ = _add(client, "x")
     r = client.post(f"/b/my-board/cards/{cid}/hide")
@@ -373,6 +427,18 @@ def test_board_eye_menu_lists_hidden_cards_and_revives_them(client):
     page = client.get("/b/my-board").text
     assert 'data-id="' + cid in page
     assert 'aria-label="Show or hide cards"' in page
+
+
+def test_settings_lists_hidden_cards_across_boards_and_revives_them(client):
+    cid, _ = _add(client, "lost track of this one")
+    client.post(f"/b/my-board/cards/{cid}/hide")
+    page = client.get("/settings").text
+    assert "lost track of this one" in page
+    assert "My Board" in page.split('id="hidden-cards-h"')[1].split("</section>")[0]
+
+    client.post(f"/b/my-board/cards/{cid}/hide", data={"hidden": "0"})
+    page = client.get("/settings").text
+    assert "lost track of this one" not in page.split('id="hidden-cards-h"')[1].split("</section>")[0]
 
 
 def test_completion_stamp_shown_and_sidebar_layout(client):

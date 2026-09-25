@@ -97,6 +97,24 @@
       {% endif %}
     </section>
 
+    <section class="card-section" aria-labelledby="hidden-cards-h">
+      <h2 id="hidden-cards-h">Hidden cards <span class="muted">shared by everyone on this instance</span></h2>
+      {% if hidden_cards %}
+      <div class="saved-search-list">
+        {% for board, card in hidden_cards %}
+        <div class="saved-search-row">
+          <span>{{ card.title }} <span class="muted">— {{ board.title }}</span></span>
+          <button type="button" class="link-btn card-reveal-btn"
+                  data-url="{{ url_for('boards.hide_card', slug=board.slug, card_id=card.id) }}">Show</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted">Nothing hidden — hide a card from anywhere (its own quick hide button) and
+        it shows up here, wherever its board is, in case you forget which one.</p>
+      {% endif %}
+    </section>
+
     <section class="card-section" aria-labelledby="searches-h">
       <h2 id="searches-h">Saved searches <span class="muted">shared by everyone on this instance</span></h2>
       {% if searches %}

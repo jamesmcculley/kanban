@@ -54,6 +54,7 @@ class Card:
     created: str | None = None  # ISO timestamp, set once by add_card and never touched again
     starred: bool = False  # always surfaced in Review mode, regardless of date range
     hidden: bool = False  # tucked out of every card-listing view; revived from its board's eye menu
+    today_order: int | None = None  # manual position in Today's "Due & overdue" list; None = unordered
     effects: list[str] = field(default_factory=list, compare=False, repr=False)  # what rules just did (not stored)
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
@@ -91,7 +92,7 @@ def _iso(meta: dict, key: str) -> str | None:
 
 _CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
               "priority", "done", "completed", "last_completed", "archived", "created", "starred",
-              "hidden"}
+              "hidden", "today_order"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
                "labels", "archived", "pinned", "created"}
 
@@ -108,6 +109,8 @@ def _card_from(meta: dict, body: str) -> Card:
         created=_iso(meta, "created"),
         starred=bool(meta.get("starred")),
         hidden=bool(meta.get("hidden")),
+        today_order=(meta.get("today_order") if isinstance(meta.get("today_order"), int)
+                     and not isinstance(meta.get("today_order"), bool) else None),
     )
 
 
@@ -472,6 +475,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["starred"] = True
         if card.hidden:
             meta["hidden"] = True
+        if card.today_order is not None:
+            meta["today_order"] = card.today_order
         _write(self._card_path(slug, card.id), {**card.extra, **meta}, card.body)
         self._touch_board(slug)  # so "most recently updated" board sort notices card activity too
 
@@ -550,6 +555,30 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
     def hidden_cards(self, slug: str) -> list[Card]:
         """This board's hidden cards, for its own "Hidden cards" eye-menu revive panel."""
         return [c for c in self.list_cards(slug) if c.hidden]
+
+    def all_hidden_cards(self) -> list[tuple[Board, Card]]:
+        """Every hidden card, across every board -- Settings' cross-board list, the only way to
+        find one again if you don't remember which board it's on (a per-board eye menu only shows
+        its own). Board, then card title, so the list is stable and skimmable, not insertion-order."""
+        hidden = [(b, c) for b, c in self.all_cards() if c.hidden]
+        return sorted(hidden, key=lambda bc: (bc[0].title.lower(), bc[1].title.lower()))
+
+    def reorder_today(self, ids: list[str]) -> None:
+        """Manual order for Today's "Due & overdue" list (Card.today_order). Dragging there
+        reindexes every card currently shown, the same "send the whole list, not a delta" shape as
+        reorder_columns/move_card elsewhere -- once any card has an order, the whole list sorts by
+        it, overriding date order entirely (see today_view's sort key); a card with none yet sorts
+        after every ordered one, in the old date order, until it's dragged too. Cards can span
+        several boards, unlike a column reorder, so this looks each one up by id rather than
+        assuming a single slug -- built once, not per id, since ids can be a whole visible list."""
+        by_id = {c.id: (b, c) for b, c in self.all_cards()}
+        for i, card_id in enumerate(ids):
+            hit = by_id.get(card_id)
+            if not hit:
+                continue
+            board, card = hit
+            card.today_order = i
+            self._save(board.slug, card)
 
     def _set_done(self, slug: str, board: Board, card: Card, now: datetime) -> None:
         stamp = now.isoformat(timespec="minutes")

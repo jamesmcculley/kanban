@@ -178,6 +178,13 @@ h1 { margin:0; font-size:22px; }
 .agenda h2 { display:flex; align-items:center; gap:6px; font-size:13px; text-transform:uppercase;
              color:var(--text-subtle); margin:20px 0 8px; }
 .agenda h2.overdue { color:var(--danger); }
+/* Today's "Due & overdue" hint text rides along in an uppercase h2 -- normal-case here so
+   "drag to reorder" reads as a sentence, not a shout. */
+.today-drag-hint { text-transform:none; font-size:11px; }
+/* Same drag affordance as a board card (.card already uses cursor:grab) -- only the reorderable
+   "Due & overdue" rows get it; Today's other two sections and every other .row-shaped page
+   (Scheduled, Logbook, Review) aren't draggable and shouldn't look like they are. */
+[data-today-section="due"] .row { cursor:grab; }
 /* Collapsible sections (Today/Scheduled/Logbook/Review): the chevron leads the heading text, like
    any disclosure control, and rotates to point right when collapsed. The actual hide/show and the
    rotation are both driven by a generated stylesheet keyed on data-collapse-id (see

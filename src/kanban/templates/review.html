@@ -27,6 +27,9 @@
         </fieldset>
       </div>
     </div>
+    <button type="button" class="icon-btn" title="Export Review" aria-label="Export Review"
+            hx-get="{{ url_for('boards.review_export_dialog', back=back, forward=forward, starred=('1' if starred_only else none)) }}"
+            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
   <main class="review agenda">
     {% if starred_only %}<p class="muted">Showing every starred item, regardless of date.</p>{% endif %}
