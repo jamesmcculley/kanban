@@ -752,3 +752,62 @@ def test_search_actions_on_an_unknown_id_raise_keyerror(store):
         store.set_search_pinned("nope", True)
     with pytest.raises(KeyError):
         store.delete_search("nope")
+
+
+def test_set_starred_toggles_and_persists(store, tmp_path):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "a", "Todo")
+    assert card.starred is False
+    store.set_starred(b.slug, card.id, True)
+    assert store.get_card(b.slug, card.id).starred is True
+    text = (tmp_path / b.slug / "cards" / f"{card.id}.md").read_text()
+    assert "starred: true" in text
+    store.set_starred(b.slug, card.id, False)
+    assert store.get_card(b.slug, card.id).starred is False
+
+
+def test_set_starred_missing_card_raises_keyerror(store):
+    b = store.create_board("B")
+    with pytest.raises(KeyError):
+        store.set_starred(b.slug, "nope", True)
+
+
+def test_standup_exclusions_round_trip(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "a", "Todo")
+    assert store.list_standup_exclusions() == []
+    entry = store.exclude_from_standup(b.slug, card.id, until=None)
+    assert entry == {"board": b.slug, "card": card.id, "until": None}
+    assert store.list_standup_exclusions() == [entry]
+
+
+def test_exclude_from_standup_replaces_a_prior_exclusion_for_the_same_card(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "a", "Todo")
+    store.exclude_from_standup(b.slug, card.id, until="2026-09-25")
+    store.exclude_from_standup(b.slug, card.id, until=None)
+    exclusions = store.list_standup_exclusions()
+    assert len(exclusions) == 1
+    assert exclusions[0]["until"] is None
+
+
+def test_exclude_from_standup_missing_card_raises_keyerror(store):
+    b = store.create_board("B")
+    with pytest.raises(KeyError):
+        store.exclude_from_standup(b.slug, "nope", until=None)
+
+
+def test_include_in_standup_removes_the_exclusion(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "a", "Todo")
+    store.exclude_from_standup(b.slug, card.id, until=None)
+    store.include_in_standup(card.id)
+    assert store.list_standup_exclusions() == []
+
+
+def test_include_in_standup_on_an_unexcluded_card_is_a_no_op(store):
+    b = store.create_board("B")
+    store.create_board("Other")
+    store.add_card(b.slug, "a", "Todo")
+    store.include_in_standup("nope")
+    assert store.list_standup_exclusions() == []

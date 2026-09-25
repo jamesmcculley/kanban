@@ -266,6 +266,20 @@ window.TodaySections = (() => {
   return { get, set };
 })();
 
+// Standup's two sections (Completed, Upcoming): same idea as TodaySections above, and for the same
+// reason -- it lives in Standup's own filter popover, not Settings, because it's "what do I want to
+// see in this report right now" rather than a standing device preference.
+window.StandupSections = (() => {
+  const get = () => { try { return JSON.parse(localStorage.getItem('standup-hide') || '{}'); } catch { return {}; } };
+  function set(key, hidden) {
+    const hide = get();
+    if (hidden) hide[key] = true; else delete hide[key];
+    try { localStorage.setItem('standup-hide', JSON.stringify(hide)); } catch { /* ignore */ }
+    document.documentElement.setAttribute('data-standup-hide', Object.keys(hide).join(' '));
+  }
+  return { get, set };
+})();
+
 // Today's filter icon: reveal/hide its section-checklist panel, and close on an outside click --
 // its own class (.today-filter-wrap), not .filter-wrap or .date-filter-wrap, so it can never be
 // picked up by filter.js's or the date-filter's own lookups (see AGENTS.md trap 9).
@@ -298,5 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.today-section-check').forEach(cb => {
     cb.checked = !hiddenToday[cb.dataset.section];
     cb.addEventListener('change', () => window.TodaySections.set(cb.dataset.section, !cb.checked));
+  });
+  const hiddenStandup = window.StandupSections.get();
+  document.querySelectorAll('.standup-section-check').forEach(cb => {
+    cb.checked = !hiddenStandup[cb.dataset.section];
+    cb.addEventListener('change', () => window.StandupSections.set(cb.dataset.section, !cb.checked));
   });
 });

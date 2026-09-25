@@ -1652,3 +1652,81 @@ def test_x_button_closes_settings_back_to_where_you_were(page):
     with page.expect_navigation():
         page.locator(".page-close").click()
     expect(page.locator(".card", has_text="marker card")).to_be_visible()  # back on the board
+
+
+def test_standup_mode_star_exclude_and_filter(page):
+    add_card(page, "Todo", "do the thing")
+    page.locator(".card", has_text="do the thing").locator(".title").click()
+    page.fill(".dialog input[name=due]", "tomorrow")
+    page.locator("#modal .star-btn").click()
+    expect(page.locator("#modal .star-btn")).to_have_attribute("aria-pressed", "true")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    add_card(page, "Todo", "leave this alone")
+    page.locator(".card", has_text="leave this alone").locator(".title").click()
+    page.fill(".dialog input[name=due]", "tomorrow")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    page.click('.sidebar [data-go="u"]')
+    page.wait_for_url("**/standup")
+    expect(page.locator('h1[data-page="standup"]')).to_be_visible()
+    created = page.locator('[data-standup-section="upcoming"]')
+    expect(created).to_contain_text("do the thing")
+    expect(created).to_contain_text("leave this alone")
+
+    # starring reflected on the Standup row itself too
+    row = page.locator('[data-standup-section="upcoming"] .row', has_text="do the thing")
+    expect(row.locator(".star-btn")).to_have_attribute("aria-pressed", "true")
+
+    # only-starred filter narrows to just the starred card
+    page.get_by_role("button", name="Standup report options").click()
+    panel = page.locator(".standup-filter-panel")
+    expect(panel).to_be_visible()
+    panel.locator('input[name="starred"]').check()
+    panel.get_by_role("button", name="Apply").click()
+    page.wait_for_url("**starred=1**")
+    expect(page.locator('[data-standup-section="upcoming"]')).to_contain_text("do the thing")
+    expect(page.locator('[data-standup-section="upcoming"]')).not_to_contain_text("leave this alone")
+
+    # back to the normal view, exclude the other card "just today" and watch it disappear live
+    page.goto(page.base + "/standup")
+    row = page.locator('[data-standup-section="upcoming"] .row', has_text="leave this alone")
+    row.get_by_role("button", name="Exclude “leave this alone” from the report").click()
+    row.get_by_role("button", name="Just today").click()
+    expect(page.locator('[data-standup-section="upcoming"] .row', has_text="leave this alone")).to_have_count(0)
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator('[data-standup-section="upcoming"]')).not_to_contain_text("leave this alone")
+
+    # excluded item shows up in Settings, and "Include again" brings it back
+    page.get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_url("**/settings")
+    expect(page.locator(".saved-search-row", has_text="leave this alone")).to_contain_text("today only")
+    with page.expect_navigation():
+        page.locator(".saved-search-row", has_text="leave this alone").get_by_role("button", name="Include again").click()
+    page.goto(page.base + "/standup")
+    expect(page.locator('[data-standup-section="upcoming"]')).to_contain_text("leave this alone")
+
+
+def test_standup_section_visibility_toggle_persists(page):
+    add_card(page, "Todo", "show me")
+    page.locator(".card", has_text="show me").locator(".title").click()
+    page.fill(".dialog input[name=due]", "tomorrow")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    page.click('.sidebar [data-go="u"]')
+    page.wait_for_url("**/standup")
+    upcoming = page.locator('[data-standup-section="upcoming"]')
+    expect(upcoming).to_be_visible()
+
+    page.get_by_role("button", name="Standup report options").click()
+    panel = page.locator(".standup-filter-panel")
+    panel.locator('.standup-section-check[data-section="upcoming"]').uncheck()
+    expect(upcoming).to_be_hidden()                                    # live, no reload
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(upcoming).to_be_hidden()                                    # persisted

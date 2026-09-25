@@ -60,6 +60,9 @@
               data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id=card.id) }}">{{ icon('move', 14) }} Move</button>
       <button type="button" class="dup-btn" title="Duplicate this card (to the board/list picked above, if any)"
               data-dup-url="{{ url_for('boards.duplicate_card', slug=board.slug, card_id=card.id) }}">{{ icon('copy', 14) }} Duplicate</button>
+      <button type="button" class="star-btn{{ ' starred' if card.starred }}" aria-pressed="{{ 'true' if card.starred else 'false' }}"
+              data-star-url="{{ url_for('boards.toggle_star', slug=board.slug, card_id=card.id) }}"
+              title="Star this card for Standup mode" aria-label="Star this card for Standup mode">{{ icon('star', 16) }}</button>
     </div>
     {% if card.done and not card.repeat %}
     <div class="completed-at-row">

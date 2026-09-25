@@ -52,6 +52,7 @@ class Card:
     priority: str | None = None  # one of PRIORITIES, or None for no priority
     archived: bool = False  # cleared from its list; still in the Logbook and search
     created: str | None = None  # ISO timestamp, set once by add_card and never touched again
+    starred: bool = False  # always surfaced in Standup mode, regardless of date range
     effects: list[str] = field(default_factory=list, compare=False, repr=False)  # what rules just did (not stored)
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
@@ -88,7 +89,7 @@ def _iso(meta: dict, key: str) -> str | None:
 
 
 _CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
-              "priority", "done", "completed", "last_completed", "archived", "created"}
+              "priority", "done", "completed", "last_completed", "archived", "created", "starred"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
                "labels", "archived", "pinned", "created"}
 
@@ -103,6 +104,7 @@ def _card_from(meta: dict, body: str) -> Card:
         priority=meta.get("priority") if meta.get("priority") in PRIORITIES else None,
         archived=bool(meta.get("archived")),
         created=_iso(meta, "created"),
+        starred=bool(meta.get("starred")),
     )
 
 
@@ -463,6 +465,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["archived"] = True
         if card.created:
             meta["created"] = card.created
+        if card.starred:
+            meta["starred"] = True
         _write(self._card_path(slug, card.id), {**card.extra, **meta}, card.body)
         self._touch_board(slug)  # so "most recently updated" board sort notices card activity too
 
@@ -516,6 +520,14 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         card.tags, card.start = parse_tags(tags), start or None
         card.labels = [x for x in (labels or []) if x in known]
         card.priority = priority if priority in PRIORITIES else None
+        self._save(slug, card)
+        return card
+
+    def set_starred(self, slug: str, card_id: str, starred: bool) -> Card:
+        """Starred cards are always surfaced in Standup mode regardless of the look-back/look-
+        forward window -- see standup.py. A card-level flag, not scoped to any one report."""
+        card = self.get_card(slug, card_id)
+        card.starred = starred
         self._save(slug, card)
         return card
 
@@ -913,6 +925,33 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         searches.remove(entry)
         self._store_searches(searches)
         return entry
+
+    # -- Standup mode: which cards to leave out of the report, and for how long -------------------
+
+    def list_standup_exclusions(self) -> list[dict]:
+        """Each entry: {board, card, until}. `until=None` means excluded from every report;
+        `until="YYYY-MM-DD"` means excluded only from a report generated that day -- see
+        standup.py's `excluded_ids`, which is what actually decides who this affects."""
+        return [e for e in (self._meta().get("standup_exclusions") or [])
+                if isinstance(e, dict) and e.get("board") and e.get("card")]
+
+    def _store_standup_exclusions(self, exclusions: list[dict]) -> None:
+        meta = self._meta()
+        meta["standup_exclusions"] = exclusions
+        self._write_meta(meta)
+
+    def exclude_from_standup(self, slug: str, card_id: str, until: str | None) -> dict:
+        self.get_card(slug, card_id)  # KeyError if it doesn't exist -- nothing to exclude
+        exclusions = [e for e in self.list_standup_exclusions() if e["card"] != card_id]
+        entry = {"board": slug, "card": card_id, "until": until}
+        exclusions.append(entry)
+        self._store_standup_exclusions(exclusions)
+        return entry
+
+    def include_in_standup(self, card_id: str) -> None:
+        """Remove any exclusion for this card, "today"-scoped or permanent alike."""
+        exclusions = [e for e in self.list_standup_exclusions() if e["card"] != card_id]
+        self._store_standup_exclusions(exclusions)
 
     def rename_board(self, slug: str, title: str) -> None:
         board = self.get_board(slug)

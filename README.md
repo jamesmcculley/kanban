@@ -32,6 +32,13 @@ directory can also be opened as an Obsidian vault.
   was completed
 - **Metrics** (toolbar icon): totals for a date range, plus busiest board and busiest day of the
   week, as simple bar charts — narrow it by text, tags, priority or board, same as the export below
+- **Standup mode**: a quick "what did I do / what am I doing" report — completed in the last N
+  days, due or upcoming in the next N days (both free text, adjustable on the page, 0 means "show
+  nothing that direction"); **star** a card (from its edit dialog or a Standup row) to always
+  highlight it, and **exclude** a card from the report "just today" or "always" when it's not
+  worth mentioning; check **"only starred items"** to ignore the date range entirely and see every
+  starred card ever — built for an annual review. Completed/Upcoming sections can each be hidden
+  from the page itself, and permanently-excluded items can be brought back from Settings
 - **Export to CSV** — completed activity from Metrics or the Logbook; real cards from any board,
   Scheduled or Today — each a pop-out for granular options (text, tags, priority, board/list,
   Today's sections), not just everything in one shot. A board's export is the same shape CSV
@@ -46,8 +53,9 @@ directory can also be opened as an Obsidian vault.
   edge, or type a number in Settings)
 - **Sort boards** alphabetically, most recently updated or most recently created, or drag them
   manually (Settings) — and **show or hide any sidebar section** (logo, search, Today, Scheduled,
-  Logbook, boards, tags, the theme toggle) except the toolbar at the bottom, so there's
-  always a way back in; **show or hide the page heading** on Today, Scheduled and the Logbook, too
+  Logbook, Standup, boards, tags, the theme toggle) except the toolbar at the bottom, so there's
+  always a way back in; **show or hide the page heading** on Today, Scheduled, the Logbook and
+  Standup, too
 - **Pin a board** to keep it at the top of its list no matter which sort order is active
 - **Hide a board from the sidebar** — hover a row for a one-click hide button, or manage the whole
   list at once from Settings ("Boards in the sidebar," grouped by area) — separately from a "show

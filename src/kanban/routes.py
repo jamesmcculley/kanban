@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 from flask import (
@@ -21,6 +21,7 @@ from . import metrics as M
 from . import rules as R
 from . import search as SR
 from . import settings as S
+from . import standup as ST
 from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
 from .store import PRIORITIES, TASKS_COLUMN, effective_date
 from .tags import parse_tags, split_tags
@@ -294,6 +295,17 @@ def duplicate_card(slug, card_id):
             pass
     message += "".join(f" · {e}" for e in copy.effects)
     return jsonify(_toast(message, undo))
+
+
+@bp.post("/b/<slug>/cards/<card_id>/star")
+def toggle_star(slug, card_id):
+    """Reachable from the card-edit dialog (anywhere) and from a row in Standup mode itself."""
+    try:
+        card = store().get_card(slug, card_id)
+        card = store().set_starred(slug, card_id, not card.starred)
+    except KeyError:
+        abort(404)
+    return jsonify(starred=card.starred)
 
 
 @bp.post("/b/<slug>/cards/<card_id>/complete")
@@ -656,6 +668,58 @@ def today_export():
     resp.headers["Content-Type"] = "text/csv; charset=utf-8"
     resp.headers["Content-Disposition"] = 'attachment; filename="today.csv"'
     return resp
+
+
+@bp.get("/standup")
+def standup():
+    """A quick "what did I do / what am I doing" report: completed in the last `back` days,
+    due-or-overdue within the next `forward` days -- or, with `starred=1`, every starred card ever
+    (completed and open), ignoring both day counts entirely (built for an annual review, not a
+    weekly one). Both counts are free text, not a dropdown -- 0 is a real answer ("nothing that
+    direction"), so only a missing/unparseable value falls back to the 7-day default."""
+    today = date.today()
+    back = ST.clamp_days(request.args["back"], 7) if "back" in request.args else 7
+    forward = ST.clamp_days(request.args["forward"], 7) if "forward" in request.args else 7
+    starred_only = bool(request.args.get("starred"))
+    excluded = ST.excluded_ids(store().list_standup_exclusions(), today.isoformat())
+
+    if starred_only:
+        starred = [(b, c) for b, c in store().all_cards() if c.starred and c.id not in excluded]
+        completed = [(b, c) for b, c in starred if c.done]
+        upcoming = [(b, c) for b, c in starred if not c.done]
+    else:
+        completed = []
+        if back > 0:
+            since = (today - timedelta(days=back)).isoformat()
+            events = store().logbook(limit=None, date_from=since, date_to=today.isoformat())
+            completed = [(b, c) for b, c in _resolve_logged_cards(events) if c.id not in excluded]
+        upcoming = []
+        if forward > 0:
+            until = (today + timedelta(days=forward)).isoformat()
+            found = store().scheduled_cards(date_to=until)
+            upcoming = [(b, c) for b, c in found if c.id not in excluded]
+    completed.sort(key=lambda bc: bc[1].completed or "", reverse=True)
+    upcoming.sort(key=lambda bc: effective_date(bc[1]) or "9999-12-31")
+
+    return render_template("standup.html", completed=completed, upcoming=upcoming, back=back,
+                           forward=forward, starred_only=starred_only, today=today.isoformat())
+
+
+@bp.post("/standup/exclude")
+def exclude_from_standup():
+    slug, card_id = request.form.get("board", ""), request.form.get("card", "")
+    until = date.today().isoformat() if request.form.get("scope") == "today" else None
+    try:
+        store().exclude_from_standup(slug, card_id, until)
+    except KeyError:
+        abort(404)
+    return "", 204
+
+
+@bp.post("/standup/include")
+def include_in_standup():
+    store().include_in_standup(request.form.get("card", ""))
+    return "", 204
 
 
 @bp.post("/filters")
@@ -1042,12 +1106,27 @@ def _rules_context(scope, lists):
             "lists": lists, "all_lists": every_list, "triggers": R.TRIGGERS, "actions": R.ACTIONS}
 
 
+def _resolved_standup_exclusions():
+    """Each stored exclusion, plus the card/board titles to actually show someone -- skipping any
+    whose board or card is gone since (nothing left to manage there)."""
+    resolved = []
+    for e in store().list_standup_exclusions():
+        try:
+            board = store().get_board(e["board"])
+            card = store().get_card(e["board"], e["card"])
+        except KeyError:
+            continue
+        resolved.append({**e, "title": card.title, "board_title": board.title})
+    return resolved
+
+
 @bp.get("/settings")
 def settings():
     gs = store().global_settings()
     searches = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
     return render_template("settings.html", themes=theme_cards(), text_sizes=TEXT_SIZES, gs=gs,
-                           resolved=S.resolve(gs), searches=searches, **_rules_context(None, None))
+                           resolved=S.resolve(gs), searches=searches,
+                           standup_exclusions=_resolved_standup_exclusions(), **_rules_context(None, None))
 
 
 @bp.post("/settings")

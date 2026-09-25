@@ -272,6 +272,83 @@ def test_today_view_shows_due_completed_and_created(client):
     assert page.count('aria-label="Edit this card"') >= 4          # every row gets one
 
 
+def test_star_toggle(client):
+    cid, _ = _add(client, "x")
+    r = client.post(f"/b/my-board/cards/{cid}/star")
+    assert r.status_code == 200 and r.json == {"starred": True}
+    r = client.post(f"/b/my-board/cards/{cid}/star")
+    assert r.json == {"starred": False}
+    assert client.post("/b/my-board/cards/deadbeef/star").status_code == 404
+
+
+def test_standup_default_back_and_forward_is_seven_days(client):
+    done_id, _ = _add(client, "finished recently")
+    client.post(f"/b/my-board/cards/{done_id}/complete")
+    due_id, _ = _add(client, "coming up")
+    client.post(f"/b/my-board/cards/{due_id}", data={"title": "coming up", "body": "", "due": "tomorrow"})
+
+    page = client.get("/standup").text
+    assert 'data-page="standup"' in page
+    completed_section = page.split('data-standup-section="completed"')[1].split('data-standup-section="upcoming"')[0]
+    upcoming_section = page.split('data-standup-section="upcoming"')[1]
+    assert "finished recently" in completed_section
+    assert "coming up" in upcoming_section
+
+
+def test_standup_back_zero_shows_no_completed_items(client):
+    done_id, _ = _add(client, "finished recently")
+    client.post(f"/b/my-board/cards/{done_id}/complete")
+    page = client.get("/standup?back=0").text
+    completed_section = page.split('data-standup-section="completed"')[1].split('data-standup-section="upcoming"')[0]
+    assert "finished recently" not in completed_section
+
+
+def test_standup_forward_zero_shows_no_upcoming_items(client):
+    due_id, _ = _add(client, "coming up")
+    client.post(f"/b/my-board/cards/{due_id}", data={"title": "coming up", "body": "", "due": "tomorrow"})
+    page = client.get("/standup?forward=0").text
+    upcoming_section = page.split('data-standup-section="upcoming"')[1]
+    assert "coming up" not in upcoming_section
+
+
+def test_standup_starred_only_ignores_day_counts(client):
+    far_id, _ = _add(client, "far off but starred")
+    client.post(f"/b/my-board/cards/{far_id}", data={"title": "far off but starred", "body": "", "due": "in 999 days"})
+    client.post(f"/b/my-board/cards/{far_id}/star")
+    unstarred_id, _ = _add(client, "not starred")
+    client.post(f"/b/my-board/cards/{unstarred_id}", data={"title": "not starred", "body": "", "due": "tomorrow"})
+
+    page = client.get("/standup?starred=1").text
+    assert "far off but starred" in page
+    assert "not starred" not in page
+    # without starred=1 and default 7-day forward window, the far-off card is excluded
+    page = client.get("/standup").text
+    assert "far off but starred" not in page
+
+
+def test_standup_exclude_today_only_expires_by_date(client):
+    cid, _ = _add(client, "excluded today")
+    client.post(f"/b/my-board/cards/{cid}", data={"title": "excluded today", "body": "", "due": "today"})
+    assert "excluded today" in client.get("/standup").text
+    r = client.post("/standup/exclude", data={"board": "my-board", "card": cid, "scope": "today"})
+    assert r.status_code == 204
+    assert "excluded today" not in client.get("/standup").text
+
+
+def test_standup_exclude_always_and_include_again(client):
+    cid, _ = _add(client, "excluded always")
+    client.post(f"/b/my-board/cards/{cid}", data={"title": "excluded always", "body": "", "due": "today"})
+    client.post("/standup/exclude", data={"board": "my-board", "card": cid, "scope": "always"})
+    assert "excluded always" not in client.get("/standup").text
+    client.post("/standup/include", data={"card": cid})
+    assert "excluded always" in client.get("/standup").text
+
+
+def test_standup_exclude_missing_card_404s(client):
+    r = client.post("/standup/exclude", data={"board": "my-board", "card": "deadbeef", "scope": "always"})
+    assert r.status_code == 404
+
+
 def test_completion_stamp_shown_and_sidebar_layout(client):
     cid, _ = _add(client, "x")
     html = client.post(f"/b/my-board/cards/{cid}/complete").text

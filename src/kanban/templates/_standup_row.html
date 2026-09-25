@@ -1,0 +1,39 @@
+{# A Standup-mode row: star toggle, title, a completed-stamp or due date depending on which
+   section it's in, board/list reference, edit pencil, and an "exclude from this report" menu
+   (today only, or always). Not reused elsewhere on purpose -- exclude is a standup-only concept,
+   and star (which IS reusable -- see _edit.html) only needs the one .star-btn class, shared via
+   ui.js's click handler regardless of which template renders the button.
+   Context per call: board, card, section ("completed" or "upcoming"), today. #}
+{% from "_icons.html" import icon %}
+{% macro standup_row(board, card, section, today) %}
+<div class="row" data-id="{{ card.id }}">
+  <button type="button" class="star-btn{{ ' starred' if card.starred }}" aria-pressed="{{ 'true' if card.starred else 'false' }}"
+          data-star-url="{{ url_for('boards.toggle_star', slug=board.slug, card_id=card.id) }}"
+          title="Star this card" aria-label="Star this card">{{ icon('star', 15) }}</button>
+  <span class="title">{{ card.title }}{% if card.repeat %} <span class="repeat" title="{{ card.repeat }}">↻</span>{% endif %}
+    {% if card.priority %}<span class="priority p-{{ card.priority }}" title="{{ card.priority|capitalize }} priority">{{ icon('flag', 12) }}</span>{% endif %}</span>
+  {% if section == 'completed' %}
+  <span class="when">{% if card.completed %}✓ {{ card.completed|stamp }}{% endif %}</span>
+  {% else %}
+  {% if card.due %}<span class="due{% if card.due < today and not card.done %} overdue{% endif %}">{{ card.due }}</span>
+  {% elif card.start %}<span class="start" title="Starts {{ card.start }}">▸ {{ card.start }}</span>{% endif %}
+  {% endif %}
+  <span class="ref" title="Board and list it's on">
+    <a href="{{ url_for('boards.board', slug=board.slug) }}">{{ board.title }}</a>
+    <span class="sep">›</span> {{ card.column }}
+  </span>
+  <button type="button" class="icon-btn" title="Edit this card" aria-label="Edit this card"
+          hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id, standalone=1) }}"
+          hx-target="#modal" hx-swap="innerHTML">{{ icon('edit', 14) }}</button>
+  <div class="eye-menu-wrap">
+    <button type="button" class="icon-btn" data-eye-toggle title="Exclude from the report" aria-label="Exclude “{{ card.title }}” from the report">{{ icon('eye-off', 14) }}</button>
+    <div class="eye-menu" hidden>
+      <div class="eye-menu-head"><span>Exclude</span></div>
+      <button type="button" class="link-btn exclude-btn" data-url="{{ url_for('boards.exclude_from_standup') }}"
+              data-board="{{ board.slug }}" data-card="{{ card.id }}" data-scope="today">Just today</button>
+      <button type="button" class="link-btn exclude-btn" data-url="{{ url_for('boards.exclude_from_standup') }}"
+              data-board="{{ board.slug }}" data-card="{{ card.id }}" data-scope="always">Always</button>
+    </div>
+  </div>
+</div>
+{% endmacro %}

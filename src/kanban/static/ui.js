@@ -189,6 +189,24 @@
     if (!e.target.closest('.metrics-filter-wrap')) document.querySelectorAll('.metrics-filter-panel').forEach(m => (m.hidden = true));
   });
 
+  // -- Standup mode's own report options (look back/forward days, starred-only) ---------------
+  document.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-standup-filter-toggle]');
+    if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
+    if (!e.target.closest('.standup-filter-wrap')) document.querySelectorAll('.standup-filter-panel').forEach(m => (m.hidden = true));
+  });
+
+  // -- Star toggle: the card-edit dialog (anywhere) and Standup mode's own rows ---------------
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.star-btn');
+    if (!btn) return;
+    const r = await fetch(btn.dataset.starUrl, { method: 'POST' });
+    if (!r.ok) return window.toast('Could not star that card');
+    const data = await r.json();
+    btn.classList.toggle('starred', data.starred);
+    btn.setAttribute('aria-pressed', String(data.starred));
+  });
+
   // -- "Move to": any card, to any list on any board, from the edit dialog --------------------
   document.addEventListener('click', async e => {
     const btn = e.target.closest('.move-btn');
