@@ -36,6 +36,17 @@
     boardStyle.textContent = hiddenBoards.filter(function (s) { return /^[a-z0-9-]+$/.test(s); })
       .map(function (s) { return '.board-row[data-slug="' + s + '"]{display:none}'; }).join('');
     document.head.appendChild(boardStyle);
+    // Collapsed sections on Today/Scheduled/Logbook/Review: same "arbitrary id, generated
+    // stylesheet" shape as hidden-boards-css above -- a section's id can be a date
+    // ("scheduled:2026-09-25"), not a fixed small set, so it can't use the data-attribute trick.
+    // sidebar.js's CollapsedSections rewrites this same tag by id on every change.
+    var collapseStyle = document.createElement('style');
+    collapseStyle.id = 'collapsed-sections-css';
+    var collapsedSections = JSON.parse(localStorage.getItem('collapsed-sections') || '[]');
+    collapseStyle.textContent = collapsedSections.filter(function (s) { return /^[a-z0-9_-]+:[a-z0-9_-]+$/i.test(s); })
+      .map(function (s) { return '[data-collapse-id="' + s + '"] .collapsible-body{display:none}' +
+        '[data-collapse-id="' + s + '"] .collapse-btn{transform:rotate(-90deg)}'; }).join('');
+    document.head.appendChild(collapseStyle);
   } catch (e) { /* storage blocked: keep the default */ }
 })();
 </script>

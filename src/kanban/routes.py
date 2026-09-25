@@ -181,11 +181,13 @@ def board(slug):
         cards, hidden_done = store().view_columns(slug)
         cards = cards.get(TASKS_COLUMN, [])
         return render_template("tasks.html", board=b, parent=parent, cards=cards,
-                               hidden_done=hidden_done, new_top=display["new_card_position"] == "top",
+                               hidden_done=hidden_done, hidden_cards=store().hidden_cards(slug),
+                               new_top=display["new_card_position"] == "top",
                                display=display, labels=store().list_labels(slug))
     columns, hidden_done = store().view_columns(slug)
     return render_template("board.html", board=b, parent=parent, columns=columns,
-                           hidden_done=hidden_done, new_top=display["new_card_position"] == "top",
+                           hidden_done=hidden_done, hidden_cards=store().hidden_cards(slug),
+                           new_top=display["new_card_position"] == "top",
                            display=display, labels=store().list_labels(slug))
 
 
@@ -306,6 +308,19 @@ def toggle_star(slug, card_id):
     except KeyError:
         abort(404)
     return jsonify(starred=card.starred)
+
+
+@bp.post("/b/<slug>/cards/<card_id>/hide")
+def hide_card(slug, card_id):
+    """Reachable from a card's own quick hide button, anywhere a card is shown (its board, Today,
+    Scheduled, Logbook, Review), and from its own board's "Hidden cards" eye menu on the way back
+    -- same shape as hiding/reviving a list, just per-card. Takes an explicit `hidden` value (not a
+    toggle): the eye menu's checkboxes need to set a specific state, same as hide_column."""
+    try:
+        card = store().set_card_hidden(slug, card_id, request.form.get("hidden", "1") == "1")
+    except KeyError:
+        abort(404)
+    return jsonify(hidden=card.hidden)
 
 
 @bp.post("/b/<slug>/cards/<card_id>/complete")
@@ -676,15 +691,16 @@ def review():
     due-or-overdue within the next `forward` days -- or, with `starred=1`, every starred card ever
     (completed and open), ignoring both day counts entirely (built for an annual review, not a
     weekly one). Both counts are free text, not a dropdown -- 0 is a real answer ("nothing that
-    direction"), so only a missing/unparseable value falls back to the 7-day default."""
+    direction"), so only a missing/unparseable value falls back to the 7-day default. Not worth
+    mentioning something? Hide the card (its own quick hide button, or the edit dialog) -- it drops
+    out of this report the same way it drops out of every other one; see set_card_hidden."""
     today = date.today()
     back = RV.clamp_days(request.args["back"], 7) if "back" in request.args else 7
     forward = RV.clamp_days(request.args["forward"], 7) if "forward" in request.args else 7
     starred_only = bool(request.args.get("starred"))
-    excluded = RV.excluded_ids(store().list_review_exclusions(), today.isoformat())
 
     if starred_only:
-        starred = [(b, c) for b, c in store().all_cards() if c.starred and c.id not in excluded]
+        starred = [(b, c) for b, c in store().all_cards() if c.starred and not c.hidden]
         completed = [(b, c) for b, c in starred if c.done]
         upcoming = [(b, c) for b, c in starred if not c.done]
     else:
@@ -692,34 +708,16 @@ def review():
         if back > 0:
             since = (today - timedelta(days=back)).isoformat()
             events = store().logbook(limit=None, date_from=since, date_to=today.isoformat())
-            completed = [(b, c) for b, c in _resolve_logged_cards(events) if c.id not in excluded]
+            completed = _resolve_logged_cards(events)
         upcoming = []
         if forward > 0:
             until = (today + timedelta(days=forward)).isoformat()
-            found = store().scheduled_cards(date_to=until)
-            upcoming = [(b, c) for b, c in found if c.id not in excluded]
+            upcoming = store().scheduled_cards(date_to=until)
     completed.sort(key=lambda bc: bc[1].completed or "", reverse=True)
     upcoming.sort(key=lambda bc: effective_date(bc[1]) or "9999-12-31")
 
     return render_template("review.html", completed=completed, upcoming=upcoming, back=back,
                            forward=forward, starred_only=starred_only, today=today.isoformat())
-
-
-@bp.post("/review/exclude")
-def exclude_from_review():
-    slug, card_id = request.form.get("board", ""), request.form.get("card", "")
-    until = date.today().isoformat() if request.form.get("scope") == "today" else None
-    try:
-        store().exclude_from_review(slug, card_id, until)
-    except KeyError:
-        abort(404)
-    return "", 204
-
-
-@bp.post("/review/include")
-def include_in_review():
-    store().include_in_review(request.form.get("card", ""))
-    return "", 204
 
 
 @bp.post("/filters")
@@ -1106,27 +1104,12 @@ def _rules_context(scope, lists):
             "lists": lists, "all_lists": every_list, "triggers": R.TRIGGERS, "actions": R.ACTIONS}
 
 
-def _resolved_review_exclusions():
-    """Each stored exclusion, plus the card/board titles to actually show someone -- skipping any
-    whose board or card is gone since (nothing left to manage there)."""
-    resolved = []
-    for e in store().list_review_exclusions():
-        try:
-            board = store().get_board(e["board"])
-            card = store().get_card(e["board"], e["card"])
-        except KeyError:
-            continue
-        resolved.append({**e, "title": card.title, "board_title": board.title})
-    return resolved
-
-
 @bp.get("/settings")
 def settings():
     gs = store().global_settings()
     searches = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
     return render_template("settings.html", themes=theme_cards(), text_sizes=TEXT_SIZES, gs=gs,
-                           resolved=S.resolve(gs), searches=searches,
-                           review_exclusions=_resolved_review_exclusions(), **_rules_context(None, None))
+                           resolved=S.resolve(gs), searches=searches, **_rules_context(None, None))
 
 
 @bp.post("/settings")

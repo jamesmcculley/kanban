@@ -20,6 +20,8 @@
   {% if card.priority %}<span class="priority p-{{ card.priority }}" title="{{ card.priority|capitalize }} priority">{{ icon('flag', 13) }}</span>{% endif %}
   {% if card.labels %}<div class="card-labels">{% for lbl in board.labels if lbl.id in card.labels %}<span class="label-chip c-{{ lbl.color }}" title="{{ lbl.name }}">{{ lbl.name }}</span>{% endfor %}</div>{% endif %}
   {% if card.tags %}<div class="card-tags">{% for t in card.tags %}<a class="tag" href="{{ url_for('boards.tag_view', tag=t) }}">#{{ t }}</a>{% endfor %}</div>{% endif %}
+  <button type="button" class="card-hide-btn" title="Hide this card" aria-label="Hide “{{ card.title }}”"
+          data-hide-url="{{ url_for('boards.hide_card', slug=board.slug, card_id=card.id) }}">{{ icon('eye-off', 13) }}</button>
   <button class="del" hx-delete="{{ url_for('boards.delete_card', slug=board.slug, card_id=card.id) }}"
           hx-target="closest .card" hx-swap="outerHTML" aria-label="Delete card">×</button>
 </div>

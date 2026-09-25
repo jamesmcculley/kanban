@@ -11,8 +11,13 @@
   </header>
   <main class="agenda logbook">
     {% for day, events in days.items() %}
-      <h2>{{ day|day_label }} <span class="count">{{ events|length }}</span></h2>
-      {% for e in events %}{{ logbook_row(e, live) }}{% endfor %}
+      <section class="collapsible-section" data-collapse-id="logbook:{{ day }}">
+        <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse {{ day|day_label }}">{{ icon('chevron-down', 14) }}</button>
+          {{ day|day_label }} <span class="count">{{ events|length }}</span></h2>
+        <div class="collapsible-body">
+          {% for e in events %}{{ logbook_row(e, live) }}{% endfor %}
+        </div>
+      </section>
     {% else %}
       <p class="empty">{% if date_from or date_to %}Nothing completed in this range.{% else %}Nothing completed yet. Check a card off and it will appear here.{% endif %}</p>
     {% endfor %}

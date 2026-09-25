@@ -326,27 +326,53 @@ def test_review_starred_only_ignores_day_counts(client):
     assert "far off but starred" not in page
 
 
-def test_review_exclude_today_only_expires_by_date(client):
-    cid, _ = _add(client, "excluded today")
-    client.post(f"/b/my-board/cards/{cid}", data={"title": "excluded today", "body": "", "due": "today"})
-    assert "excluded today" in client.get("/review").text
-    r = client.post("/review/exclude", data={"board": "my-board", "card": cid, "scope": "today"})
-    assert r.status_code == 204
-    assert "excluded today" not in client.get("/review").text
+def test_hide_card_route(client):
+    cid, _ = _add(client, "x")
+    r = client.post(f"/b/my-board/cards/{cid}/hide")
+    assert r.status_code == 200 and r.json == {"hidden": True}
+    assert 'data-id="' + cid not in client.get("/b/my-board").text
+    r = client.post(f"/b/my-board/cards/{cid}/hide", data={"hidden": "0"})
+    assert r.json == {"hidden": False}
+    assert 'data-id="' + cid in client.get("/b/my-board").text
+    assert client.post("/b/my-board/cards/deadbeef/hide").status_code == 404
 
 
-def test_review_exclude_always_and_include_again(client):
-    cid, _ = _add(client, "excluded always")
-    client.post(f"/b/my-board/cards/{cid}", data={"title": "excluded always", "body": "", "due": "today"})
-    client.post("/review/exclude", data={"board": "my-board", "card": cid, "scope": "always"})
-    assert "excluded always" not in client.get("/review").text
-    client.post("/review/include", data={"card": cid})
-    assert "excluded always" in client.get("/review").text
+def test_hidden_card_disappears_from_every_card_listing_view(client):
+    due_id, _ = _add(client, "hide me from scheduling")
+    client.post(f"/b/my-board/cards/{due_id}", data={"title": "hide me from scheduling", "body": "", "due": "today"})
+    done_id, _ = _add(client, "hide me from logs")
+    client.post(f"/b/my-board/cards/{done_id}/complete")
+
+    assert "hide me from scheduling" in client.get("/scheduled").text
+    assert "hide me from scheduling" in client.get("/today").text
+    assert "hide me from scheduling" in client.get("/search?q=scheduling").text
+    assert "hide me from logs" in client.get("/logbook").text
+    assert "hide me from logs" in client.get("/today").text
+
+    client.post(f"/b/my-board/cards/{due_id}/hide")
+    client.post(f"/b/my-board/cards/{done_id}/hide")
+
+    # still named in its own board's "Hidden cards" eye menu, just not as a live card any more
+    assert f'data-id="{due_id}"' not in client.get("/b/my-board").text
+    assert "hide me from scheduling" not in client.get("/scheduled").text
+    assert "hide me from scheduling" not in client.get("/today").text
+    assert "hide me from scheduling" not in client.get("/review").text
+    assert "hide me from scheduling" not in client.get("/search?q=scheduling").text
+    assert "hide me from logs" not in client.get("/logbook").text
+    assert "hide me from logs" not in client.get("/today").text
+    assert "hide me from logs" not in client.get("/review").text
 
 
-def test_review_exclude_missing_card_404s(client):
-    r = client.post("/review/exclude", data={"board": "my-board", "card": "deadbeef", "scope": "always"})
-    assert r.status_code == 404
+def test_board_eye_menu_lists_hidden_cards_and_revives_them(client):
+    cid, _ = _add(client, "tucked away")
+    client.post(f"/b/my-board/cards/{cid}/hide")
+    page = client.get("/b/my-board").text
+    assert "tucked away" in page  # shows in the "Hidden cards" eye menu, just not as a live card
+    assert 'aria-label="Show or hide cards (1 hidden)"' in page
+    client.post(f"/b/my-board/cards/{cid}/hide", data={"hidden": "0"})
+    page = client.get("/b/my-board").text
+    assert 'data-id="' + cid in page
+    assert 'aria-label="Show or hide cards"' in page
 
 
 def test_completion_stamp_shown_and_sidebar_layout(client):

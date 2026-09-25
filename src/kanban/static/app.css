@@ -175,8 +175,17 @@ h1 { margin:0; font-size:22px; }
 
 /* agenda / search */
 .agenda { padding:0 24px 24px; max-width:680px; }
-.agenda h2 { font-size:13px; text-transform:uppercase; color:var(--text-subtle); margin:20px 0 8px; }
+.agenda h2 { display:flex; align-items:center; gap:6px; font-size:13px; text-transform:uppercase;
+             color:var(--text-subtle); margin:20px 0 8px; }
 .agenda h2.overdue { color:var(--danger); }
+/* Collapsible sections (Today/Scheduled/Logbook/Review): the chevron leads the heading text, like
+   any disclosure control, and rotates to point right when collapsed. The actual hide/show and the
+   rotation are both driven by a generated stylesheet keyed on data-collapse-id (see
+   CollapsedSections in sidebar.js and the pre-paint copy in _theme_boot.html) -- .collapse-btn
+   here only needs its own resting appearance and transition. */
+.collapse-btn { border:0; background:none; color:inherit; cursor:pointer; padding:0; flex:none;
+                display:grid; place-items:center; transition:transform .15s; }
+.collapse-btn:hover { color:var(--text-primary); }
 .row { display:flex; align-items:center; gap:10px; background:var(--bg-card); padding:10px 12px;
        border-radius:8px; margin-bottom:6px; }
 .row .title { flex:1; }
@@ -492,6 +501,13 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .star-btn:hover { background:var(--hover); color:var(--text-primary); }
 .star-btn.starred { color:#f5b400; }
 .star-btn.starred .icon { fill:currentColor; }
+/* Hide-this-card: always visible next to the edit pencil (or the × delete button on a board card),
+   same reasoning as .star-btn above -- a hover-reveal button is easy to miss and bad on touch,
+   and this app installs to a phone home screen. One-directional (see ui.js): reviving a hidden
+   card is done from its own board's "Hidden cards" eye menu, not by clicking this again. */
+.card-hide-btn { display:grid; place-items:center; border:0; background:none; color:var(--text-subtle);
+                cursor:pointer; padding:2px; border-radius:5px; flex:none; }
+.card-hide-btn:hover { background:var(--hover); color:var(--text-primary); }
 .start-field { display:flex; gap:8px; }
 .export-date { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-subtle); flex:1; }
 .completed-at-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-subtle); }

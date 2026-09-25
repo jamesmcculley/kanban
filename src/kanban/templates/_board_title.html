@@ -21,7 +21,7 @@
         data-post="{{ url_for('boards.archive_board', slug=board.slug) }}" data-after="reload">{{ icon('archive') }}</button>
 {% endif %}
 {% if board.kind == 'kanban' %}
-<div class="eye-menu-wrap">
+<div class="eye-menu-wrap list-eye-menu-wrap">
   <button type="button" class="icon-btn" data-eye-toggle
           aria-label="Show or hide lists{{ ' (%d hidden)'|format(board.hidden|length) if board.hidden }}"
           title="Show or hide lists{{ ' — %d hidden'|format(board.hidden|length) if board.hidden }}">
@@ -46,4 +46,31 @@
   </div>
 </div>
 {% endif %}
+{# Hidden cards: both board kinds get this one (unlike the list-hide menu above, kanban-only) --
+   a tasks board has no lists to hide, but its cards can still be hidden one at a time. Its own
+   aria-label/title (not "Show or hide lists") since a kanban board renders both eye buttons at
+   once -- same trap as the sidebar's boards-eye vs. this page's lists-eye (see icon-badge's
+   comment in app.css): two `.eye-menu-wrap`s on one page only stay unambiguous if each has its
+   own accessible name -- also a second, belt-and-suspenders class per wrapper (.list-eye-menu-wrap
+   / .card-eye-menu-wrap) so a test or a future selector can scope to one even by container alone. #}
+<div class="eye-menu-wrap card-eye-menu-wrap">
+  <button type="button" class="icon-btn" data-eye-toggle
+          aria-label="Show or hide cards{{ ' (%d hidden)'|format(hidden_cards|length) if hidden_cards }}"
+          title="Hidden cards{{ ' — %d hidden'|format(hidden_cards|length) if hidden_cards }}">
+    {{ icon('eye') }}
+    {% if hidden_cards %}<span class="icon-badge">{{ hidden_cards|length }}</span>{% endif %}
+  </button>
+  <div class="eye-menu" hidden>
+    <div class="eye-menu-head"><span>Hidden cards</span></div>
+    {% for card in hidden_cards %}
+    <div class="eye-row">
+      <span>{{ card.title }}</span>
+      <button type="button" class="link-btn card-reveal-btn"
+              data-url="{{ url_for('boards.hide_card', slug=board.slug, card_id=card.id) }}">Show</button>
+    </div>
+    {% else %}
+    <p class="muted">No hidden cards.</p>
+    {% endfor %}
+  </div>
+</div>
 <a class="icon-btn" href="{{ url_for('boards.board_settings', slug=board.slug) }}" title="Board settings" aria-label="Board settings">{{ icon('sliders') }}</a>

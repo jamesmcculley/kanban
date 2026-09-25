@@ -75,12 +75,22 @@ class LogbookMixin:
         `date_from`/`date_to` (inclusive ISO dates) filter by completion day, applied before the
         limit so a date-range query is never truncated by an unrelated recency cap. `limit=None`
         returns everything in range, unbounded -- Metrics and the CSV export need real totals, not
-        just the newest 500 the Logbook page itself is happy to show."""
+        just the newest 500 the Logbook page itself is happy to show.
+
+        A card hidden since its completion (set_card_hidden) drops out of its own history too --
+        hiding is meant to mean "not anywhere," not just "not on its board right now" -- so every
+        event for it, logged or folded in, is left out. Built from the same all_cards() pass
+        already needed for the fold-in, not a second query."""
         events = self._read_log()
         seen = {(e["card"], e["at"]) for e in events}
+        hidden_ids = set()
         for board, card in self.all_cards():
+            if card.hidden:
+                hidden_ids.add(card.id)
             if card.done and card.completed and (card.id, card.completed) not in seen:
                 events.append(self._event(board, card, card.completed))
+        if hidden_ids:
+            events = [e for e in events if e["card"] not in hidden_ids]
         if date_from:
             events = [e for e in events if e["at"][:10] >= date_from]
         if date_to:

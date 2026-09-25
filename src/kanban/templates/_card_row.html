@@ -1,6 +1,6 @@
-{# A scheduled-card row: checkbox, title, due/start, board+list, edit button. Shared by Scheduled
-   and Today's "Due & overdue"/"Created today" sections -- was duplicated markup in agenda.html
-   until Today needed the same row shape twice more. #}
+{# A scheduled-card row: checkbox, title, due/start, board+list, edit and hide buttons. Shared by
+   Scheduled and Today's "Due & overdue"/"Created today" sections -- was duplicated markup in
+   agenda.html until Today needed the same row shape twice more. #}
 {% from "_icons.html" import icon %}
 {% macro card_row(board, card, today=none) %}
 <div class="row" data-id="{{ card.id }}">
@@ -16,5 +16,7 @@
   <button type="button" class="icon-btn" title="Edit this card" aria-label="Edit this card"
           hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id, standalone=1) }}"
           hx-target="#modal" hx-swap="innerHTML">{{ icon('edit', 14) }}</button>
+  <button type="button" class="card-hide-btn" title="Hide this card" aria-label="Hide “{{ card.title }}”"
+          data-hide-url="{{ url_for('boards.hide_card', slug=board.slug, card_id=card.id) }}">{{ icon('eye-off', 14) }}</button>
 </div>
 {% endmacro %}

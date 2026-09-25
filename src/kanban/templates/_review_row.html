@@ -1,8 +1,8 @@
 {# A Review-mode row: star toggle, title, a completed-stamp or due date depending on which
-   section it's in, board/list reference, edit pencil, and an "exclude from this report" menu
-   (today only, or always). Not reused elsewhere on purpose -- exclude is a review-only concept,
-   and star (which IS reusable -- see _edit.html) only needs the one .star-btn class, shared via
-   ui.js's click handler regardless of which template renders the button.
+   section it's in, board/list reference, edit pencil and a hide button. Not reused elsewhere on
+   purpose -- the completed-vs-due split is a review-only concern -- but the hide and star buttons
+   are the exact same shared classes every other row template uses (.card-hide-btn/.star-btn), so
+   ui.js's click handlers don't care which template rendered this row.
    Context per call: board, card, section ("completed" or "upcoming"), today. #}
 {% from "_icons.html" import icon %}
 {% macro review_row(board, card, section, today) %}
@@ -25,15 +25,7 @@
   <button type="button" class="icon-btn" title="Edit this card" aria-label="Edit this card"
           hx-get="{{ url_for('boards.edit_card', slug=board.slug, card_id=card.id, standalone=1) }}"
           hx-target="#modal" hx-swap="innerHTML">{{ icon('edit', 14) }}</button>
-  <div class="eye-menu-wrap">
-    <button type="button" class="icon-btn" data-eye-toggle title="Exclude from the report" aria-label="Exclude “{{ card.title }}” from the report">{{ icon('eye-off', 14) }}</button>
-    <div class="eye-menu" hidden>
-      <div class="eye-menu-head"><span>Exclude</span></div>
-      <button type="button" class="link-btn exclude-btn" data-url="{{ url_for('boards.exclude_from_review') }}"
-              data-board="{{ board.slug }}" data-card="{{ card.id }}" data-scope="today">Just today</button>
-      <button type="button" class="link-btn exclude-btn" data-url="{{ url_for('boards.exclude_from_review') }}"
-              data-board="{{ board.slug }}" data-card="{{ card.id }}" data-scope="always">Always</button>
-    </div>
-  </div>
+  <button type="button" class="card-hide-btn" title="Hide this card" aria-label="Hide “{{ card.title }}”"
+          data-hide-url="{{ url_for('boards.hide_card', slug=board.slug, card_id=card.id) }}">{{ icon('eye-off', 14) }}</button>
 </div>
 {% endmacro %}

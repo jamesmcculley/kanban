@@ -1,5 +1,5 @@
-{# A completed-card row: checkmark, title, time, board+list, edit button. Shared by the Logbook
-   and Today's "Completed today" section. #}
+{# A completed-card row: checkmark, title, time, board+list, edit and hide buttons. Shared by the
+   Logbook and Today's "Completed today" section. #}
 {% from "_icons.html" import icon %}
 {% macro logbook_row(e, live) %}
 <div class="row">
@@ -14,6 +14,8 @@
   <button type="button" class="icon-btn" title="Edit this card" aria-label="Edit this card"
           hx-get="{{ url_for('boards.edit_card', slug=e.board, card_id=e.card, standalone=1) }}"
           hx-target="#modal" hx-swap="innerHTML">{{ icon('edit', 14) }}</button>
+  <button type="button" class="card-hide-btn" title="Hide this card" aria-label="Hide “{{ e.title }}”"
+          data-hide-url="{{ url_for('boards.hide_card', slug=e.board, card_id=e.card) }}">{{ icon('eye-off', 14) }}</button>
   {% endif %}
 </div>
 {% endmacro %}

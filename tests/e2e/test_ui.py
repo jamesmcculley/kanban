@@ -930,7 +930,7 @@ def test_editable_completion_date_from_card_and_logbook(page):
 
 def test_hidden_lists_panel_toggle_each_and_all(page):
     page.get_by_role("button", name="Show or hide lists").click()
-    menu = page.locator(".page-head .eye-menu")   # not just .eye-menu: the sidebar has its own too
+    menu = page.locator(".list-eye-menu-wrap .eye-menu")   # a board page now has three eye menus
     expect(menu).to_be_visible()
     expect(menu.locator(".eye-row")).to_have_count(3)                  # Todo, Doing, Done
     page.locator("body").click(position={"x": 700, "y": 700})          # outside click closes it
@@ -1654,7 +1654,7 @@ def test_x_button_closes_settings_back_to_where_you_were(page):
     expect(page.locator(".card", has_text="marker card")).to_be_visible()  # back on the board
 
 
-def test_review_mode_star_exclude_and_filter(page):
+def test_review_mode_star_hide_and_filter(page):
     add_card(page, "Todo", "do the thing")
     page.locator(".card", has_text="do the thing").locator(".title").click()
     page.fill(".dialog input[name=due]", "tomorrow")
@@ -1690,24 +1690,24 @@ def test_review_mode_star_exclude_and_filter(page):
     expect(page.locator('[data-review-section="upcoming"]')).to_contain_text("do the thing")
     expect(page.locator('[data-review-section="upcoming"]')).not_to_contain_text("leave this alone")
 
-    # back to the normal view, exclude the other card "just today" and watch it disappear live
+    # back to the normal view, hide the other card right from its Review row and watch it go live
     page.goto(page.base + "/review")
     row = page.locator('[data-review-section="upcoming"] .row', has_text="leave this alone")
-    row.get_by_role("button", name="Exclude “leave this alone” from the report").click()
-    row.get_by_role("button", name="Just today").click()
+    row.get_by_role("button", name="Hide “leave this alone”").click()
     expect(page.locator('[data-review-section="upcoming"] .row', has_text="leave this alone")).to_have_count(0)
     page.reload()
     page.wait_for_load_state()
     expect(page.locator('[data-review-section="upcoming"]')).not_to_contain_text("leave this alone")
 
-    # excluded item shows up in Settings, and "Include again" brings it back
-    page.get_by_role("link", name="Settings", exact=True).click()
-    page.wait_for_url("**/settings")
-    expect(page.locator(".saved-search-row", has_text="leave this alone")).to_contain_text("today only")
-    with page.expect_navigation():
-        page.locator(".saved-search-row", has_text="leave this alone").get_by_role("button", name="Include again").click()
-    page.goto(page.base + "/review")
-    expect(page.locator('[data-review-section="upcoming"]')).to_contain_text("leave this alone")
+    # revived from its own board's "Hidden cards" eye menu, same as any hidden card
+    page.locator(".sidebar").get_by_role("link", name="My Board", exact=True).click()
+    page.wait_for_url("**/b/my-board")
+    page.get_by_role("button", name="Show or hide cards (1 hidden)").click()
+    menu = page.locator(".card-eye-menu-wrap .eye-menu")
+    expect(menu).to_contain_text("leave this alone")
+    menu.get_by_role("button", name="Show").click()
+    page.wait_for_load_state()
+    expect(page.locator(".card", has_text="leave this alone")).to_be_visible()
 
 
 def test_review_section_visibility_toggle_persists(page):
@@ -1730,3 +1730,50 @@ def test_review_section_visibility_toggle_persists(page):
     page.reload()
     page.wait_for_load_state()
     expect(upcoming).to_be_hidden()                                    # persisted
+
+
+def test_collapsible_section_folds_in_place_and_persists(page):
+    add_card(page, "Todo", "due today card")
+    page.locator(".card", has_text="due today card").locator(".title").click()
+    page.fill(".dialog input[name=due]", "today")
+    page.click(".dialog button[type=submit]")
+    expect(page.locator("#modal .backdrop")).to_have_count(0)
+
+    page.click('.sidebar [data-go="t"]')
+    page.wait_for_url("**/today")
+    due_section = page.locator('[data-today-section="due"]')
+    body = due_section.locator(".collapsible-body")
+    btn = due_section.locator(".collapse-btn")
+    expect(body).to_be_visible()
+    expect(btn).to_have_attribute("aria-expanded", "true")
+
+    btn.click()
+    expect(body).to_be_hidden()
+    expect(btn).to_have_attribute("aria-expanded", "false")
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator('[data-today-section="due"] .collapsible-body')).to_be_hidden()   # persisted
+    expect(page.locator('[data-today-section="due"] .collapse-btn')).to_have_attribute("aria-expanded", "false")
+
+    page.locator('[data-today-section="due"] .collapse-btn').click()
+    expect(page.locator('[data-today-section="due"] .collapsible-body')).to_be_visible()  # re-expands
+
+
+def test_collapsible_section_works_on_dynamic_per_day_groups_too(page):
+    add_card(page, "Todo", "logbook entry")
+    page.locator(".card", has_text="logbook entry").locator(".check").click()
+    expect(page.locator(".card.done")).to_be_visible()
+
+    page.click('.sidebar [data-go="l"]')
+    page.wait_for_url("**/logbook")
+    section = page.locator(".logbook .collapsible-section").first
+    body = section.locator(".collapsible-body")
+    expect(body).to_contain_text("logbook entry")
+
+    section.locator(".collapse-btn").click()
+    expect(body).to_be_hidden()
+
+    page.reload()
+    page.wait_for_load_state()
+    expect(page.locator(".logbook .collapsible-section").first.locator(".collapsible-body")).to_be_hidden()  # persisted

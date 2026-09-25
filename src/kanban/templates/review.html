@@ -30,15 +30,21 @@
   </header>
   <main class="review agenda">
     {% if starred_only %}<p class="muted">Showing every starred item, regardless of date.</p>{% endif %}
-    <section data-review-section="completed">
-      <h2>Completed{% if not starred_only %} — last {{ back }} day{{ 's' if back != 1 }}{% endif %}</h2>
-      {% for board, card in completed %}{{ review_row(board, card, 'completed', today) }}
-      {% else %}<p class="empty">Nothing here.</p>{% endfor %}
+    <section class="collapsible-section" data-review-section="completed" data-collapse-id="review:completed">
+      <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse Completed">{{ icon('chevron-down', 14) }}</button>
+        Completed{% if not starred_only %} — last {{ back }} day{{ 's' if back != 1 }}{% endif %}</h2>
+      <div class="collapsible-body">
+        {% for board, card in completed %}{{ review_row(board, card, 'completed', today) }}
+        {% else %}<p class="empty">Nothing here.</p>{% endfor %}
+      </div>
     </section>
-    <section data-review-section="upcoming">
-      <h2>Upcoming{% if not starred_only %} — next {{ forward }} day{{ 's' if forward != 1 }}{% endif %}</h2>
-      {% for board, card in upcoming %}{{ review_row(board, card, 'upcoming', today) }}
-      {% else %}<p class="empty">Nothing here.</p>{% endfor %}
+    <section class="collapsible-section" data-review-section="upcoming" data-collapse-id="review:upcoming">
+      <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse Upcoming">{{ icon('chevron-down', 14) }}</button>
+        Upcoming{% if not starred_only %} — next {{ forward }} day{{ 's' if forward != 1 }}{% endif %}</h2>
+      <div class="collapsible-body">
+        {% for board, card in upcoming %}{{ review_row(board, card, 'upcoming', today) }}
+        {% else %}<p class="empty">Nothing here.</p>{% endfor %}
+      </div>
     </section>
   </main>
 {% endblock %}

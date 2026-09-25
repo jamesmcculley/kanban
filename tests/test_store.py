@@ -772,42 +772,63 @@ def test_set_starred_missing_card_raises_keyerror(store):
         store.set_starred(b.slug, "nope", True)
 
 
-def test_review_exclusions_round_trip(store):
+def test_set_card_hidden_toggles_and_persists(store, tmp_path):
     b = store.create_board("B")
     card = store.add_card(b.slug, "a", "Todo")
-    assert store.list_review_exclusions() == []
-    entry = store.exclude_from_review(b.slug, card.id, until=None)
-    assert entry == {"board": b.slug, "card": card.id, "until": None}
-    assert store.list_review_exclusions() == [entry]
+    assert card.hidden is False
+    store.set_card_hidden(b.slug, card.id, True)
+    assert store.get_card(b.slug, card.id).hidden is True
+    text = (tmp_path / b.slug / "cards" / f"{card.id}.md").read_text()
+    assert "hidden: true" in text
+    store.set_card_hidden(b.slug, card.id, False)
+    assert store.get_card(b.slug, card.id).hidden is False
 
 
-def test_exclude_from_review_replaces_a_prior_exclusion_for_the_same_card(store):
-    b = store.create_board("B")
-    card = store.add_card(b.slug, "a", "Todo")
-    store.exclude_from_review(b.slug, card.id, until="2026-09-25")
-    store.exclude_from_review(b.slug, card.id, until=None)
-    exclusions = store.list_review_exclusions()
-    assert len(exclusions) == 1
-    assert exclusions[0]["until"] is None
-
-
-def test_exclude_from_review_missing_card_raises_keyerror(store):
+def test_set_card_hidden_missing_card_raises_keyerror(store):
     b = store.create_board("B")
     with pytest.raises(KeyError):
-        store.exclude_from_review(b.slug, "nope", until=None)
+        store.set_card_hidden(b.slug, "nope", True)
 
 
-def test_include_in_review_removes_the_exclusion(store):
+def test_hidden_cards_lists_only_this_boards_hidden_cards(store):
+    b = store.create_board("B")
+    other = store.create_board("Other")
+    shown = store.add_card(b.slug, "shown", "Todo")
+    hidden = store.add_card(b.slug, "hidden", "Todo")
+    store.add_card(other.slug, "elsewhere", "Todo")
+    assert store.hidden_cards(b.slug) == []
+    store.set_card_hidden(b.slug, hidden.id, True)
+    assert [c.id for c in store.hidden_cards(b.slug)] == [hidden.id]
+    assert shown.id not in [c.id for c in store.hidden_cards(b.slug)]
+    assert store.hidden_cards(other.slug) == []
+
+
+def test_hidden_card_left_out_of_view_columns(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "a", "Todo")
-    store.exclude_from_review(b.slug, card.id, until=None)
-    store.include_in_review(card.id)
-    assert store.list_review_exclusions() == []
+    store.set_card_hidden(b.slug, card.id, True)
+    columns, _ = store.view_columns(b.slug)
+    assert card.id not in [c.id for c in columns["Todo"]]
 
 
-def test_include_in_review_on_an_unexcluded_card_is_a_no_op(store):
+def test_hidden_card_left_out_of_scheduled_created_and_search(store):
     b = store.create_board("B")
-    store.create_board("Other")
-    store.add_card(b.slug, "a", "Todo")
-    store.include_in_review("nope")
-    assert store.list_review_exclusions() == []
+    card = store.add_card(b.slug, "findme", "Todo")
+    store.update_card(b.slug, card.id, "findme", "", "2026-09-25")
+    assert card.id in [c.id for _, c in store.scheduled_cards()]
+    assert card.id in [c.id for _, c in store.created_on(card.created[:10])]
+    assert card.id in [c.id for _, c in store.search("findme")]
+
+    store.set_card_hidden(b.slug, card.id, True)
+    assert card.id not in [c.id for _, c in store.scheduled_cards()]
+    assert card.id not in [c.id for _, c in store.created_on(card.created[:10])]
+    assert card.id not in [c.id for _, c in store.search("findme")]
+
+
+def test_hidden_card_completion_drops_out_of_the_logbook(store):
+    b = store.create_board("B")
+    card = store.add_card(b.slug, "done and hidden", "Todo")
+    store.complete_card(b.slug, card.id)
+    assert card.id in [e["card"] for e in store.logbook()]
+    store.set_card_hidden(b.slug, card.id, True)
+    assert card.id not in [e["card"] for e in store.logbook()]

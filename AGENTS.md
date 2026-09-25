@@ -2,13 +2,15 @@
 
 A personal, local-first kanban and task manager: list boards, a flat Tasks-board kind for small
 Things3-style to-dos, tags, labels, priorities, start/due dates and repeats, a per-board filter, a
-Scheduled view and a Logbook (both with a date-range filter and saved filters), a Review mode
-(rolling look-back/look-forward report, starring, per-card exclusion — see ADR 0016), per-board and
-global rules, and twelve colour themes. Flask + htmx, no build step. Cards are Markdown files, so
-the data folder also opens as an Obsidian vault. Runs on the homelab behind Caddy, LAN-only, behind
-a single shared password (`KANBAN_PASSWORD`; see ADR 0005) — localhost deployments never need one.
-Status: in daily use. There is no canvas/freeform board and no Inbox board — both were tried and
-removed; quick capture (`c`) now asks which board, remembered per device.
+Scheduled view and a Logbook (both with a date-range filter and saved filters, and collapsible
+per-day/per-date groups — ADR 0017), a Review mode (rolling look-back/look-forward report,
+starring — see ADR 0016 and its amendment), hide any card from every card-listing view at once,
+revived from its own board's eye menu (ADR 0018), per-board and global rules, and twelve colour
+themes. Flask + htmx, no build step. Cards are Markdown files, so the data folder also opens as an
+Obsidian vault. Runs on the homelab behind Caddy, LAN-only, behind a single shared password
+(`KANBAN_PASSWORD`; see ADR 0005) — localhost deployments never need one. Status: in daily use.
+There is no canvas/freeform board and no Inbox board — both were tried and removed; quick capture
+(`c`) now asks which board, remembered per device.
 
 ## Standards
 
@@ -127,9 +129,12 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     one) made `.eye-menu`, `.eye-row` and `[data-eye-toggle] .icon-badge` match two elements on any
     kanban board page, and existing Playwright locators using those classes unscoped hit strict-mode
     violations. Same shape as trap 9's `.filter-wrap` collision. Fixed by scoping each test's
-    locator to its own panel's container (`.page-head .eye-menu` vs `.side-boards-head .eye-menu`)
-    and giving the sidebar's badge its own class (`.board-hidden-badge`, same CSS rule as
-    `.icon-badge`, just not the same selector) rather than trying to make one class disambiguate.
+    locator to its own panel's container and giving the sidebar's badge its own class
+    (`.board-hidden-badge`, same CSS rule as `.icon-badge`, just not the same selector) rather than
+    trying to make one class disambiguate. A third one landed later (`.card-eye-menu-wrap`, the
+    "Hidden cards" panel next to the existing "Hidden lists" one, ADR 0018) -- same fix, this time
+    with the scoping class added up front instead of found by a broken test after the fact:
+    `.list-eye-menu-wrap .eye-menu` / `.card-eye-menu-wrap .eye-menu`, not `.page-head .eye-menu`.
 18. **A Playwright `get_by_role(name=...)` match is by accessible name, not by page section** --
     adding the sidebar's "Today" nav link gave the page a second thing named "Today" (the
     Scheduled/Logbook date filter already had a "Today" preset chip), and an existing test's

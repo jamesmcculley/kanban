@@ -19,20 +19,29 @@
             hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
   <main class="agenda today-view">
-    <section data-today-section="due">
-      <h2>Due &amp; overdue</h2>
-      {% for board, card in due %}{{ card_row(board, card, today) }}
-      {% else %}<p class="empty">Nothing due or overdue.</p>{% endfor %}
+    <section class="collapsible-section" data-today-section="due" data-collapse-id="today:due">
+      <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse Due &amp; overdue">{{ icon('chevron-down', 14) }}</button>
+        Due &amp; overdue</h2>
+      <div class="collapsible-body">
+        {% for board, card in due %}{{ card_row(board, card, today) }}
+        {% else %}<p class="empty">Nothing due or overdue.</p>{% endfor %}
+      </div>
     </section>
-    <section data-today-section="completed">
-      <h2>Completed today</h2>
-      {% for e in completed %}{{ logbook_row(e, live) }}
-      {% else %}<p class="empty">Nothing completed yet today.</p>{% endfor %}
+    <section class="collapsible-section" data-today-section="completed" data-collapse-id="today:completed">
+      <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse Completed today">{{ icon('chevron-down', 14) }}</button>
+        Completed today</h2>
+      <div class="collapsible-body">
+        {% for e in completed %}{{ logbook_row(e, live) }}
+        {% else %}<p class="empty">Nothing completed yet today.</p>{% endfor %}
+      </div>
     </section>
-    <section data-today-section="created">
-      <h2>Created today</h2>
-      {% for board, card in created %}{{ card_row(board, card, today) }}
-      {% else %}<p class="empty">Nothing added today.</p>{% endfor %}
+    <section class="collapsible-section" data-today-section="created" data-collapse-id="today:created">
+      <h2><button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse Created today">{{ icon('chevron-down', 14) }}</button>
+        Created today</h2>
+      <div class="collapsible-body">
+        {% for board, card in created %}{{ card_row(board, card, today) }}
+        {% else %}<p class="empty">Nothing added today.</p>{% endfor %}
+      </div>
     </section>
   </main>
 {% endblock %}

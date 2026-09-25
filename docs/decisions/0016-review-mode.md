@@ -1,8 +1,15 @@
 # 0016. Review mode: a rolling look-back/look-forward report, starring, and per-card exclusion
 
-- Status: accepted
+- Status: accepted (amended 2026-09-25 -- see below)
 - Date: 2026-09-25
 - Departs from standard: none
+
+> **Amendment, same day:** the per-card exclusion mechanism this ADR describes below ("today" vs.
+> "always," managed from Settings) was replaced by a general `Card.hidden` flag usable from any
+> page, revived from the card's own board -- see ADR 0018. `excluded_ids()`, the
+> `review_exclusions` storage key, and the `/review/exclude`/`/review/include` routes no longer
+> exist. Everything else in this ADR (starring, the free-text day counts, starred-only ignoring
+> the date range) is unchanged.
 
 ## Context
 

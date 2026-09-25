@@ -53,6 +53,7 @@ class Card:
     archived: bool = False  # cleared from its list; still in the Logbook and search
     created: str | None = None  # ISO timestamp, set once by add_card and never touched again
     starred: bool = False  # always surfaced in Review mode, regardless of date range
+    hidden: bool = False  # tucked out of every card-listing view; revived from its board's eye menu
     effects: list[str] = field(default_factory=list, compare=False, repr=False)  # what rules just did (not stored)
     extra: dict = field(default_factory=dict, compare=False, repr=False)  # unknown frontmatter, kept as-is
 
@@ -89,7 +90,8 @@ def _iso(meta: dict, key: str) -> str | None:
 
 
 _CARD_KEYS = {"id", "title", "column", "position", "start", "due", "repeat", "tags", "labels",
-              "priority", "done", "completed", "last_completed", "archived", "created", "starred"}
+              "priority", "done", "completed", "last_completed", "archived", "created", "starred",
+              "hidden"}
 _BOARD_KEYS = {"title", "kind", "columns", "parent", "hidden", "area", "position", "settings", "rules",
                "labels", "archived", "pinned", "created"}
 
@@ -105,6 +107,7 @@ def _card_from(meta: dict, body: str) -> Card:
         archived=bool(meta.get("archived")),
         created=_iso(meta, "created"),
         starred=bool(meta.get("starred")),
+        hidden=bool(meta.get("hidden")),
     )
 
 
@@ -467,6 +470,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             meta["created"] = card.created
         if card.starred:
             meta["starred"] = True
+        if card.hidden:
+            meta["hidden"] = True
         _write(self._card_path(slug, card.id), {**card.extra, **meta}, card.body)
         self._touch_board(slug)  # so "most recently updated" board sort notices card activity too
 
@@ -530,6 +535,21 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         card.starred = starred
         self._save(slug, card)
         return card
+
+    def set_card_hidden(self, slug: str, card_id: str, hidden: bool) -> Card:
+        """Hiding a card tucks it out of every card-listing view (its board, Today, Scheduled,
+        Logbook, Review, Search, Metrics -- see the `not c.hidden`/`not card.hidden` filters
+        throughout this module, preferences.py and logbook.py) without archiving or deleting it.
+        Same shape as hiding a list (Board.hidden): a view-layer concern, revived from the same
+        board's own eye menu, not a per-page setting -- see `hidden_cards()` below."""
+        card = self.get_card(slug, card_id)
+        card.hidden = hidden
+        self._save(slug, card)
+        return card
+
+    def hidden_cards(self, slug: str) -> list[Card]:
+        """This board's hidden cards, for its own "Hidden cards" eye-menu revive panel."""
+        return [c for c in self.list_cards(slug) if c.hidden]
 
     def _set_done(self, slug: str, board: Board, card: Card, now: datetime) -> None:
         stamp = now.isoformat(timespec="minutes")
@@ -643,20 +663,23 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         return origin
 
     def all_cards(self) -> list[tuple[Board, Card]]:
-        """Feeds Scheduled, tag counts and cards-with-tag. Archived boards' cards are left out --
-        an archived board is meant to be out of the way everywhere active, not just the sidebar."""
+        """Feeds Scheduled, tag counts, cards-with-tag and the Search/Review fallbacks below.
+        Archived boards' cards are left out -- an archived board is meant to be out of the way
+        everywhere active, not just the sidebar. Deliberately NOT filtered by card.hidden -- a raw
+        feed, same as list_cards; each caller below that's a real view filters hidden explicitly
+        (logbook() needs the raw list too, to know which already-logged completions to hide)."""
         return [(b, c) for b in self.list_boards() if b.kind in ("kanban", "tasks") and not b.archived
                 for c in self.list_cards(b.slug)]
 
     def cards_with_tag(self, tag: str) -> list[tuple[Board, Card]]:
         """Open cards first, then completed ones."""
-        hits = [(b, c) for b, c in self.all_cards() if tag in c.tags]
+        hits = [(b, c) for b, c in self.all_cards() if tag in c.tags and not c.hidden]
         return sorted(hits, key=lambda bc: bc[1].done)
 
     def tag_counts(self) -> list[tuple[str, int]]:
         """Tags on open cards outside hidden lists, alphabetical."""
         counts = Counter(t for b, c in self.all_cards()
-                         if not c.done and c.column not in b.hidden for t in c.tags)
+                         if not c.done and not c.hidden and c.column not in b.hidden for t in c.tags)
         return sorted(counts.items())
 
     def scheduled_cards(self, date_from: str | None = None,
@@ -665,11 +688,11 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
 
         A card's position in this list is decided by `effective_date` (its due date, or its start
         date if it has no due date). `date_from`/`date_to` (inclusive ISO dates) narrow the range;
-        leave either blank for an open end. Cards in hidden lists are left out: hiding a list means
-        "not now".
+        leave either blank for an open end. Cards in hidden lists, or hidden themselves, are left
+        out: hiding a list means "not now"; hiding a card means "not anywhere".
         """
         found = [(b, c) for b, c in self.all_cards()
-                 if effective_date(c) and not c.done and c.column not in b.hidden]
+                 if effective_date(c) and not c.done and not c.hidden and c.column not in b.hidden]
         if date_from:
             found = [(b, c) for b, c in found if effective_date(c) >= date_from]
         if date_to:
@@ -680,12 +703,14 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         """Every card first created on this ISO date, across all boards, newest first. Cards from
         before `created` existed (frontmatter has no `created` key) never match any date -- there's
         no way to know when they were made, and it's certainly not "today" for a card that old."""
-        found = [(b, c) for b, c in self.all_cards() if c.created and c.created[:10] == day]
+        found = [(b, c) for b, c in self.all_cards() if c.created and c.created[:10] == day and not c.hidden]
         return sorted(found, key=lambda bc: bc[1].created, reverse=True)
 
     def search(self, query: str) -> list[tuple[Board, Card]]:
         """Cards whose title, notes or board name contain every word of the query. Archived boards
-        are left out, same as everywhere else active -- see all_cards."""
+        are left out, same as everywhere else active -- see all_cards. Hidden cards are left out too
+        (see set_card_hidden) -- a search that could still surface a card you'd hidden would make
+        hiding it pointless."""
         terms = query.lower().split()
         if not terms:
             return []
@@ -694,6 +719,8 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
             if b.archived:
                 continue
             for c in self.list_cards(b.slug):
+                if c.hidden:
+                    continue
                 hay = f"{c.title}\n{c.body}\n{b.title}\n{' '.join('#' + t for t in c.tags)}".lower()
                 if all(t in hay for t in terms):
                     hits.append((b, c))
@@ -925,33 +952,6 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         searches.remove(entry)
         self._store_searches(searches)
         return entry
-
-    # -- Review mode: which cards to leave out of the report, and for how long -------------------
-
-    def list_review_exclusions(self) -> list[dict]:
-        """Each entry: {board, card, until}. `until=None` means excluded from every report;
-        `until="YYYY-MM-DD"` means excluded only from a report generated that day -- see
-        review.py's `excluded_ids`, which is what actually decides who this affects."""
-        return [e for e in (self._meta().get("review_exclusions") or [])
-                if isinstance(e, dict) and e.get("board") and e.get("card")]
-
-    def _store_review_exclusions(self, exclusions: list[dict]) -> None:
-        meta = self._meta()
-        meta["review_exclusions"] = exclusions
-        self._write_meta(meta)
-
-    def exclude_from_review(self, slug: str, card_id: str, until: str | None) -> dict:
-        self.get_card(slug, card_id)  # KeyError if it doesn't exist -- nothing to exclude
-        exclusions = [e for e in self.list_review_exclusions() if e["card"] != card_id]
-        entry = {"board": slug, "card": card_id, "until": until}
-        exclusions.append(entry)
-        self._store_review_exclusions(exclusions)
-        return entry
-
-    def include_in_review(self, card_id: str) -> None:
-        """Remove any exclusion for this card, "today"-scoped or permanent alike."""
-        exclusions = [e for e in self.list_review_exclusions() if e["card"] != card_id]
-        self._store_review_exclusions(exclusions)
 
     def rename_board(self, slug: str, title: str) -> None:
         board = self.get_board(slug)

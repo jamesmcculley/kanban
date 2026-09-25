@@ -35,10 +35,14 @@ directory can also be opened as an Obsidian vault.
 - **Review mode**: a quick "what did I do / what am I doing" report — completed in the last N
   days, due or upcoming in the next N days (both free text, adjustable on the page, 0 means "show
   nothing that direction"); **star** a card (from its edit dialog or a Review row) to always
-  highlight it, and **exclude** a card from the report "just today" or "always" when it's not
-  worth mentioning; check **"only starred items"** to ignore the date range entirely and see every
-  starred card ever — built for an annual review. Completed/Upcoming sections can each be hidden
-  from the page itself, and permanently-excluded items can be brought back from Settings
+  highlight it; check **"only starred items"** to ignore the date range entirely and see every
+  starred card ever — built for an annual review
+- **Hide any card** from every card-listing view at once (a board, Today, Scheduled, Logbook,
+  Review, Search, Metrics) without archiving or deleting it — a quick button on the card itself,
+  wherever it's shown; revived from a "Hidden cards" eye icon on its own board or task list, same
+  as reviving a hidden list
+- **Collapsible sections** on Today, Scheduled, Logbook and Review — fold any section or per-day
+  group out of the way with the chevron on its heading; remembered per device
 - **Export to CSV** — completed activity from Metrics or the Logbook; real cards from any board,
   Scheduled or Today — each a pop-out for granular options (text, tags, priority, board/list,
   Today's sections), not just everything in one shot. A board's export is the same shape CSV

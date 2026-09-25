@@ -280,6 +280,33 @@ window.ReviewSections = (() => {
   return { get, set };
 })();
 
+// Collapsible sections on Today/Scheduled/Logbook/Review: unlike the section-*visibility* toggles
+// above (a small fixed set of keys, so a data-attribute + static CSS rule works), a section's id
+// here can be an arbitrary date ("scheduled:2026-09-25") -- no way to write that rule ahead of
+// time, so this follows HiddenBoards' pattern instead: one generated <style> tag, rewritten on
+// every change, rules keyed by the id itself. Collapsed state persists (one JSON array, not one
+// key per page) because folding "Created today" away once is a real, lasting preference, same as
+// every other view toggle in this app -- not a same-session-only thing like bulk-select.
+window.CollapsedSections = (() => {
+  const get = () => { try { return JSON.parse(localStorage.getItem('collapsed-sections') || '[]'); } catch { return []; } };
+  function render(ids) {
+    let style = document.getElementById('collapsed-sections-css');
+    if (!style) { style = document.createElement('style'); style.id = 'collapsed-sections-css'; document.head.appendChild(style); }
+    style.textContent = ids.filter(id => /^[a-z0-9_-]+:[a-z0-9_-]+$/i.test(id)).map(id =>
+      `[data-collapse-id="${id}"] .collapsible-body{display:none}[data-collapse-id="${id}"] .collapse-btn{transform:rotate(-90deg)}`
+    ).join('');
+  }
+  function set(id, collapsed) {
+    const list = get();
+    const i = list.indexOf(id);
+    if (collapsed && i === -1) list.push(id);
+    else if (!collapsed && i !== -1) list.splice(i, 1);
+    try { localStorage.setItem('collapsed-sections', JSON.stringify(list)); } catch { /* ignore */ }
+    render(list);
+  }
+  return { get, set, render };
+})();
+
 // Today's filter icon: reveal/hide its section-checklist panel, and close on an outside click --
 // its own class (.today-filter-wrap), not .filter-wrap or .date-filter-wrap, so it can never be
 // picked up by filter.js's or the date-filter's own lookups (see AGENTS.md trap 9).
@@ -317,5 +344,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.review-section-check').forEach(cb => {
     cb.checked = !hiddenReview[cb.dataset.section];
     cb.addEventListener('change', () => window.ReviewSections.set(cb.dataset.section, !cb.checked));
+  });
+  // aria-expanded can't be set pre-paint (the elements don't exist yet in <head>) -- the generated
+  // stylesheet already hid the right ones before first paint, this just catches up the a11y state.
+  const collapsed = new Set(window.CollapsedSections.get());
+  document.querySelectorAll('.collapsible-section[data-collapse-id]').forEach(section => {
+    const btn = section.querySelector('.collapse-btn');
+    if (btn) btn.setAttribute('aria-expanded', String(!collapsed.has(section.dataset.collapseId)));
   });
 });

@@ -207,6 +207,45 @@
     btn.setAttribute('aria-pressed', String(data.starred));
   });
 
+  // -- Hide a card: its own quick button, wherever a card is shown (a board, Today, Scheduled,
+  // Logbook, Review) -- same shape as hiding a list or a board, just per-card. Revive it from the
+  // "Hidden cards" eye menu on its own board (below), not here -- one-directional, like the ×
+  // delete button right next to it on a board card.
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.card-hide-btn');
+    if (!btn) return;
+    const r = await fetch(btn.dataset.hideUrl, { method: 'POST', body: new URLSearchParams({ hidden: '1' }) });
+    if (!r.ok) return window.toast('Could not hide that card');
+    btn.closest('.card, .row')?.remove();
+    window.toast('Hidden — revive it from this board’s eye icon');
+  });
+
+  // -- Revive a hidden card, from its own board's "Hidden cards" eye menu (_board_title.html) --
+  // a plain reload, same as the list-hide eye menu's .eye-check handler above: simplest correct
+  // way to bring the card back into whatever column/section it belongs in.
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.card-reveal-btn');
+    if (!btn) return;
+    fetch(btn.dataset.url, { method: 'POST', body: new URLSearchParams({ hidden: '0' }) })
+      .then(() => location.reload());
+  });
+
+  // -- Collapsible sections: Today/Scheduled/Logbook/Review's own headings fold their content in
+  // place. `data-collapse-id` is "<page>:<section>" (a fixed key on Today/Review's own 2-3
+  // sections, a date on Scheduled/Logbook's per-day groups) -- window.CollapsedSections
+  // (sidebar.js) owns the one localStorage list and the generated stylesheet that actually hides
+  // things, both here and pre-paint (_theme_boot.html), so toggling here only needs to flip one
+  // id in that list and let render() rewrite the stylesheet.
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.collapse-btn');
+    if (!btn) return;
+    const section = btn.closest('.collapsible-section');
+    if (!section) return;
+    const collapsed = btn.getAttribute('aria-expanded') !== 'false';
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    window.CollapsedSections.set(section.dataset.collapseId, collapsed);
+  });
+
   // -- "Move to": any card, to any list on any board, from the edit dialog --------------------
   document.addEventListener('click', async e => {
     const btn = e.target.closest('.move-btn');

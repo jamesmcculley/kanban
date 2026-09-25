@@ -11,10 +11,15 @@
   </header>
   <main class="agenda">
     {% for due, items in groups.items() %}
-      <h2 class="{% if due < today %}overdue{% endif %}">
-        {% if due < today %}Overdue · {% elif due == today %}Today · {% endif %}{{ due }}
-      </h2>
-      {% for board, card in items %}{{ card_row(board, card) }}{% endfor %}
+      <section class="collapsible-section" data-collapse-id="scheduled:{{ due }}">
+        <h2 class="{% if due < today %}overdue{% endif %}">
+          <button type="button" class="collapse-btn" aria-expanded="true" aria-label="Collapse {{ due }}">{{ icon('chevron-down', 14) }}</button>
+          {% if due < today %}Overdue · {% elif due == today %}Today · {% endif %}{{ due }}
+        </h2>
+        <div class="collapsible-body">
+          {% for board, card in items %}{{ card_row(board, card) }}{% endfor %}
+        </div>
+      </section>
     {% else %}
       <p class="empty">{% if date_from or date_to %}Nothing scheduled in this range.{% else %}Nothing scheduled. Add a due or start date to a card and it shows up here.{% endif %}</p>
     {% endfor %}

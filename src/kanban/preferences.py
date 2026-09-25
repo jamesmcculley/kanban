@@ -174,8 +174,11 @@ class PreferencesMixin:
     # -- what a board shows ----------------------------------------------------------
 
     def view_columns(self, slug: str, now: datetime | None = None) -> tuple[dict[str, list], int]:
-        """The lists as the board page shows them, honouring hide-completed settings.
-        Returns (columns, how many completed cards are hidden). Never writes: hiding is a view."""
+        """The lists as the board page shows them, honouring hide-completed settings and each
+        card's own hidden flag (set_card_hidden -- a card hidden this way is left out of every
+        card-listing view, not just this one; see that method's docstring). Returns (columns, how
+        many *completed* cards are hidden -- individually hidden cards aren't counted here, they
+        get their own badge from Store.hidden_cards). Never writes: hiding is a view."""
         settings = self.settings_for(slug)
         columns = self.cards_by_column(slug)
         days = settings["auto_hide_done_days"]
@@ -184,6 +187,8 @@ class PreferencesMixin:
         for name, cards in columns.items():
             keep = []
             for card in cards:
+                if card.hidden:
+                    continue
                 old = cutoff and card.completed and card.completed[:10] < cutoff
                 if card.done and (settings["hide_done"] or old):
                     hidden += 1
