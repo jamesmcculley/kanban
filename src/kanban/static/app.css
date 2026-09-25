@@ -540,7 +540,13 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
                               background:var(--bg); color:var(--text-primary); }
 .filter-group { display:flex; flex-direction:column; gap:5px; max-height:160px; overflow:auto; }
 .filter-check { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:2px 0; }
-.filter-check input { flex:none; }
+/* Inside a .dialog (the export dialogs, the only place .filter-check's own checkboxes actually
+   sit -- the board's own tags/priority filter panel isn't a .dialog), ".dialog input { width:
+   100% }" reaches this checkbox too, same specificity as flex:none alone, and nothing here undid
+   it: the checkbox stretched to the label's full width, leaving the text after it nowhere to
+   render -- present in the DOM (and the accessible name) the whole time, just invisible. Same fix
+   .label-check already had for the identical bug; missing here only because it was added later. */
+.filter-check input { flex:none; width:auto; }
 .filter-status { margin:0; font-size:12px; min-height:1em; }
 .card.filter-hidden { display:none; }
 .filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active, .search-filter-wrap .icon-btn.active,

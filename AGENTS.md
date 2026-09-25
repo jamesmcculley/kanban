@@ -210,6 +210,19 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     in sync with its badge, just server-rendered content being patched instead of a generated
     stylesheet. Any future "remove a row live, no reload" action needs the same check: is there
     another on-page summary of that same set that was only ever rendered once?
+26. **`.dialog input, textarea { width: 100% }` reaches every checkbox inside a `.dialog` too**,
+    not just text inputs -- nothing about the selector excludes `type=checkbox`. A checkbox that
+    doesn't separately reset its own width stretches to the *label's* full width (its containing
+    block, since it's a flex item with `flex-basis: auto`), leaving zero space for the label text
+    after it to render -- present in the DOM and the accessible name the whole time (confirmed via
+    `getComputedStyle`, not guessed), just invisible, so it doesn't announce itself as a layout
+    bug the way a missing element would. `.label-check` already had the fix (`width: auto`) for
+    exactly this; `.filter-check` didn't, because it was added later and the fix wasn't carried
+    over. Found opening the Review export dialog for the first time (its "Sections"/"Boards"/
+    "Priority" checkboxes all looked unlabeled) -- and it turned out to be old, affecting Today's
+    identical dialog too, just never opened closely enough to notice. Any new checkbox added
+    inside a `.dialog` needs its own `width: auto` (or reuse `.label-check`/`.filter-check`, both
+    fixed now) -- the bug is invisible until you actually look at that specific dialog.
 
 ## Log
 
