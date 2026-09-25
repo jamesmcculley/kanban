@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
-{% from "_standup_row.html" import standup_row %}
-{% block title %}Standup{% endblock %}
+{% from "_review_row.html" import review_row %}
+{% block title %}Review{% endblock %}
 {% block content %}
-  <header class="page-head"><h1 data-page="standup">Standup</h1>
-    <div class="standup-filter-wrap">
-      <button type="button" class="icon-btn{{ ' active' if starred_only }}" data-standup-filter-toggle
-              aria-label="Standup report options" title="Standup report options">{{ icon('filter', 15) }}</button>
-      <div class="standup-filter-panel filter-panel" hidden>
-        <form method="get" action="{{ url_for('boards.standup') }}">
-          <label class="standup-days">Look back
+  <header class="page-head"><h1 data-page="review">Review</h1>
+    <div class="review-filter-wrap">
+      <button type="button" class="icon-btn{{ ' active' if starred_only }}" data-review-filter-toggle
+              aria-label="Review report options" title="Review report options">{{ icon('filter', 15) }}</button>
+      <div class="review-filter-panel filter-panel" hidden>
+        <form method="get" action="{{ url_for('boards.review') }}">
+          <label class="review-days">Look back
             <input type="text" inputmode="numeric" name="back" value="{{ back }}" aria-label="Look back, in days"> days</label>
-          <label class="standup-days">Look forward
+          <label class="review-days">Look forward
             <input type="text" inputmode="numeric" name="forward" value="{{ forward }}" aria-label="Look forward, in days"> days</label>
           <p class="muted">0 shows nothing that direction. Free text, so 999 works too.</p>
           <label class="filter-check">
@@ -20,24 +20,24 @@
           </label>
           <div class="actions"><button type="submit" class="primary">Apply</button></div>
         </form>
-        <fieldset class="standup-sections">
+        <fieldset class="review-sections">
           <legend>Show on this page</legend>
-          <label><input type="checkbox" class="standup-section-check" data-section="completed" checked> Completed</label>
-          <label><input type="checkbox" class="standup-section-check" data-section="upcoming" checked> Upcoming</label>
+          <label><input type="checkbox" class="review-section-check" data-section="completed" checked> Completed</label>
+          <label><input type="checkbox" class="review-section-check" data-section="upcoming" checked> Upcoming</label>
         </fieldset>
       </div>
     </div>
   </header>
-  <main class="standup agenda">
+  <main class="review agenda">
     {% if starred_only %}<p class="muted">Showing every starred item, regardless of date.</p>{% endif %}
-    <section data-standup-section="completed">
+    <section data-review-section="completed">
       <h2>Completed{% if not starred_only %} — last {{ back }} day{{ 's' if back != 1 }}{% endif %}</h2>
-      {% for board, card in completed %}{{ standup_row(board, card, 'completed', today) }}
+      {% for board, card in completed %}{{ review_row(board, card, 'completed', today) }}
       {% else %}<p class="empty">Nothing here.</p>{% endfor %}
     </section>
-    <section data-standup-section="upcoming">
+    <section data-review-section="upcoming">
       <h2>Upcoming{% if not starred_only %} — next {{ forward }} day{{ 's' if forward != 1 }}{% endif %}</h2>
-      {% for board, card in upcoming %}{{ standup_row(board, card, 'upcoming', today) }}
+      {% for board, card in upcoming %}{{ review_row(board, card, 'upcoming', today) }}
       {% else %}<p class="empty">Nothing here.</p>{% endfor %}
     </section>
   </main>

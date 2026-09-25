@@ -55,7 +55,7 @@
         <label><input type="checkbox" name="sidebar-show" value="today"> Today</label>
         <label><input type="checkbox" name="sidebar-show" value="scheduled"> Scheduled</label>
         <label><input type="checkbox" name="sidebar-show" value="logbook"> Logbook</label>
-        <label><input type="checkbox" name="sidebar-show" value="standup"> Standup</label>
+        <label><input type="checkbox" name="sidebar-show" value="review"> Review</label>
         <label><input type="checkbox" name="sidebar-show" value="searches"> Saved searches</label>
         <label><input type="checkbox" name="sidebar-show" value="boards"> Boards</label>
         <label><input type="checkbox" name="sidebar-show" value="tags"> Tags</label>
@@ -134,26 +134,26 @@
         <label><input type="checkbox" name="page-title-show" value="today"> Today</label>
         <label><input type="checkbox" name="page-title-show" value="scheduled"> Scheduled</label>
         <label><input type="checkbox" name="page-title-show" value="logbook"> Logbook</label>
-        <label><input type="checkbox" name="page-title-show" value="standup"> Standup</label>
+        <label><input type="checkbox" name="page-title-show" value="review"> Review</label>
       </fieldset>
       <p class="muted">Just the page heading itself -- everything below it stays.</p>
     </section>
 
-    <section class="card-section" aria-labelledby="standup-excl-h">
-      <h2 id="standup-excl-h">Excluded from Standup <span class="muted">shared by everyone on this instance</span></h2>
-      {% if standup_exclusions %}
+    <section class="card-section" aria-labelledby="review-excl-h">
+      <h2 id="review-excl-h">Excluded from Review <span class="muted">shared by everyone on this instance</span></h2>
+      {% if review_exclusions %}
       <div class="saved-search-list">
-        {% for e in standup_exclusions %}
+        {% for e in review_exclusions %}
         <div class="saved-search-row">
           <span>{{ e.title }} <span class="muted">— {{ e.board_title }}</span></span>
           <span class="muted">{{ 'today only' if e.until else 'always' }}</span>
-          <button type="button" class="link-btn" data-post="{{ url_for('boards.include_in_standup') }}"
+          <button type="button" class="link-btn" data-post="{{ url_for('boards.include_in_review') }}"
                   data-vals='{{ {"card": e.card}|tojson }}' data-after="reload">Include again</button>
         </div>
         {% endfor %}
       </div>
       {% else %}
-      <p class="muted">Nothing excluded — items excluded "today" or "always" from the Standup report show up here.</p>
+      <p class="muted">Nothing excluded — items excluded "today" or "always" from the Review report show up here.</p>
       {% endif %}
     </section>
 

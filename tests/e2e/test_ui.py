@@ -1654,7 +1654,7 @@ def test_x_button_closes_settings_back_to_where_you_were(page):
     expect(page.locator(".card", has_text="marker card")).to_be_visible()  # back on the board
 
 
-def test_standup_mode_star_exclude_and_filter(page):
+def test_review_mode_star_exclude_and_filter(page):
     add_card(page, "Todo", "do the thing")
     page.locator(".card", has_text="do the thing").locator(".title").click()
     page.fill(".dialog input[name=due]", "tomorrow")
@@ -1669,36 +1669,36 @@ def test_standup_mode_star_exclude_and_filter(page):
     page.click(".dialog button[type=submit]")
     expect(page.locator("#modal .backdrop")).to_have_count(0)
 
-    page.click('.sidebar [data-go="u"]')
-    page.wait_for_url("**/standup")
-    expect(page.locator('h1[data-page="standup"]')).to_be_visible()
-    created = page.locator('[data-standup-section="upcoming"]')
+    page.click('.sidebar [data-go="r"]')
+    page.wait_for_url("**/review")
+    expect(page.locator('h1[data-page="review"]')).to_be_visible()
+    created = page.locator('[data-review-section="upcoming"]')
     expect(created).to_contain_text("do the thing")
     expect(created).to_contain_text("leave this alone")
 
-    # starring reflected on the Standup row itself too
-    row = page.locator('[data-standup-section="upcoming"] .row', has_text="do the thing")
+    # starring reflected on the Review row itself too
+    row = page.locator('[data-review-section="upcoming"] .row', has_text="do the thing")
     expect(row.locator(".star-btn")).to_have_attribute("aria-pressed", "true")
 
     # only-starred filter narrows to just the starred card
-    page.get_by_role("button", name="Standup report options").click()
-    panel = page.locator(".standup-filter-panel")
+    page.get_by_role("button", name="Review report options").click()
+    panel = page.locator(".review-filter-panel")
     expect(panel).to_be_visible()
     panel.locator('input[name="starred"]').check()
     panel.get_by_role("button", name="Apply").click()
     page.wait_for_url("**starred=1**")
-    expect(page.locator('[data-standup-section="upcoming"]')).to_contain_text("do the thing")
-    expect(page.locator('[data-standup-section="upcoming"]')).not_to_contain_text("leave this alone")
+    expect(page.locator('[data-review-section="upcoming"]')).to_contain_text("do the thing")
+    expect(page.locator('[data-review-section="upcoming"]')).not_to_contain_text("leave this alone")
 
     # back to the normal view, exclude the other card "just today" and watch it disappear live
-    page.goto(page.base + "/standup")
-    row = page.locator('[data-standup-section="upcoming"] .row', has_text="leave this alone")
+    page.goto(page.base + "/review")
+    row = page.locator('[data-review-section="upcoming"] .row', has_text="leave this alone")
     row.get_by_role("button", name="Exclude “leave this alone” from the report").click()
     row.get_by_role("button", name="Just today").click()
-    expect(page.locator('[data-standup-section="upcoming"] .row', has_text="leave this alone")).to_have_count(0)
+    expect(page.locator('[data-review-section="upcoming"] .row', has_text="leave this alone")).to_have_count(0)
     page.reload()
     page.wait_for_load_state()
-    expect(page.locator('[data-standup-section="upcoming"]')).not_to_contain_text("leave this alone")
+    expect(page.locator('[data-review-section="upcoming"]')).not_to_contain_text("leave this alone")
 
     # excluded item shows up in Settings, and "Include again" brings it back
     page.get_by_role("link", name="Settings", exact=True).click()
@@ -1706,25 +1706,25 @@ def test_standup_mode_star_exclude_and_filter(page):
     expect(page.locator(".saved-search-row", has_text="leave this alone")).to_contain_text("today only")
     with page.expect_navigation():
         page.locator(".saved-search-row", has_text="leave this alone").get_by_role("button", name="Include again").click()
-    page.goto(page.base + "/standup")
-    expect(page.locator('[data-standup-section="upcoming"]')).to_contain_text("leave this alone")
+    page.goto(page.base + "/review")
+    expect(page.locator('[data-review-section="upcoming"]')).to_contain_text("leave this alone")
 
 
-def test_standup_section_visibility_toggle_persists(page):
+def test_review_section_visibility_toggle_persists(page):
     add_card(page, "Todo", "show me")
     page.locator(".card", has_text="show me").locator(".title").click()
     page.fill(".dialog input[name=due]", "tomorrow")
     page.click(".dialog button[type=submit]")
     expect(page.locator("#modal .backdrop")).to_have_count(0)
 
-    page.click('.sidebar [data-go="u"]')
-    page.wait_for_url("**/standup")
-    upcoming = page.locator('[data-standup-section="upcoming"]')
+    page.click('.sidebar [data-go="r"]')
+    page.wait_for_url("**/review")
+    upcoming = page.locator('[data-review-section="upcoming"]')
     expect(upcoming).to_be_visible()
 
-    page.get_by_role("button", name="Standup report options").click()
-    panel = page.locator(".standup-filter-panel")
-    panel.locator('.standup-section-check[data-section="upcoming"]').uncheck()
+    page.get_by_role("button", name="Review report options").click()
+    panel = page.locator(".review-filter-panel")
+    panel.locator('.review-section-check[data-section="upcoming"]').uncheck()
     expect(upcoming).to_be_hidden()                                    # live, no reload
 
     page.reload()

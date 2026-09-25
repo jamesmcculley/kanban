@@ -18,10 +18,10 @@ from flask import (
 from . import csvimport, notes
 from . import labels as L
 from . import metrics as M
+from . import review as RV
 from . import rules as R
 from . import search as SR
 from . import settings as S
-from . import standup as ST
 from .dates import first_due, parse_due, parse_iso_range, parse_repeat, split_due, split_repeat
 from .store import PRIORITIES, TASKS_COLUMN, effective_date
 from .tags import parse_tags, split_tags
@@ -299,7 +299,7 @@ def duplicate_card(slug, card_id):
 
 @bp.post("/b/<slug>/cards/<card_id>/star")
 def toggle_star(slug, card_id):
-    """Reachable from the card-edit dialog (anywhere) and from a row in Standup mode itself."""
+    """Reachable from the card-edit dialog (anywhere) and from a row in Review mode itself."""
     try:
         card = store().get_card(slug, card_id)
         card = store().set_starred(slug, card_id, not card.starred)
@@ -670,18 +670,18 @@ def today_export():
     return resp
 
 
-@bp.get("/standup")
-def standup():
+@bp.get("/review")
+def review():
     """A quick "what did I do / what am I doing" report: completed in the last `back` days,
     due-or-overdue within the next `forward` days -- or, with `starred=1`, every starred card ever
     (completed and open), ignoring both day counts entirely (built for an annual review, not a
     weekly one). Both counts are free text, not a dropdown -- 0 is a real answer ("nothing that
     direction"), so only a missing/unparseable value falls back to the 7-day default."""
     today = date.today()
-    back = ST.clamp_days(request.args["back"], 7) if "back" in request.args else 7
-    forward = ST.clamp_days(request.args["forward"], 7) if "forward" in request.args else 7
+    back = RV.clamp_days(request.args["back"], 7) if "back" in request.args else 7
+    forward = RV.clamp_days(request.args["forward"], 7) if "forward" in request.args else 7
     starred_only = bool(request.args.get("starred"))
-    excluded = ST.excluded_ids(store().list_standup_exclusions(), today.isoformat())
+    excluded = RV.excluded_ids(store().list_review_exclusions(), today.isoformat())
 
     if starred_only:
         starred = [(b, c) for b, c in store().all_cards() if c.starred and c.id not in excluded]
@@ -701,24 +701,24 @@ def standup():
     completed.sort(key=lambda bc: bc[1].completed or "", reverse=True)
     upcoming.sort(key=lambda bc: effective_date(bc[1]) or "9999-12-31")
 
-    return render_template("standup.html", completed=completed, upcoming=upcoming, back=back,
+    return render_template("review.html", completed=completed, upcoming=upcoming, back=back,
                            forward=forward, starred_only=starred_only, today=today.isoformat())
 
 
-@bp.post("/standup/exclude")
-def exclude_from_standup():
+@bp.post("/review/exclude")
+def exclude_from_review():
     slug, card_id = request.form.get("board", ""), request.form.get("card", "")
     until = date.today().isoformat() if request.form.get("scope") == "today" else None
     try:
-        store().exclude_from_standup(slug, card_id, until)
+        store().exclude_from_review(slug, card_id, until)
     except KeyError:
         abort(404)
     return "", 204
 
 
-@bp.post("/standup/include")
-def include_in_standup():
-    store().include_in_standup(request.form.get("card", ""))
+@bp.post("/review/include")
+def include_in_review():
+    store().include_in_review(request.form.get("card", ""))
     return "", 204
 
 
@@ -1106,11 +1106,11 @@ def _rules_context(scope, lists):
             "lists": lists, "all_lists": every_list, "triggers": R.TRIGGERS, "actions": R.ACTIONS}
 
 
-def _resolved_standup_exclusions():
+def _resolved_review_exclusions():
     """Each stored exclusion, plus the card/board titles to actually show someone -- skipping any
     whose board or card is gone since (nothing left to manage there)."""
     resolved = []
-    for e in store().list_standup_exclusions():
+    for e in store().list_review_exclusions():
         try:
             board = store().get_board(e["board"])
             card = store().get_card(e["board"], e["card"])
@@ -1126,7 +1126,7 @@ def settings():
     searches = [{**s, "url": _search_run_url(s)} for s in store().list_searches()]
     return render_template("settings.html", themes=theme_cards(), text_sizes=TEXT_SIZES, gs=gs,
                            resolved=S.resolve(gs), searches=searches,
-                           standup_exclusions=_resolved_standup_exclusions(), **_rules_context(None, None))
+                           review_exclusions=_resolved_review_exclusions(), **_rules_context(None, None))
 
 
 @bp.post("/settings")

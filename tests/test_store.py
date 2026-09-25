@@ -772,42 +772,42 @@ def test_set_starred_missing_card_raises_keyerror(store):
         store.set_starred(b.slug, "nope", True)
 
 
-def test_standup_exclusions_round_trip(store):
+def test_review_exclusions_round_trip(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "a", "Todo")
-    assert store.list_standup_exclusions() == []
-    entry = store.exclude_from_standup(b.slug, card.id, until=None)
+    assert store.list_review_exclusions() == []
+    entry = store.exclude_from_review(b.slug, card.id, until=None)
     assert entry == {"board": b.slug, "card": card.id, "until": None}
-    assert store.list_standup_exclusions() == [entry]
+    assert store.list_review_exclusions() == [entry]
 
 
-def test_exclude_from_standup_replaces_a_prior_exclusion_for_the_same_card(store):
+def test_exclude_from_review_replaces_a_prior_exclusion_for_the_same_card(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "a", "Todo")
-    store.exclude_from_standup(b.slug, card.id, until="2026-09-25")
-    store.exclude_from_standup(b.slug, card.id, until=None)
-    exclusions = store.list_standup_exclusions()
+    store.exclude_from_review(b.slug, card.id, until="2026-09-25")
+    store.exclude_from_review(b.slug, card.id, until=None)
+    exclusions = store.list_review_exclusions()
     assert len(exclusions) == 1
     assert exclusions[0]["until"] is None
 
 
-def test_exclude_from_standup_missing_card_raises_keyerror(store):
+def test_exclude_from_review_missing_card_raises_keyerror(store):
     b = store.create_board("B")
     with pytest.raises(KeyError):
-        store.exclude_from_standup(b.slug, "nope", until=None)
+        store.exclude_from_review(b.slug, "nope", until=None)
 
 
-def test_include_in_standup_removes_the_exclusion(store):
+def test_include_in_review_removes_the_exclusion(store):
     b = store.create_board("B")
     card = store.add_card(b.slug, "a", "Todo")
-    store.exclude_from_standup(b.slug, card.id, until=None)
-    store.include_in_standup(card.id)
-    assert store.list_standup_exclusions() == []
+    store.exclude_from_review(b.slug, card.id, until=None)
+    store.include_in_review(card.id)
+    assert store.list_review_exclusions() == []
 
 
-def test_include_in_standup_on_an_unexcluded_card_is_a_no_op(store):
+def test_include_in_review_on_an_unexcluded_card_is_a_no_op(store):
     b = store.create_board("B")
     store.create_board("Other")
     store.add_card(b.slug, "a", "Todo")
-    store.include_in_standup("nope")
-    assert store.list_standup_exclusions() == []
+    store.include_in_review("nope")
+    assert store.list_review_exclusions() == []

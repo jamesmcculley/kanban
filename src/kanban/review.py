@@ -1,4 +1,4 @@
-"""Pure logic for Standup mode: which cards a "today" or permanent exclusion actually hides right
+"""Pure logic for Review mode: which cards a "today" or permanent exclusion actually hides right
 now, and clamping the free-text look-back/look-forward day counts. No I/O, no Flask.
 """
 

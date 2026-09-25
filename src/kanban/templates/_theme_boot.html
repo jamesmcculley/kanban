@@ -22,9 +22,9 @@
     var todayHide = JSON.parse(localStorage.getItem('today-hide') || '{}');
     var hiddenToday = Object.keys(todayHide).filter(function (k) { return todayHide[k]; });
     if (hiddenToday.length) document.documentElement.setAttribute('data-today-hide', hiddenToday.join(' '));
-    var standupHide = JSON.parse(localStorage.getItem('standup-hide') || '{}');
-    var hiddenStandup = Object.keys(standupHide).filter(function (k) { return standupHide[k]; });
-    if (hiddenStandup.length) document.documentElement.setAttribute('data-standup-hide', hiddenStandup.join(' '));
+    var reviewHide = JSON.parse(localStorage.getItem('review-hide') || '{}');
+    var hiddenReview = Object.keys(reviewHide).filter(function (k) { return reviewHide[k]; });
+    if (hiddenReview.length) document.documentElement.setAttribute('data-review-hide', hiddenReview.join(' '));
     // Hiding individual boards (not a whole section) can't use the data-attribute trick above --
     // there's no bounded set of CSS selectors for arbitrary slugs, unlike section visibility's
     // fixed small set of keys. Instead, a <style> tag with one rule per hidden slug, id'd so

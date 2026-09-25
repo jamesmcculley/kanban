@@ -62,7 +62,7 @@
               data-dup-url="{{ url_for('boards.duplicate_card', slug=board.slug, card_id=card.id) }}">{{ icon('copy', 14) }} Duplicate</button>
       <button type="button" class="star-btn{{ ' starred' if card.starred }}" aria-pressed="{{ 'true' if card.starred else 'false' }}"
               data-star-url="{{ url_for('boards.toggle_star', slug=board.slug, card_id=card.id) }}"
-              title="Star this card for Standup mode" aria-label="Star this card for Standup mode">{{ icon('star', 16) }}</button>
+              title="Star this card for Review mode" aria-label="Star this card for Review mode">{{ icon('star', 16) }}</button>
     </div>
     {% if card.done and not card.repeat %}
     <div class="completed-at-row">

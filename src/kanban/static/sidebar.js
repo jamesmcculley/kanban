@@ -266,16 +266,16 @@ window.TodaySections = (() => {
   return { get, set };
 })();
 
-// Standup's two sections (Completed, Upcoming): same idea as TodaySections above, and for the same
-// reason -- it lives in Standup's own filter popover, not Settings, because it's "what do I want to
+// Review's two sections (Completed, Upcoming): same idea as TodaySections above, and for the same
+// reason -- it lives in Review's own filter popover, not Settings, because it's "what do I want to
 // see in this report right now" rather than a standing device preference.
-window.StandupSections = (() => {
-  const get = () => { try { return JSON.parse(localStorage.getItem('standup-hide') || '{}'); } catch { return {}; } };
+window.ReviewSections = (() => {
+  const get = () => { try { return JSON.parse(localStorage.getItem('review-hide') || '{}'); } catch { return {}; } };
   function set(key, hidden) {
     const hide = get();
     if (hidden) hide[key] = true; else delete hide[key];
-    try { localStorage.setItem('standup-hide', JSON.stringify(hide)); } catch { /* ignore */ }
-    document.documentElement.setAttribute('data-standup-hide', Object.keys(hide).join(' '));
+    try { localStorage.setItem('review-hide', JSON.stringify(hide)); } catch { /* ignore */ }
+    document.documentElement.setAttribute('data-review-hide', Object.keys(hide).join(' '));
   }
   return { get, set };
 })();
@@ -313,9 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
     cb.checked = !hiddenToday[cb.dataset.section];
     cb.addEventListener('change', () => window.TodaySections.set(cb.dataset.section, !cb.checked));
   });
-  const hiddenStandup = window.StandupSections.get();
-  document.querySelectorAll('.standup-section-check').forEach(cb => {
-    cb.checked = !hiddenStandup[cb.dataset.section];
-    cb.addEventListener('change', () => window.StandupSections.set(cb.dataset.section, !cb.checked));
+  const hiddenReview = window.ReviewSections.get();
+  document.querySelectorAll('.review-section-check').forEach(cb => {
+    cb.checked = !hiddenReview[cb.dataset.section];
+    cb.addEventListener('change', () => window.ReviewSections.set(cb.dataset.section, !cb.checked));
   });
 });

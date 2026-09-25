@@ -84,7 +84,7 @@ html[data-sidebar-hide~="search"] .sidebar .search { display:none; }
 html[data-sidebar-hide~="scheduled"] .side-scheduled { display:none; }
 html[data-sidebar-hide~="today"] .side-today { display:none; }
 html[data-sidebar-hide~="logbook"] .side-logbook { display:none; }
-html[data-sidebar-hide~="standup"] .side-standup { display:none; }
+html[data-sidebar-hide~="review"] .side-review { display:none; }
 html[data-sidebar-hide~="searches"] .side-searches { display:none; }
 html[data-sidebar-hide~="boards"] .side-boards { display:none; }
 html[data-sidebar-hide~="tags"] #tag-section { display:none; }
@@ -94,7 +94,7 @@ html[data-sidebar-hide~="theme"] .theme-btn { display:none; }
 html[data-page-title-hide~="today"] h1[data-page="today"],
 html[data-page-title-hide~="scheduled"] h1[data-page="scheduled"],
 html[data-page-title-hide~="logbook"] h1[data-page="logbook"],
-html[data-page-title-hide~="standup"] h1[data-page="standup"] { display:none; }
+html[data-page-title-hide~="review"] h1[data-page="review"] { display:none; }
 .badge { background:var(--danger-solid); color:#fff; border-radius:10px; font-size:11px; padding:1px 7px; }
 .sidebar input { width:100%; padding:7px 9px; border-radius:7px; border:1px solid var(--border);
                  background:var(--bg-card); color:var(--text-primary); }
@@ -484,7 +484,7 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .move-btn, .dup-btn { border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);
             border-radius:6px; padding:7px 12px; cursor:pointer; display:flex; align-items:center; gap:5px; }
 .move-btn:hover, .dup-btn:hover { border-color:var(--accent); }
-/* Star: always visible (not hover-reveal like .pin-btn) -- Standup mode's rows are a deliberate,
+/* Star: always visible (not hover-reveal like .pin-btn) -- Review mode's rows are a deliberate,
    short list, not a dense one that benefits from decluttering, and it doubles as a card-edit
    dialog action (next to Move/Duplicate) where hover-reveal would make it too easy to miss. */
 .star-btn { display:grid; place-items:center; border:0; background:none; color:var(--text-subtle);
@@ -504,13 +504,13 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
    kept as separate wrapper classes on purpose so one popover's lookup never picks up another by
    accident (AGENTS.md trap 9) -- Metrics needed its own precisely because it already has the date
    filter's popover on the same page. */
-.filter-wrap, .date-filter-wrap, .search-filter-wrap, .metrics-filter-wrap, .standup-filter-wrap { position:relative; }
+.filter-wrap, .date-filter-wrap, .search-filter-wrap, .metrics-filter-wrap, .review-filter-wrap { position:relative; }
 .filter-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:8; background:var(--bg-card);
                 border:1px solid var(--border); border-radius:10px; padding:14px; width:230px;
                 display:flex; flex-direction:column; gap:12px; box-shadow:0 6px 20px #0003; }
-.date-filter-panel, .search-filter-panel, .metrics-filter-panel, .standup-filter-panel { width:max-content; max-width:300px; }
-.search-filter-panel form, .metrics-filter-panel form, .standup-filter-panel form { display:flex; flex-direction:column; gap:12px; }
-.search-filter-panel input[type=text], .metrics-filter-panel input[type=text], .standup-filter-panel input[type=text] {
+.date-filter-panel, .search-filter-panel, .metrics-filter-panel, .review-filter-panel { width:max-content; max-width:300px; }
+.search-filter-panel form, .metrics-filter-panel form, .review-filter-panel form { display:flex; flex-direction:column; gap:12px; }
+.search-filter-panel input[type=text], .metrics-filter-panel input[type=text], .review-filter-panel input[type=text] {
   width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
   background:var(--bg); color:var(--text-primary); }
 .filter-panel .filter-text { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
@@ -521,15 +521,15 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .filter-status { margin:0; font-size:12px; min-height:1em; }
 .card.filter-hidden { display:none; }
 .filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active, .search-filter-wrap .icon-btn.active,
-.metrics-filter-wrap .icon-btn.active, .standup-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
-.standup-days { display:flex; align-items:center; gap:6px; font-size:13px; }
-.standup-days input { width:60px; padding:6px 8px; border-radius:6px; border:1px solid var(--border);
+.metrics-filter-wrap .icon-btn.active, .review-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
+.review-days { display:flex; align-items:center; gap:6px; font-size:13px; }
+.review-days input { width:60px; padding:6px 8px; border-radius:6px; border:1px solid var(--border);
                       background:var(--bg); color:var(--text-primary); }
-.standup-sections { border:none; border-top:1px solid var(--border); margin:0; padding:10px 0 0; display:flex; flex-direction:column; gap:6px; }
-.standup-sections legend { font-size:12px; color:var(--text-subtle); padding:0 0 6px; }
-.standup-sections label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
-html[data-standup-hide~="completed"] [data-standup-section="completed"],
-html[data-standup-hide~="upcoming"] [data-standup-section="upcoming"] { display:none; }
+.review-sections { border:none; border-top:1px solid var(--border); margin:0; padding:10px 0 0; display:flex; flex-direction:column; gap:6px; }
+.review-sections legend { font-size:12px; color:var(--text-subtle); padding:0 0 6px; }
+.review-sections label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
+html[data-review-hide~="completed"] [data-review-section="completed"],
+html[data-review-hide~="upcoming"] [data-review-section="upcoming"] { display:none; }
 
 /* Today: its own "show/hide these three sections" popover (own class, not .filter-wrap/
    .date-filter-wrap -- see the comment above trap 9 in AGENTS.md) and the section-hide itself,

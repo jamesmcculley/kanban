@@ -2,7 +2,7 @@
 
 A personal, local-first kanban and task manager: list boards, a flat Tasks-board kind for small
 Things3-style to-dos, tags, labels, priorities, start/due dates and repeats, a per-board filter, a
-Scheduled view and a Logbook (both with a date-range filter and saved filters), a Standup mode
+Scheduled view and a Logbook (both with a date-range filter and saved filters), a Review mode
 (rolling look-back/look-forward report, starring, per-card exclusion — see ADR 0016), per-board and
 global rules, and twelve colour themes. Flask + htmx, no build step. Cards are Markdown files, so
 the data folder also opens as an Obsidian vault. Runs on the homelab behind Caddy, LAN-only, behind
@@ -18,7 +18,7 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
 ## Boundaries
 
 - **Pure domain modules never touch I/O or Flask:** `rules.py`, `settings.py`, `dates.py`, `notes.py`,
-  `tags.py`, `labels.py`, `csvimport.py`, `metrics.py`, `search.py`, `standup.py`.
+  `tags.py`, `labels.py`, `csvimport.py`, `metrics.py`, `search.py`, `review.py`.
   `tests/test_rules.py::test_domain_modules_are_pure` enforces it. `Store` (and its mixins) does
   the file I/O; `routes.py` is thin HTTP glue.
 - **Reading never writes.** Hiding completed cards is a view (`view_columns`), not an archive pass.

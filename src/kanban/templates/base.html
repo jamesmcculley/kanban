@@ -23,7 +23,7 @@
   <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
   <script src="{{ url_for('static', filename='fab.js') }}" defer></script>
   <script src="{{ url_for('static', filename='bulk.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='standup.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='review.js') }}" defer></script>
   <script src="{{ url_for('static', filename='filter.js') }}" defer></script>
 </head>
 <body>
@@ -66,8 +66,8 @@
         </a>
         <a href="{{ url_for('boards.logbook') }}" data-go="l" title="Logbook" class="side-logbook
            {{ 'active' if request.endpoint == 'boards.logbook' }}"><span>Logbook</span></a>
-        <a href="{{ url_for('boards.standup') }}" data-go="u" title="Standup" class="side-standup
-           {{ 'active' if request.endpoint == 'boards.standup' }}"><span>Standup</span></a>
+        <a href="{{ url_for('boards.review') }}" data-go="r" title="Review" class="side-review
+           {{ 'active' if request.endpoint == 'boards.review' }}"><span>Review</span></a>
 
         {% if pinned_searches %}
         <div class="side-searches">
@@ -181,7 +181,7 @@
         <dt>/</dt><dd>search</dd>
         <dt>#tag</dt><dd>add tags when typing a card: “Buy paint #home”</dd>
         <dt>c</dt><dd>quick-add a card to a board of your choice, from anywhere</dd>
-        <dt>g t / g s / g l / g u / g m</dt><dd>go to Today / Scheduled / Logbook / Standup / Metrics</dd>
+        <dt>g t / g s / g l / g r / g m</dt><dd>go to Today / Scheduled / Logbook / Review / Metrics</dd>
         <dt>drag a card</dt><dd>onto a board in the sidebar to move it there</dd>
         <dt>Esc</dt><dd>close dialog</dd>
       </dl>

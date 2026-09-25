@@ -189,14 +189,14 @@
     if (!e.target.closest('.metrics-filter-wrap')) document.querySelectorAll('.metrics-filter-panel').forEach(m => (m.hidden = true));
   });
 
-  // -- Standup mode's own report options (look back/forward days, starred-only) ---------------
+  // -- Review mode's own report options (look back/forward days, starred-only) ---------------
   document.addEventListener('click', e => {
-    const toggle = e.target.closest('[data-standup-filter-toggle]');
+    const toggle = e.target.closest('[data-review-filter-toggle]');
     if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
-    if (!e.target.closest('.standup-filter-wrap')) document.querySelectorAll('.standup-filter-panel').forEach(m => (m.hidden = true));
+    if (!e.target.closest('.review-filter-wrap')) document.querySelectorAll('.review-filter-panel').forEach(m => (m.hidden = true));
   });
 
-  // -- Star toggle: the card-edit dialog (anywhere) and Standup mode's own rows ---------------
+  // -- Star toggle: the card-edit dialog (anywhere) and Review mode's own rows ---------------
   document.addEventListener('click', async e => {
     const btn = e.target.closest('.star-btn');
     if (!btn) return;
