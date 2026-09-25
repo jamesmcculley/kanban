@@ -134,6 +134,12 @@ h1 { margin:0; font-size:22px; }
         gap:8px; cursor:grab; box-shadow:0 1px 2px #0002; }
 .card .title { flex:1; color:inherit; cursor:pointer; }
 .check { margin-top:3px; cursor:pointer; flex:none; }
+/* Bulk selection (board.html, tasks.html, bulk.js): a second checkbox, hidden until "Select cards"
+   is on -- .selected is already taken (keys.js's single-card keyboard-nav highlight), so a
+   selected card is styled via :has() instead of a second JS-toggled class. */
+.select-check { display:none; margin-top:3px; cursor:pointer; flex:none; }
+.board.select-mode .select-check { display:block; }
+.card:has(.select-check:checked) { outline:2px solid var(--accent); outline-offset:1px; }
 .card.done .title, .row.done .title { text-decoration:line-through; color:var(--text-subtle); }
 .card.done { opacity:.65; }
 .due, .stamp, .start { font-size:12px; color:var(--text-subtle); white-space:nowrap; }
@@ -270,6 +276,19 @@ h1 { margin:0; font-size:22px; }
 .fab-form { margin:0; } .fab-form[hidden], .fab-menu[hidden] { display:none; }
 .fab-form input { width:230px; padding:10px 12px; border-radius:20px; border:1px solid var(--accent);
                   background:var(--bg-card); color:var(--text-primary); box-shadow:0 2px 8px #0003; }
+
+/* Bulk action bar: bottom-center (the FAB owns bottom-right, .side-foot bottom-left), so it never
+   overlaps either floating pill already anchored to a corner. */
+.bulk-bar { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:7;
+           display:flex; align-items:center; gap:10px; background:var(--bg-card); border:1px solid var(--border);
+           border-radius:14px; padding:8px 14px; box-shadow:0 4px 14px #0003; }
+.bulk-count { font-size:13px; font-weight:600; color:var(--text-secondary); white-space:nowrap; }
+.bulk-move-to { padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--bg);
+               color:var(--text-primary); }
+.bulk-btn { border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);
+           border-radius:6px; padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:5px; }
+.bulk-btn:hover { border-color:var(--accent); }
+.bulk-clear-btn { padding:6px; color:var(--text-subtle); }
 .col-actions button, .add-card-btn { display:grid; place-items:center; }
 .add-card-btn { border:0; background:none; color:var(--text-subtle); cursor:pointer; padding:4px; border-radius:6px; }
 .add-card-btn:hover { background:var(--hover); color:var(--accent-text); }

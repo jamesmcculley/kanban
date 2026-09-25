@@ -154,6 +154,22 @@ def test_duplicate_board_route(client):
     assert client.post("/b/nope/duplicate").status_code == 404
 
 
+def test_bulk_select_markup_present_on_board_and_tasks_boards(client):
+    _add(client, "x")
+    page = client.get("/b/my-board").text
+    assert 'data-select-toggle' in page
+    assert 'class="select-check"' in page
+    assert 'class="bulk-bar" hidden' in page
+    assert 'data-duplicate-url="/b/my-board/cards/ID/duplicate"' in page
+    assert 'data-delete-url="/b/my-board/cards/ID"' in page  # same path as update, DELETE verb
+    assert 'bulk-move-to' in page          # kanban: more than one list, so the move picker shows
+
+    client.post("/boards", data={"title": "Tasks Only", "kind": "tasks"})
+    task_page = client.get("/b/tasks-only").text
+    assert 'data-select-toggle' in task_page
+    assert 'bulk-move-to' not in task_page  # a tasks board has only one list -- no picker to show
+
+
 def test_board_export_dialog_and_csv(client):
     _add(client, "Paint fence #home")
     r = client.post("/b/my-board/cards", data={"title": "Mow lawn", "column": "Doing"})

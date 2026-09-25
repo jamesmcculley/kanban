@@ -115,7 +115,8 @@
           </label>
           <button type="button" class="link-btn" data-post="{{ url_for('boards.duplicate_search', search_id=s.id) }}"
                   data-after="reload">Duplicate</button>
-          <button type="button" class="link-btn" data-post="{{ url_for('boards.delete_search', search_id=s.id) }}"
+          <button type="button" class="link-btn" aria-label="Delete saved search {{ s.name }}"
+                  data-post="{{ url_for('boards.delete_search', search_id=s.id) }}"
                   data-confirm="Delete? Click again" data-after="reload">Delete</button>
         </div>
         {% endfor %}

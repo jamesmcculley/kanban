@@ -2,6 +2,7 @@
 <div class="card{% if card.done %} done{% endif %}" data-id="{{ card.id }}"
      data-priority="{{ card.priority or '' }}" data-labels="{{ card.labels|join(',') }}"
      data-tags="{{ card.tags|join(',') }}">
+  <input type="checkbox" class="select-check" aria-label="Select this card">
   <input type="checkbox" class="check" {% if card.done %}checked{% endif %} aria-label="Complete"
          hx-post="{{ url_for('boards.complete', slug=board.slug, card_id=card.id) }}"
          hx-target="closest .card" hx-swap="outerHTML">

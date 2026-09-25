@@ -1,0 +1,21 @@
+{# Floating bar for acting on several selected cards at once (board.html, tasks.html). Hidden
+   until something is selected; selection itself is client-side only (bulk.js), not persisted --
+   toggled off by the same "Select" button that turned it on. Every action here reuses the
+   existing single-card endpoints in a sequential loop, not a new bulk server route; see
+   AGENTS.md trap 6 (await one at a time, never Promise.all, against the same board.md).
+   Context: board. #}
+{% from "_icons.html" import icon %}
+<div class="bulk-bar" hidden>
+  <span class="bulk-count"></span>
+  {% if board.columns|length > 1 %}
+  <select class="bulk-move-to" aria-label="Move selected cards to">
+    <option value="" selected disabled>Move to…</option>
+    {% for col in board.columns %}<option value="{{ col }}">{{ col }}</option>{% endfor %}
+  </select>
+  <button type="button" class="bulk-btn bulk-move-btn" aria-label="Move selected cards">{{ icon('move', 14) }} Move</button>
+  {% endif %}
+  <button type="button" class="bulk-btn bulk-dup-btn" aria-label="Duplicate selected cards">{{ icon('copy', 14) }} Duplicate</button>
+  <button type="button" class="bulk-btn bulk-delete-btn" aria-label="Delete selected cards"
+          data-confirm="Delete? Click again">{{ icon('trash', 14) }} Delete</button>
+  <button type="button" class="bulk-btn bulk-clear-btn" aria-label="Clear selection" title="Clear selection">{{ icon('x', 16) }}</button>
+</div>

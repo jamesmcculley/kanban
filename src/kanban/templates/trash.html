@@ -7,7 +7,7 @@
     <h1>Trash</h1>
     <span class="muted">deleted things wait here until you empty it</span>
     {% if not empty %}
-    <button type="button" class="danger-btn" data-post="{{ url_for('boards.empty_trash') }}"
+    <button type="button" class="danger-btn" aria-label="Empty trash" data-post="{{ url_for('boards.empty_trash') }}"
             data-confirm="Permanently delete everything? Click again" data-after="reload">Empty trash</button>
     {% endif %}
   </header>

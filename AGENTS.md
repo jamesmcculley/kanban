@@ -173,7 +173,15 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     its async fetch even starts, and so guaranteed to be set before the native `dragend` that
     drives `onEnd` (dragend always fires after drop) -- tells the board's own Sortable `onEnd`
     (board.html, tasks.html) this drop is already spoken for, skip your own reorder.
-23. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+23. **A two-step "click again" confirm button (`arm()`, ui.js) appends its confirm text as a child
+    span, changing the button's own text content on the very first click.** A button named only by
+    its text content (no `aria-label`) therefore has a *different* accessible name after arming
+    than before — a locator (or screen reader) that found it by name pre-arm won't find it again
+    for the second, confirming click. The bulk-delete button (ADR 0015) hit this in its own e2e
+    test; the existing "Delete board" button already avoided it by having an explicit
+    `aria-label="Delete board"` (which wins over text content regardless of what the text becomes)
+    — every `data-confirm` button needs one for the same reason, not just for screen readers.
+24. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
     — a concurrent read landing between the truncate and the new content finishing could see a
     half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
     run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.

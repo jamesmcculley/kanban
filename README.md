@@ -17,6 +17,8 @@ directory can also be opened as an Obsidian vault.
   duplicate lands on whatever board/list the "Move to" picker has selected, or right where it was
 - **Duplicate a whole board** — a full copy, cards (including done ones), lists, settings, rules
   and labels all included
+- **Bulk actions**: select several cards on a board (the checkbox icon) and move, duplicate or
+  delete all of them at once
 - **Rules and settings**, per board and global: e.g. "when a card is completed, move it to Done"; new-card
   position; hide completed cards; default lists for new boards; hide list/board titles or card counts
 - Twelve colour themes plus a Default that follows your device, and three text sizes (Settings)

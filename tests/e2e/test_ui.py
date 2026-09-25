@@ -92,6 +92,76 @@ def test_duplicate_a_card_to_another_board(page):
     expect(page.locator(".card", has_text="Buy paint (copy)")).to_be_visible()
 
 
+def test_bulk_select_toggle_shows_checkboxes_and_clears_on_turn_off(page):
+    add_card(page, "Todo", "one")
+    add_card(page, "Todo", "two")
+    checks = page.locator(".card .select-check")
+    expect(checks.first).to_be_hidden()
+
+    page.get_by_role("button", name="Select cards").click()
+    expect(checks.first).to_be_visible()
+    page.locator(".card", has_text="one").locator(".select-check").check()
+    expect(page.locator(".bulk-bar")).to_contain_text("1 selected")
+
+    page.get_by_role("button", name="Select cards").click()   # off again
+    expect(checks.first).to_be_hidden()
+    expect(page.locator(".bulk-bar")).to_be_hidden()
+
+
+def test_bulk_move_two_cards_to_another_list(page):
+    add_card(page, "Todo", "one")
+    add_card(page, "Todo", "two")
+    add_card(page, "Todo", "leave me")
+    page.get_by_role("button", name="Select cards").click()
+    page.locator(".card", has_text="one").locator(".select-check").check()
+    page.locator(".card", has_text="two").locator(".select-check").check()
+
+    page.select_option(".bulk-move-to", "Doing")
+    with page.expect_navigation():
+        page.get_by_role("button", name="Move selected cards").click()
+
+    doing = page.locator('.column[data-column="Doing"]')
+    expect(doing.locator(".card", has_text="one")).to_be_visible()
+    expect(doing.locator(".card", has_text="two")).to_be_visible()
+    expect(page.locator('.column[data-column="Todo"] .card', has_text="leave me")).to_be_visible()
+    expect(page.locator('.column[data-column="Todo"] .card', has_text="one")).to_have_count(0)
+
+
+def test_bulk_duplicate_two_cards(page):
+    add_card(page, "Todo", "one")
+    add_card(page, "Todo", "two")
+    page.get_by_role("button", name="Select cards").click()
+    page.locator(".card", has_text="one").locator(".select-check").check()
+    page.locator(".card", has_text="two").locator(".select-check").check()
+
+    with page.expect_navigation():
+        page.get_by_role("button", name="Duplicate selected cards").click()
+
+    expect(page.locator(".card", has_text="one (copy)")).to_be_visible()
+    expect(page.locator(".card", has_text="two (copy)")).to_be_visible()
+
+
+def test_bulk_delete_two_cards_needs_a_second_click(page):
+    add_card(page, "Todo", "one")
+    add_card(page, "Todo", "two")
+    add_card(page, "Todo", "keep me")
+    page.get_by_role("button", name="Select cards").click()
+    page.locator(".card", has_text="one").locator(".select-check").check()
+    page.locator(".card", has_text="two").locator(".select-check").check()
+
+    delete_btn = page.get_by_role("button", name="Delete selected cards")
+    delete_btn.click()
+    expect(page.locator(".card", has_text="one")).to_be_visible()   # still there: needs a second click
+    with page.expect_navigation():
+        delete_btn.click()
+
+    expect(page.locator(".card", has_text="one")).to_have_count(0)
+    expect(page.locator(".card", has_text="two")).to_have_count(0)
+    expect(page.locator(".card", has_text="keep me")).to_be_visible()
+    page.get_by_role("link", name="Trash").click()
+    expect(page.locator(".row", has_text="one")).to_be_visible()   # trashed, not gone -- recoverable
+
+
 def test_duplicate_is_available_from_a_standalone_dialog_too(page):
     add_card(page, "Todo", "needs doing")
     page.locator(".card", has_text="needs doing").locator(".title").click()
