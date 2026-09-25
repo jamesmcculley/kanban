@@ -31,7 +31,7 @@ directory can also be opened as an Obsidian vault.
   filter, and an edit (pencil) button on each entry to fix anything about it — not just when it
   was completed
 - **Metrics** (toolbar icon): totals for a date range, plus busiest board and busiest day of the
-  week, as simple bar charts
+  week, as simple bar charts — narrow it by text, tags, priority or board, same as the export below
 - **Export to CSV** — completed activity from Metrics or the Logbook; real cards from any board,
   Scheduled or Today — each a pop-out for granular options (text, tags, priority, board/list,
   Today's sections), not just everything in one shot. A board's export is the same shape CSV

@@ -1458,6 +1458,29 @@ def test_metrics_page_shows_totals_and_export_dialog(page):
     assert "ship it" in body
 
 
+def test_metrics_narrows_by_tag_and_export_carries_the_filter_along(page):
+    add_card(page, "Todo", "Paint fence #home")
+    add_card(page, "Todo", "Write report")
+    page.locator(".card", has_text="Paint fence").locator(".check").click()
+    page.locator(".card", has_text="Write report").locator(".check").click()
+
+    page.click('.sidebar [data-go="m"]')
+    page.wait_for_url("**/metrics")
+    expect(page.locator(".metric-num")).to_have_text("2")
+
+    page.get_by_role("button", name="Narrow these metrics").click()
+    panel = page.locator(".metrics-filter-panel")
+    expect(panel).to_be_visible()
+    panel.locator('input[name="tags"]').fill("#home")
+    with page.expect_navigation():
+        panel.get_by_role("button", name="Apply").click()
+    expect(page.locator(".metric-num")).to_have_text("1")
+
+    page.get_by_role("button", name="Export activity").click()
+    dialog = page.locator("#modal .export-dialog")
+    expect(dialog.locator('input[name="tags"]')).to_have_value("#home")   # carried over from Metrics
+
+
 def test_export_a_board_narrowed_by_list(page):
     add_card(page, "Todo", "Paint fence")
     add_card(page, "Doing", "Mow lawn")

@@ -905,21 +905,37 @@ def logbook():
 @bp.get("/metrics")
 def metrics():
     date_from, date_to = _filter_from_query()
+    q = request.args.get("q", "").strip()
+    tags = parse_tags(request.args.get("tags", ""))
+    priorities = request.args.getlist("priority")
+    board_slugs = request.args.getlist("board")
     events = store().logbook(limit=None, date_from=date_from, date_to=date_to)
+    events = M.filter_events(events, q=q, tags=tags, priorities=priorities, boards=board_slugs)
+    filtered = bool(q or tags or priorities or board_slugs)
+    export_qs = urlencode([("from", date_from or ""), ("to", date_to or ""), ("q", q),
+                          ("tags", request.args.get("tags", "")), *[("priority", p) for p in priorities],
+                          *[("board", b) for b in board_slugs]])
     return render_template("metrics.html", total=len(events), by_board=M.by_board(events),
                            by_weekday=M.by_weekday(events), date_from=date_from, date_to=date_to,
                            presets=_presets(date.today(), overdue=False), saved=store().list_filters(),
-                           filter_url=url_for("boards.metrics"))
+                           filter_url=url_for("boards.metrics"), filtered=filtered, q=q,
+                           tags_raw=request.args.get("tags", ""), priorities=priorities,
+                           board_slugs=board_slugs, metrics_boards=_card_boards(),
+                           export_url=f"{url_for('boards.export_dialog')}?{export_qs}")
 
 
 @bp.get("/export/dialog")
 def export_dialog():
     """A pop-out with granular export options (date range, title text, tags, priority, board) --
     opened from the download icon next to the date filter on Logbook/Metrics, not a direct
-    download link, so a bulk export can be narrowed the same way any other filter in the app is."""
+    download link, so a bulk export can be narrowed the same way any other filter in the app is.
+    Pre-fills from whatever's in the query string, so opening it from an already-filtered Metrics
+    view (its own "Export" link carries its current filters along) starts matching, not blank."""
     date_from, date_to = _filter_from_query()
-    boards = _card_boards()
-    return render_template("_export_dialog.html", date_from=date_from, date_to=date_to, boards=boards)
+    return render_template("_export_dialog.html", date_from=date_from, date_to=date_to,
+                           boards=_card_boards(), q=request.args.get("q", ""),
+                           tags_raw=request.args.get("tags", ""), priorities=request.args.getlist("priority"),
+                           board_slugs=request.args.getlist("board"))
 
 
 @bp.get("/export/activity.csv")

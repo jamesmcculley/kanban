@@ -181,6 +181,14 @@
     if (!e.target.closest('.search-filter-wrap')) document.querySelectorAll('.search-filter-panel').forEach(m => (m.hidden = true));
   });
 
+  // -- Metrics: narrow its totals by text/tags/priority/board, same pattern again, its own
+  // classes again (Metrics also has the date filter's own popover on the same page).
+  document.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-metrics-filter-toggle]');
+    if (toggle) { toggle.nextElementSibling.hidden = !toggle.nextElementSibling.hidden; return; }
+    if (!e.target.closest('.metrics-filter-wrap')) document.querySelectorAll('.metrics-filter-panel').forEach(m => (m.hidden = true));
+  });
+
   // -- "Move to": any card, to any list on any board, from the edit dialog --------------------
   document.addEventListener('click', async e => {
     const btn = e.target.closest('.move-btn');

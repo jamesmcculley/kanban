@@ -281,6 +281,38 @@ def test_export_dialog_renders_with_boards_and_current_range(client):
     assert 'name="board" value="my-board"' in r.text
 
 
+def test_export_dialog_prefills_from_query_string(client):
+    r = client.get("/export/dialog?q=fence&tags=%23home&priority=high&board=my-board")
+    assert r.status_code == 200
+    assert 'name="q" value="fence"' in r.text
+    assert 'name="tags" value="#home"' in r.text
+    assert "checked" in r.text.split('value="high"')[1][:40]       # priority checkbox pre-checked
+    assert "checked" in r.text.split('value="my-board"')[1][:40]   # board checkbox pre-checked
+
+
+def test_metrics_narrows_totals_by_text_tags_priority_and_board_and_feeds_the_export_link(client):
+    home = _add(client, "Paint fence #home")
+    work = _add(client, "Write report")
+    client.post(f"/b/my-board/cards/{work}", data={"title": "Write report", "body": "", "priority": "high"})
+    client.post(f"/b/my-board/cards/{home}/complete")
+    client.post(f"/b/my-board/cards/{work}/complete")
+
+    unfiltered = client.get("/metrics").text
+    assert ">2<" in unfiltered.split('class="metric-num"')[1][:10]
+
+    by_tag = client.get("/metrics?tags=%23home").text
+    assert ">1<" in by_tag.split('class="metric-num"')[1][:10]
+    assert "Paint fence" not in by_tag  # only the by-board/weekday breakdowns show, not titles -- just the count
+
+    by_priority = client.get("/metrics?priority=high").text
+    assert ">1<" in by_priority.split('class="metric-num"')[1][:10]
+
+    # the Export link carries the same filter along
+    page = client.get("/metrics?tags=%23home&priority=high").text
+    export_href = page.split('hx-get="')[1].split('"')[0]
+    assert "tags=" in export_href and "priority=high" in export_href
+
+
 def test_edit_card_dialog_standalone_reloads_instead_of_swapping_the_card(client):
     cid = _add(client, "x")
     normal = client.get(f"/b/my-board/cards/{cid}").text

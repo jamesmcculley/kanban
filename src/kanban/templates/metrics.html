@@ -4,12 +4,49 @@
 {% block content %}
   <header class="page-head"><h1>Metrics</h1>
     {% include "_date_filter.html" %}
+    <div class="metrics-filter-wrap">
+      <button type="button" class="icon-btn{{ ' active' if filtered }}" data-metrics-filter-toggle
+              aria-label="Narrow these metrics" title="Narrow these metrics">{{ icon('filter', 15) }}</button>
+      <div class="metrics-filter-panel filter-panel" hidden>
+        <form method="get" action="{{ url_for('boards.metrics') }}">
+          <input type="hidden" name="from" value="{{ date_from or '' }}">
+          <input type="hidden" name="to" value="{{ date_to or '' }}">
+          <input type="text" name="q" value="{{ q or '' }}" placeholder="Search titles…" aria-label="Search titles" autocomplete="off">
+          <input type="text" name="tags" value="{{ tags_raw or '' }}" placeholder="Tags: #home #work" aria-label="Tags" autocomplete="off">
+          {% if metrics_boards %}
+          <fieldset class="filter-group">
+            <legend>Boards <span class="muted">none checked = all</span></legend>
+            {% for b in metrics_boards %}
+            <label class="filter-check"><input type="checkbox" name="board" value="{{ b.slug }}"
+                   {% if b.slug in board_slugs %}checked{% endif %}> {{ b.title }}</label>
+            {% endfor %}
+          </fieldset>
+          {% endif %}
+          <fieldset class="filter-group">
+            <legend>Priority <span class="muted">none checked = any</span></legend>
+            {% for p in ('high', 'medium', 'low') %}
+            <label class="filter-check"><input type="checkbox" name="priority" value="{{ p }}"
+                   {% if p in priorities %}checked{% endif %}>
+              <span class="priority p-{{ p }}">{{ icon('flag', 13) }}</span> {{ p|capitalize }}</label>
+            {% endfor %}
+            <label class="filter-check"><input type="checkbox" name="priority" value="none"
+                   {% if 'none' in priorities %}checked{% endif %}> No priority</label>
+          </fieldset>
+          <p class="muted">Tags and priority only match activity logged since this feature shipped.</p>
+          <div class="actions">
+            {% if filtered %}<a href="{{ url_for('boards.metrics', **{'from': date_from, 'to': date_to}) }}" class="link-btn">Clear</a>{% endif %}
+            <button type="submit" class="primary">Apply</button>
+          </div>
+        </form>
+      </div>
+    </div>
     <button type="button" class="icon-btn" title="Export activity" aria-label="Export activity"
-            hx-get="{{ url_for('boards.export_dialog', **{'from': date_from, 'to': date_to}) }}"
-            hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
+            hx-get="{{ export_url }}" hx-target="#modal" hx-swap="innerHTML">{{ icon('download', 15) }}</button>
   </header>
   <main class="metrics">
-    <p class="metric-total"><span class="metric-num">{{ total }}</span> completed{% if date_from or date_to %} in this range{% endif %}</p>
+    <p class="metric-total"><span class="metric-num">{{ total }}</span> completed
+      {%- if date_from or date_to %} in this range{% endif -%}
+      {%- if filtered %}, narrowed{% endif %}</p>
     {% if total %}
     <section class="metric-block">
       <h2>By board</h2>
@@ -37,7 +74,7 @@
       </div>
     </section>
     {% else %}
-    <p class="empty">{% if date_from or date_to %}Nothing completed in this range.{% else %}Nothing completed yet. Check a card off and it will show up here.{% endif %}</p>
+    <p class="empty">{% if date_from or date_to or filtered %}Nothing completed matches this filter.{% else %}Nothing completed yet. Check a card off and it will show up here.{% endif %}</p>
     {% endif %}
   </main>
 {% endblock %}

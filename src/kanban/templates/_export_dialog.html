@@ -1,8 +1,10 @@
-{# Pop-out export options: date range (pre-filled from wherever this was opened), title text,
-   tags and priority (matched only against activity logged since those started being tracked --
-   see logbook.py's _event), and which boards to include. A plain GET form: submitting it just
-   navigates to the CSV, the same way the date filter's own "Apply" does -- no JS needed for a
-   file download. Context: date_from, date_to, boards. #}
+{# Pop-out export options: date range, title text, tags and priority (matched only against
+   activity logged since those started being tracked -- see logbook.py's _event), and which
+   boards to include -- all pre-filled from wherever this was opened (a plain Metrics/Logbook
+   date filter, or an already-filtered Metrics view carrying its own filters along). A plain GET
+   form: submitting it just navigates to the CSV, the same way the date filter's own "Apply" does
+   -- no JS needed for a file download.
+   Context: date_from, date_to, boards, q, tags_raw, priorities, board_slugs. #}
 {% from "_icons.html" import icon %}
 <div class="backdrop" onclick="if (event.target === this) this.remove()">
   <form class="dialog export-dialog" method="get" action="{{ url_for('boards.export_activity') }}">
@@ -13,23 +15,26 @@
       <label class="export-date">From <input type="date" name="from" value="{{ date_from or '' }}"></label>
       <label class="export-date">To <input type="date" name="to" value="{{ date_to or '' }}"></label>
     </div>
-    <input type="text" name="q" placeholder="Search titles…" aria-label="Search titles" autocomplete="off">
-    <input type="text" name="tags" placeholder="Tags: #home #work" aria-label="Tags" autocomplete="off">
+    <input type="text" name="q" value="{{ q or '' }}" placeholder="Search titles…" aria-label="Search titles" autocomplete="off">
+    <input type="text" name="tags" value="{{ tags_raw or '' }}" placeholder="Tags: #home #work" aria-label="Tags" autocomplete="off">
     {% if boards %}
     <fieldset class="filter-group">
       <legend>Boards <span class="muted">none checked = all boards</span></legend>
       {% for b in boards %}
-      <label class="filter-check"><input type="checkbox" name="board" value="{{ b.slug }}"> {{ b.title }}</label>
+      <label class="filter-check"><input type="checkbox" name="board" value="{{ b.slug }}"
+             {% if b.slug in (board_slugs or []) %}checked{% endif %}> {{ b.title }}</label>
       {% endfor %}
     </fieldset>
     {% endif %}
     <fieldset class="filter-group">
       <legend>Priority <span class="muted">none checked = any</span></legend>
       {% for p in ('high', 'medium', 'low') %}
-      <label class="filter-check"><input type="checkbox" name="priority" value="{{ p }}">
+      <label class="filter-check"><input type="checkbox" name="priority" value="{{ p }}"
+             {% if p in (priorities or []) %}checked{% endif %}>
         <span class="priority p-{{ p }}">{{ icon('flag', 13) }}</span> {{ p|capitalize }}</label>
       {% endfor %}
-      <label class="filter-check"><input type="checkbox" name="priority" value="none"> No priority</label>
+      <label class="filter-check"><input type="checkbox" name="priority" value="none"
+             {% if 'none' in (priorities or []) %}checked{% endif %}> No priority</label>
     </fieldset>
     <p class="muted">Tags and priority only match activity logged since this feature shipped —
       older entries are still included by date, title and board, just not by tag or priority.</p>

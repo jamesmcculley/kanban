@@ -52,3 +52,14 @@ owner wanted it as an icon next to the filter icon (no label), opening a pop-out
 - `tests/test_metrics.py` gained direct unit coverage for `filter_events` (text/tags/priority/board,
   individually and combined with AND); `tests/test_features.py` covers the same narrowing through
   the actual `/export/activity.csv` route.
+
+**Amendment (a later round): Metrics itself gained the same narrowing, not just its export.** The
+scope call above ("three surfaces, not five popovers") was about *not* duplicating text/tags/
+priority/board onto Today/Scheduled/Logbook's plain date filters — Metrics asking for it directly
+is a different request, not a re-litigation of that call, and `metrics.filter_events` was already
+built and tested for exactly this shape. Its own filter icon (`.metrics-filter-wrap`, a fourth
+distinct popover class alongside `.filter-wrap`/`.date-filter-wrap`/`.search-filter-wrap` — Metrics
+already has the date filter's own popover on the same page, so it needed its own for the same
+reason those three stayed apart) narrows the totals and both breakdowns; the Export link on a
+filtered Metrics page carries the same criteria into the export dialog, so exporting what you're
+already looking at doesn't mean re-entering the filter a second time.

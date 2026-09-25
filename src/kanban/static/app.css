@@ -489,17 +489,20 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
                           background:var(--bg); color:var(--text-primary); font-size:13px; }
 
 /* per-board filter (text/labels/priority/tags, filter.js), the Scheduled/Logbook custom date-range
-   popover (data-date-filter-toggle, ui.js) and Advanced Search (data-search-filter-toggle, ui.js):
-   same floating-panel look, unrelated JS -- kept as separate wrapper classes on purpose so one
-   popover's lookup never picks up another by accident (AGENTS.md trap 9). */
-.filter-wrap, .date-filter-wrap, .search-filter-wrap { position:relative; }
+   popover (data-date-filter-toggle, ui.js), Advanced Search (data-search-filter-toggle) and
+   Metrics' own narrowing (data-metrics-filter-toggle): same floating-panel look, unrelated JS --
+   kept as separate wrapper classes on purpose so one popover's lookup never picks up another by
+   accident (AGENTS.md trap 9) -- Metrics needed its own precisely because it already has the date
+   filter's popover on the same page. */
+.filter-wrap, .date-filter-wrap, .search-filter-wrap, .metrics-filter-wrap { position:relative; }
 .filter-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:8; background:var(--bg-card);
                 border:1px solid var(--border); border-radius:10px; padding:14px; width:230px;
                 display:flex; flex-direction:column; gap:12px; box-shadow:0 6px 20px #0003; }
-.date-filter-panel, .search-filter-panel { width:max-content; max-width:300px; }
-.search-filter-panel form { display:flex; flex-direction:column; gap:12px; }
-.search-filter-panel input[type=text] { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
-                                        background:var(--bg); color:var(--text-primary); }
+.date-filter-panel, .search-filter-panel, .metrics-filter-panel { width:max-content; max-width:300px; }
+.search-filter-panel form, .metrics-filter-panel form { display:flex; flex-direction:column; gap:12px; }
+.search-filter-panel input[type=text], .metrics-filter-panel input[type=text] {
+  width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
+  background:var(--bg); color:var(--text-primary); }
 .filter-panel .filter-text { width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--border);
                               background:var(--bg); color:var(--text-primary); }
 .filter-group { display:flex; flex-direction:column; gap:5px; max-height:160px; overflow:auto; }
@@ -507,7 +510,8 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .filter-check input { flex:none; }
 .filter-status { margin:0; font-size:12px; min-height:1em; }
 .card.filter-hidden { display:none; }
-.filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active, .search-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
+.filter-wrap .icon-btn.active, .date-filter-wrap .icon-btn.active, .search-filter-wrap .icon-btn.active,
+.metrics-filter-wrap .icon-btn.active { color:var(--accent-text); background:var(--accent-dim); }
 
 /* Today: its own "show/hide these three sections" popover (own class, not .filter-wrap/
    .date-filter-wrap -- see the comment above trap 9 in AGENTS.md) and the section-hide itself,
