@@ -709,24 +709,34 @@ class Store(TrashMixin, LogbookMixin, PreferencesMixin):
         card.effects = effects
         return card
 
-    def duplicate_card(self, slug: str, card_id: str) -> Card:
-        """A copy of a card, positioned right after the original in the same list -- same tags,
-        labels, priority, dates, repeat and notes, but a fresh (not done) copy with its own new id
-        and creation time: duplicating is "another one of these", not "another copy of something
-        already finished". Runs "added" rules, same as any other new card."""
+    def duplicate_card(self, slug: str, card_id: str, dest_slug: str | None = None,
+                       dest_column: str | None = None) -> Card:
+        """A copy of a card -- same tags, labels still defined on the destination board, priority,
+        dates, repeat and notes, but a fresh (not done) copy with its own new id and creation
+        time: duplicating is "another one of these", not "another copy of something already
+        finished". Runs "added" rules on the destination board, same as any other new card.
+
+        With no destination, the copy lands right after the original in the same list. With one
+        (`dest_slug`/`dest_column` -- the same board/list picker "Move to" already uses), it lands
+        at the end of that list instead, same as a card dropped there any other way."""
         original = self.get_card(slug, card_id)
-        board = self.get_board(slug)
+        target_slug = dest_slug or slug
+        board = self.get_board(target_slug)
+        column = dest_column if dest_slug else original.column
+        if column not in board.columns:
+            raise ValueError(f"unknown column: {column}")
         known = {x["id"] for x in board.labels}
-        siblings = self.cards_by_column(slug)[original.column]
-        copy = Card(uuid.uuid4().hex[:8], f"{original.title} (copy)", original.column,
+        siblings = self.cards_by_column(target_slug)[column]
+        copy = Card(uuid.uuid4().hex[:8], f"{original.title} (copy)", column,
                     position=len(siblings), start=original.start, due=original.due,
                     body=original.body, repeat=original.repeat, tags=list(original.tags),
                     labels=[x for x in original.labels if x in known], priority=original.priority,
                     created=datetime.now().isoformat(timespec="minutes"))
-        self._save(slug, copy)
-        self._move(slug, copy.id, original.column, original.position + 1)
-        effects = self._run_rules(slug, "added", copy.id)
-        copy = self.get_card(slug, copy.id)
+        self._save(target_slug, copy)
+        if not dest_slug:
+            self._move(target_slug, copy.id, column, original.position + 1)
+        effects = self._run_rules(target_slug, "added", copy.id)
+        copy = self.get_card(target_slug, copy.id)
         copy.effects = effects
         return copy
 

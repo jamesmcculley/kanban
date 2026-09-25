@@ -110,7 +110,7 @@ def test_saved_search_crud_and_pin_to_sidebar(client):
 
 def test_duplicate_card_route_and_undo(client):
     cid, _ = _add(client, "Buy paint")
-    assert 'title="Duplicate this card"' in client.get(f"/b/my-board/cards/{cid}").text
+    assert 'class="dup-btn"' in client.get(f"/b/my-board/cards/{cid}").text
 
     r = client.post(f"/b/my-board/cards/{cid}/duplicate")
     assert r.status_code == 200
@@ -123,6 +123,22 @@ def test_duplicate_card_route_and_undo(client):
     assert "Buy paint (copy)" not in client.get("/b/my-board").text
 
     assert client.post("/b/my-board/cards/nope/duplicate").status_code == 404
+
+
+def test_duplicate_card_to_another_board(client):
+    cid, _ = _add(client, "Buy paint")
+    client.post("/boards", data={"title": "Second"})
+
+    r = client.post(f"/b/my-board/cards/{cid}/duplicate", data={"to": "second", "column": "Todo"})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "Duplicated" in data["message"] and "Second" in data["message"]
+    assert data["undo"]["url"].startswith("/b/second/cards/")
+    assert "Buy paint (copy)" in client.get("/b/second").text
+    assert "Buy paint (copy)" not in client.get("/b/my-board").text  # stayed on my-board, not copied there too
+
+    assert client.post(f"/b/my-board/cards/{cid}/duplicate", data={"to": "second", "column": "nope"}).status_code == 400
+    assert client.post(f"/b/my-board/cards/{cid}/duplicate", data={"to": "nope", "column": "Todo"}).status_code == 404
 
 
 def test_duplicate_board_route(client):

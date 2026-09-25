@@ -58,8 +58,8 @@
       <button type="button" class="move-btn" data-current="{{ board.slug }}"
               data-move-url="{{ url_for('boards.move_card', slug=board.slug, card_id=card.id) }}"
               data-moveboard-url="{{ url_for('boards.move_to_board', slug=board.slug, card_id=card.id) }}">{{ icon('move', 14) }} Move</button>
-      <button type="button" class="move-btn" title="Duplicate this card" data-after="reload"
-              data-post="{{ url_for('boards.duplicate_card', slug=board.slug, card_id=card.id) }}">{{ icon('copy', 14) }} Duplicate</button>
+      <button type="button" class="dup-btn" title="Duplicate this card (to the board/list picked above, if any)"
+              data-dup-url="{{ url_for('boards.duplicate_card', slug=board.slug, card_id=card.id) }}">{{ icon('copy', 14) }} Duplicate</button>
     </div>
     {% if card.done and not card.repeat %}
     <div class="completed-at-row">

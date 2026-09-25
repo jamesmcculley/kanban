@@ -273,14 +273,26 @@ def update_card(slug, card_id):
 @bp.post("/b/<slug>/cards/<card_id>/duplicate")
 def duplicate_card(slug, card_id):
     """Reachable from the card-edit dialog, so from anywhere a card can be opened -- board,
-    Scheduled, Logbook, Today, Search. Undo just trashes the fresh copy (boards.delete_card),
-    same as undoing any other new card."""
+    Scheduled, Logbook, Today, Search. `to`/`column`, if given (the same "Move to" picker's
+    value), duplicate onto that board/list instead of right after the original. Undo just trashes
+    the fresh copy (boards.delete_card), same as undoing any other new card."""
+    dest_slug = request.form.get("to") or None
+    dest_column = request.form.get("column") or None
     try:
-        copy = store().duplicate_card(slug, card_id)
+        copy = store().duplicate_card(slug, card_id, dest_slug, dest_column)
     except KeyError:
         abort(404)
-    undo = {"url": url_for("boards.delete_card", slug=slug, card_id=copy.id), "method": "DELETE"}
-    message = f"Duplicated “{_short(copy.title)}”" + "".join(f" · {e}" for e in copy.effects)
+    except ValueError:
+        abort(400)
+    dest_slug = dest_slug or slug
+    undo = {"url": url_for("boards.delete_card", slug=dest_slug, card_id=copy.id), "method": "DELETE"}
+    message = f"Duplicated “{_short(copy.title)}”"
+    if dest_slug != slug:
+        try:
+            message += f" to {store().get_board(dest_slug).title}"
+        except KeyError:
+            pass
+    message += "".join(f" · {e}" for e in copy.effects)
     return jsonify(_toast(message, undo))
 
 

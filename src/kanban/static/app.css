@@ -460,9 +460,9 @@ html[data-sidebar=hidden] .resize-handle { display:none; }
 .move-row { display:flex; gap:8px; align-items:center; border-top:1px solid var(--border); padding-top:10px; margin-top:2px; }
 .move-row select { flex:1; min-width:0; padding:7px 8px; border-radius:6px; border:1px solid var(--border);
                     background:var(--bg); color:var(--text-primary); }
-.move-btn { border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);
+.move-btn, .dup-btn { border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);
             border-radius:6px; padding:7px 12px; cursor:pointer; display:flex; align-items:center; gap:5px; }
-.move-btn:hover { border-color:var(--accent); }
+.move-btn:hover, .dup-btn:hover { border-color:var(--accent); }
 .start-field { display:flex; gap:8px; }
 .export-date { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-subtle); flex:1; }
 .completed-at-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-subtle); }

@@ -205,6 +205,29 @@
     location.reload();
   });
 
+  // -- Duplicate: in place, or to whatever board/list the "Move to" picker above has selected --
+  // a separate class (.dup-btn, not .move-btn) on purpose, so this handler and the one above
+  // never both fire for the same click (AGENTS.md trap 9's lesson, one selector per behaviour).
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.dup-btn');
+    if (!btn) return;
+    const select = btn.closest('.move-row').querySelector('.move-to');
+    const body = new URLSearchParams();
+    if (select.value) {
+      const [destSlug, destCol] = select.value.split('|');
+      body.set('to', destSlug);
+      body.set('column', destCol);
+    }
+    btn.disabled = true;
+    const r = await fetch(btn.dataset.dupUrl, { method: 'POST', body });
+    btn.disabled = false;
+    if (!r.ok) return window.toast('Could not duplicate that card');
+    const data = await r.json();
+    document.getElementById('modal').innerHTML = '';
+    window.toast.later(data.message, data.undo);
+    location.reload();
+  });
+
   // -- editing when a completed card was actually completed (forgot to check it off yesterday?) --
   // Only markup in the shared card-edit dialog (_edit.html) now -- opened either on a board (a
   // `.card[data-id]` exists to patch in place) or standalone from Scheduled/Logbook (it doesn't,

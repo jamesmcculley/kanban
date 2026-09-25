@@ -61,3 +61,15 @@ same shape but a deliberately *different* rule for what "fresh" means:
   without inventing a way to attach a toast to a redirect.
 - `_unique_slug` was pulled out of `create_board` (it needed the identical "make a slug, disambiguate
   with -2, -3... if taken" logic) rather than copied a second time.
+
+**Second amendment: duplicate a card to another board, not just in place.** Reuses the edit
+dialog's existing "Move to" board/list picker rather than adding a second picker: the Duplicate
+button, if that picker has a value selected, duplicates *there* instead of right after the
+original — one button, one picker, two related actions (move it there vs. copy it there), matching
+how "Move to" itself already reads. `Store.duplicate_card` gained optional `dest_slug`/
+`dest_column`; with a destination, the copy lands at the end of that list (there's no "original
+position" to land next to on a different board) and its labels are filtered against the
+*destination* board's own label set (an original board's label ids mean nothing on another board).
+The button's own class changed from reusing `.move-btn` to a dedicated `.dup-btn` — sharing
+`.move-btn` for the click *handler* as well as the look would have fired both handlers on one
+click (the exact class of bug trap 9 already named).

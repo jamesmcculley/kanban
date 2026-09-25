@@ -13,7 +13,8 @@ directory can also be opened as an Obsidian vault.
   combined; **save a search and pin it to the sidebar**, rename, duplicate or delete it from Settings
 - Natural-language start and due dates, and repeats: `Pay rent tomorrow`, `fri`, `in 3 days`, `Water plants every monday`
 - **Move or duplicate any card** from its edit dialog — reachable from a board, Scheduled, the
-  Logbook, Today or Search, so it works the same "from anywhere," not just by dragging on a board
+  Logbook, Today or Search, so it works the same "from anywhere," not just by dragging on a board;
+  duplicate lands on whatever board/list the "Move to" picker has selected, or right where it was
 - **Duplicate a whole board** — a full copy, cards (including done ones), lists, settings, rules
   and labels all included
 - **Rules and settings**, per board and global: e.g. "when a card is completed, move it to Done"; new-card

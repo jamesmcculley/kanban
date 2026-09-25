@@ -75,6 +75,23 @@ def test_duplicate_a_card_from_the_edit_dialog_and_undo(page):
     expect(page.locator(".card", has_text="Buy paint (copy)")).to_have_count(0)
 
 
+def test_duplicate_a_card_to_another_board(page):
+    fab_add(page, "New board", "Elsewhere")
+    page.wait_for_url("**/b/elsewhere")
+    page.goto(page.base + "/b/my-board")
+    add_card(page, "Todo", "Buy paint")
+    page.locator(".card", has_text="Buy paint").locator(".title").click()
+    dialog = page.locator("#modal")
+    page.select_option(".move-to", "elsewhere|Todo")
+    with page.expect_navigation():
+        dialog.get_by_role("button", name="Duplicate").click()
+
+    expect(page.locator(".card", has_text="Buy paint")).to_be_visible()  # original stayed on my-board
+    expect(page.locator(".card", has_text="Buy paint (copy)")).to_have_count(0)
+    page.goto(page.base + "/b/elsewhere")
+    expect(page.locator(".card", has_text="Buy paint (copy)")).to_be_visible()
+
+
 def test_duplicate_is_available_from_a_standalone_dialog_too(page):
     add_card(page, "Todo", "needs doing")
     page.locator(".card", has_text="needs doing").locator(".title").click()

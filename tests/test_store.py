@@ -249,6 +249,43 @@ def test_duplicate_card_missing_card_raises_keyerror(store):
         store.duplicate_card(b.slug, "nope")
 
 
+def test_duplicate_card_to_another_board_lands_at_the_end_of_the_chosen_list(store):
+    a = store.create_board("A")
+    b = store.create_board("B")
+    store.add_card(b.slug, "already here", "Doing")
+    card = store.add_card(a.slug, "Buy paint", "Todo", tags=["home"], priority="high")
+
+    copy = store.duplicate_card(a.slug, card.id, b.slug, "Doing")
+    assert copy.title == "Buy paint (copy)"
+    assert [c.title for c in store.cards_by_column(b.slug)["Doing"]] == ["already here", "Buy paint (copy)"]
+    assert [c.title for c in store.list_cards(a.slug)] == ["Buy paint"]   # the original never moved
+    assert copy.tags == ["home"] and copy.priority == "high"
+
+
+def test_duplicate_card_to_another_board_only_keeps_labels_that_board_has(store):
+    a = store.create_board("A")
+    b = store.create_board("B")
+    lbl = store.add_label(a.slug, "Urgent", "red")
+    card = store.add_card(a.slug, "x", "Todo", labels=[lbl["id"]])
+    copy = store.duplicate_card(a.slug, card.id, b.slug, "Todo")
+    assert copy.labels == []          # b.slug has no labels at all, let alone this id
+
+
+def test_duplicate_card_to_another_board_unknown_list_raises_valueerror(store):
+    a = store.create_board("A")
+    b = store.create_board("B")
+    card = store.add_card(a.slug, "x", "Todo")
+    with pytest.raises(ValueError):
+        store.duplicate_card(a.slug, card.id, b.slug, "Nope")
+
+
+def test_duplicate_card_to_another_board_unknown_board_raises_keyerror(store):
+    a = store.create_board("A")
+    card = store.add_card(a.slug, "x", "Todo")
+    with pytest.raises(KeyError):
+        store.duplicate_card(a.slug, card.id, "nope", "Todo")
+
+
 # ---- duplicate_board ---------------------------------------------------------------------------
 
 def test_duplicate_board_copies_structure_settings_rules_and_labels(store):
