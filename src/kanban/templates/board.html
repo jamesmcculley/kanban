@@ -71,6 +71,10 @@
     document.querySelectorAll('.cards').forEach(el => new Sortable(el, {
       group: 'cards', animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
       onEnd: e => {
+        // A drop on a sidebar board (ui.js) already handled this drag -- see the comment there.
+        // Sortable doesn't know about that drop target, so it still fires onEnd for whatever
+        // index drift happened within this list along the way; skip it, once.
+        if (window.__sidebarDropHandled) { window.__sidebarDropHandled = false; return; }
         if (e.from === e.to && e.oldIndex === e.newIndex) return;     // dropped where it started
         window.moveCard(e.item.dataset.id, e.to.closest('.column').dataset.column, e.newIndex);
       },

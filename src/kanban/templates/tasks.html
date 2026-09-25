@@ -30,6 +30,8 @@
     document.querySelectorAll('.tasks-board .cards').forEach(el => new Sortable(el, {
       animation: 150, preventOnFilter: false, filter: '.check, .del, .tag',
       onEnd: e => {
+        // See board.html's identical comment: a sidebar-board drop (ui.js) already handled this.
+        if (window.__sidebarDropHandled) { window.__sidebarDropHandled = false; return; }
         if (e.oldIndex === e.newIndex) return;
         window.moveCard(e.item.dataset.id, 'Tasks', e.newIndex);
       },

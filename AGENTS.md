@@ -157,7 +157,23 @@ Open gaps are tracked in that repo's `ADOPTION.md`. Commit messages: `type(scope
     just "Duplicate", not "Duplicate this card": `title` only becomes the accessible name when
     there's *no* text content to use instead. `page.get_by_role("button", name="Duplicate this
     card")` timed out finding nothing; `name="Duplicate"` (the visible text) found it immediately.
-22. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
+22. **Dropping a card outside every Sortable-managed list still fires that Sortable's `onEnd`** --
+    it only tracks the dragged item's index *within its own list*, has no idea the actual drop
+    landed somewhere else, and fires a same-list reorder POST for whatever index drift happened
+    along the way (the cursor passing near a sibling card en route is enough to cause drift, even
+    with no real reorder intended). This is the `test_drag_card_onto_sidebar_board_moves_it_with_
+    undo` flake from ADR 0007 finally root-caused: dragging a card onto a sidebar board fires two
+    real, concurrent writes to the same card -- Sortable's own spurious `/cards/<id>/move`
+    (same-board reorder) racing the sidebar drop handler's real `/cards/<id>/move-board`
+    (cross-board move) -- and depending on timing, the reorder's write can land *after* the move
+    already relocated the card's file to the other board's folder, resurrecting a stale duplicate.
+    Confirmed by measurement, not just reasoning: reverted the fix and ran the test 10x (3
+    failures) vs. 23x with the fix applied (0 failures). Fixed at the source, not by locking files
+    -- `window.__sidebarDropHandled`, set synchronously in the sidebar drop handler (ui.js) before
+    its async fetch even starts, and so guaranteed to be set before the native `dragend` that
+    drives `onEnd` (dragend always fires after drop) -- tells the board's own Sortable `onEnd`
+    (board.html, tasks.html) this drop is already spoken for, skip your own reorder.
+23. **`write_md()` used to write straight to the target path** (`Path.write_text`), not atomically
     — a concurrent read landing between the truncate and the new content finishing could see a
     half-written file and crash (`KeyError` on a required field like `id`). Hit for real by an e2e
     run: `/sidebar/stats` (fetched after nearly every card action) raced an in-flight card save.

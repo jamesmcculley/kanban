@@ -87,6 +87,13 @@ regular and fully hidden), and a way to resize the sidebar by dragging or typing
   surfaced repeatedly during this work's test runs, always passing in isolation — a real but
   separate issue (a timing race between two drag-handling code paths), not something this change
   caused or fixed. Left as a known flake, not chased down here.
+
+  **(Fixed in a later round.)** Root cause: dropping a card on a sidebar board fires *two* real
+  writes to the same card — Sortable's own `onEnd` still runs (it only tracks index drift within
+  its own list, with no idea the drop landed outside it entirely) alongside the sidebar drop
+  handler's real cross-board move, and depending on timing the spurious reorder's write can land
+  after the move already relocated the card's file, resurrecting a stale duplicate. Measured, not
+  just reasoned about: 3 failures in 10 runs reverted, 0 in 23 with the fix. See AGENTS.md trap 22.
 - Skinny mode's first pass hid the pin button with the same hover-only `opacity` used everywhere
   else, which still reserves its layout space — at 64px that space was most of the row, and board
   titles rendered nothing at all (not even a truncated letter), making a board look like it had

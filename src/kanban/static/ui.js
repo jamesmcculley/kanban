@@ -58,6 +58,15 @@
   });
 
   // -- drop a card on a sidebar board (or the Inbox) to move it there -------------------------
+  // The sidebar isn't a Sortable-managed list, so Sortable's own onEnd (board.html) still fires
+  // on dragend regardless of where the drop actually landed -- it only knows the dragged card's
+  // index *within its own list* may have drifted during the drag (the cursor passing near a
+  // sibling card en route to the sidebar is enough), and fires a same-board reorder POST for that
+  // drift even though the real drop target was a different board entirely. That spurious reorder
+  // then races this handler's own cross-board move against the same card file (see AGENTS.md trap
+  // 22). window.__sidebarDropHandled, set synchronously here before the async fetch even starts --
+  // and so guaranteed to be set before the native dragend that drives onEnd, which always fires
+  // strictly after drop -- tells board.html's onEnd this drop is already spoken for.
   const draggedCard = () => (window.Sortable?.dragged?.classList.contains('card') ? Sortable.dragged : null);
   document.querySelectorAll('[data-drop-board]').forEach(target => {
     const here = () => document.querySelector('.board')?.dataset.slug === target.dataset.dropBoard;
@@ -73,6 +82,7 @@
       const board = document.querySelector('.board');
       if (!card || !board || here()) return;
       e.preventDefault();
+      window.__sidebarDropHandled = true;
       const url = board.dataset.moveboardUrl.replace('ID', card.dataset.id);
       const r = await fetch(url, { method: 'POST', body: new URLSearchParams({ to: target.dataset.dropBoard }) });
       if (!r.ok) return window.toast('Could not move that card');
